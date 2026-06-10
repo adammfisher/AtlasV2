@@ -85,7 +85,7 @@ export function productChecks(payloadRaw: unknown, knownState: ProductState = 'p
 
   const targetState = nextState(knownState);
   if (targetState) {
-    const missing = transitionRules(payload, hasBundleProjection(payload))[targetState];
+    const missing = transitionRules(payload, false)[targetState]; // bundle existence resolved per-artifact in the state route
     checks.push(
       missing.length === 0
         ? { state: 'ok', label: `Completeness — next gate`, detail: `${targetState} requirements met` }
@@ -107,9 +107,6 @@ export function productChecks(payloadRaw: unknown, knownState: ProductState = 'p
   return checks;
 }
 
-function hasBundleProjection(_payload: Payload): boolean {
-  return false; // resolved per-artifact in the state route, where the artifact id is known
-}
 
 export function hasBundleRow(artifactId: string): boolean {
   const row = getDb()
@@ -160,7 +157,7 @@ export async function mergeProductEdit(
       { role: 'user', content: `Fields: ${names.join(', ')}\nEdit instruction: ${instruction}` },
     ],
     routerSchema,
-    { maxTokens: 64, signal },
+    { maxTokens: 192, signal }, // headroom for stray reasoning tokens (same as §4.1 router)
   );
   let fields: string[];
   try {

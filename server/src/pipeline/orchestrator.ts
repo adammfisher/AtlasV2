@@ -3,7 +3,7 @@ import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { config, repoRoot } from '../config.js';
+import { repoRoot } from '../config.js';
 import { logTo } from '../log.js';
 import { completeJson, completeText } from '../llama/json.js';
 import { streamChat } from '../llama/client.js';
@@ -380,7 +380,6 @@ export async function runCreateDoc(opts: {
   pushStep(ctx, { state: 'ok', label: genLabel, detail: 'emitted · validated' });
 
   const firstLine = emitted.split('\n')[0] ?? '';
-  const ext = skill.id === 'md' ? 'md' : skill.id === 'mermaid' ? 'mmd' : 'svg';
   name =
     skill.id === 'md'
       ? `${slug(firstLine.replace(/^#+\s*/, '') || 'notes')}.md`
@@ -494,7 +493,7 @@ DESIGN GUIDANCE: ${skill.guidance}`;
   const arrayKey = ['slides', 'sections', 'sheets', 'pages', 'files'].find(
     (k) => Array.isArray((current.payload as Record<string, unknown>)[k]),
   );
-  let changed: number[] = [];
+  const changed: number[] = [];
   if (arrayKey) {
     const before = (current.payload as Record<string, unknown>)[arrayKey] as unknown[];
     const after = ((edited as Record<string, unknown>)[arrayKey] ?? []) as unknown[];

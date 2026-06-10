@@ -111,11 +111,11 @@ export function ArtifactPreview({
 
   useEffect(() => {
     let cancelled = false;
-    setSrcdoc(null);
-    setChips([]);
-    setNetAttempts(0);
     if (!content) return;
     void (async () => {
+      setSrcdoc(null);
+      setChips([]);
+      setNetAttempts(0);
       if (content.kind === 'react') {
         const result = await buildReactSrcdoc(content.files ?? {}, String(content.entry ?? '/App.jsx'));
         if (cancelled) return;
