@@ -1,13 +1,6 @@
 import { Router } from 'express';
 import { getDb, getSetting, newId, now } from '../db/db.js';
-
-interface ConversationRow {
-  id: string;
-  project_id: string;
-  title: string;
-  created_at: number;
-  updated_at: number;
-}
+import { scopedConversations, type ConversationRow } from '../db/scoped.js';
 
 interface MessageRow {
   id: string;
@@ -21,13 +14,13 @@ export const conversationsRouter = Router();
 
 conversationsRouter.get('/', (req, res) => {
   const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : null;
-  const db = getDb();
-  // Sidebar recents span all projects by design (PRD §7); pass projectId to scope.
+  // Sidebar recents span all projects by design (PRD §7); scoped reads go through
+  // the isolation helpers.
   const rows = projectId
-    ? (db
-        .prepare('SELECT * FROM conversations WHERE project_id = ? ORDER BY updated_at DESC')
-        .all(projectId) as ConversationRow[])
-    : (db.prepare('SELECT * FROM conversations ORDER BY updated_at DESC').all() as ConversationRow[]);
+    ? scopedConversations(projectId)
+    : (getDb()
+        .prepare('SELECT * FROM conversations ORDER BY updated_at DESC')
+        .all() as ConversationRow[]);
   res.json(rows.map((r) => ({ ...r, projectId: r.project_id })));
 });
 

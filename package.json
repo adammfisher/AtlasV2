@@ -6,17 +6,22 @@
   "scripts": {
     "dev": "concurrently -n server,client -c yellow,cyan \"pnpm --filter @atlas/server dev\" \"pnpm --filter @atlas/client dev\"",
     "build": "pnpm -r build",
-    "lint": "eslint client/src server/src --ext .ts,.tsx",
-    "typecheck": "pnpm -r typecheck"
+    "lint": "eslint client/src server/src scripts --ext .ts,.tsx",
+    "typecheck": "pnpm -r typecheck",
+    "test:isolation": "tsx scripts/test/isolation.test.ts"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "concurrently": "10.0.3",
     "eslint": "10.4.1",
     "eslint-plugin-react-hooks": "7.1.1",
     "prettier": "3.8.4",
+    "tsx": "4.22.4",
     "typescript-eslint": "8.61.0"
   }
 }
