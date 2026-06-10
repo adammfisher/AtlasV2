@@ -199,6 +199,33 @@ artifactsRouter.get('/:id/versions/:v/content', (req, res) => {
   res.status(404).json({ error: 'no previewable content' });
 });
 
+/** extraction-based text preview for office kinds (markitdown, labeled "text preview" — PRD §7) */
+artifactsRouter.get('/:id/versions/:v/preview', async (req, res) => {
+  const row = getArtifact(req.params.id);
+  const version = getDb()
+    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
+    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
+  if (!row || !version?.file_path || !existsSync(version.file_path)) {
+    res.status(404).json({ error: 'no file for this version' });
+    return;
+  }
+  if (statSync(version.file_path).isDirectory()) {
+    res.status(400).json({ error: 'directory artifacts preview in the sandbox' });
+    return;
+  }
+  try {
+    const { repoRoot } = await import('../config.js');
+    const { stdout } = await execFileAsync(
+      path.join(repoRoot, 'runtimes/python/venv/bin/python'),
+      ['-m', 'markitdown', version.file_path],
+      { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+    );
+    res.json({ kind: row.kind, label: 'text preview', text: stdout.slice(0, 20_000) });
+  } catch (err) {
+    res.status(500).json({ error: `markitdown extraction failed: ${err instanceof Error ? err.message : err}` });
+  }
+});
+
 /* ---------- Amendment 1: state machine + projections + bundle ---------- */
 
 artifactsRouter.post('/:id/state', (req, res) => {
