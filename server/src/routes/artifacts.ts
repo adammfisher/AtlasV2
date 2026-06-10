@@ -153,6 +153,15 @@ artifactsRouter.get('/:id/versions/:v/download', async (req, res) => {
     res.download(zipPath, `${row.name}-v${req.params.v}.zip`);
     return;
   }
+  // express maps .mmd to a karaoke MIME type; pin sane types for our text kinds
+  const TEXT_TYPES: Record<string, string> = {
+    '.mmd': 'text/plain; charset=utf-8',
+    '.md': 'text/markdown; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.json': 'application/json',
+  };
+  const ext = path.extname(target).toLowerCase();
+  if (TEXT_TYPES[ext]) res.type(TEXT_TYPES[ext]);
   res.download(target, path.basename(target));
 });
 

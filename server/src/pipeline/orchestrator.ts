@@ -118,10 +118,12 @@ async function generateJson(
               content: `Your previous output failed validation: ${lastError}. Output ONLY corrected raw JSON matching the schema.`,
             },
           ];
+    ctx.send('gen', { reset: true, label: ctx.skill.id });
     const raw = await completeJson(messages, schema, {
       maxTokens,
       signal: ctx.signal,
       temperature: 0.2,
+      onDelta: (delta) => ctx.send('gen', { delta }),
     });
     const result = validateJson(ctx.skill.id, schema, raw);
     if (result.ok) {
@@ -373,7 +375,15 @@ export async function runCreateDoc(opts: {
         ? [{ role: 'user' as const, content: `Your previous output failed validation: ${lastError}. Output ONLY the corrected ${skill.id} source.` }]
         : []),
     ];
-    emitted = stripFences(await completeText(messages, { maxTokens: 2048, signal: ctx.signal, temperature: 0.4 }));
+    ctx.send('gen', { reset: true, label: ctx.skill.id });
+    emitted = stripFences(
+      await completeText(messages, {
+        maxTokens: 2048,
+        signal: ctx.signal,
+        temperature: 0.4,
+        onDelta: (delta) => ctx.send('gen', { delta }),
+      }),
+    );
     if (skill.id === 'mermaid') {
       const v = validateMermaid(emitted);
       okEmit = v.ok;
@@ -479,6 +489,7 @@ export async function runEditDoc(opts: {
     let lastError = '';
     let okEmit = false;
     for (let attempt = 0; attempt < 2 && !okEmit; attempt++) {
+      ctx.send('gen', { reset: true, label: skill.id });
       emitted = stripFences(
         await completeText(
           [
@@ -491,7 +502,12 @@ export async function runEditDoc(opts: {
               ? [{ role: 'user' as const, content: `Your previous output failed validation: ${lastError}. Output ONLY the corrected ${skill.id} source.` }]
               : []),
           ],
-          { maxTokens: 2048, signal: ctx.signal, temperature: 0.4 },
+          {
+            maxTokens: 2048,
+            signal: ctx.signal,
+            temperature: 0.4,
+            onDelta: (delta) => ctx.send('gen', { delta }),
+          },
         ),
       );
       if (skill.id === 'mermaid') {
@@ -554,7 +570,12 @@ DESIGN GUIDANCE: ${skill.guidance}`;
         ? [{ role: 'user' as const, content: `Your previous output failed validation: ${lastError}. Output ONLY corrected raw JSON matching the schema.` }]
         : []),
     ];
-    const raw = await completeJson(messages, skill.schema, { maxTokens: 3072, signal: ctx.signal });
+    ctx.send('gen', { reset: true, label: skill.id });
+    const raw = await completeJson(messages, skill.schema, {
+      maxTokens: 3072,
+      signal: ctx.signal,
+      onDelta: (delta) => ctx.send('gen', { delta }),
+    });
     const result = validateJson(skill.id, skill.schema, raw);
     if (result.ok) {
       const extra =

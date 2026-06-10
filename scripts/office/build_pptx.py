@@ -9,6 +9,7 @@ from pptx.enum.shapes import PP_PLACEHOLDER
 from pptx.util import Inches, Pt
 
 import validate_common as vc
+from exemplar_engine import ExemplarDeck
 
 CHART_TYPES = {
     "line": XL_CHART_TYPE.LINE_MARKERS,
@@ -40,8 +41,41 @@ def build(payload: dict, template: str, out: Path) -> dict:
     two_col_layout = pick_layout(prs, ("Two Content",), 3)
     blank_layout = pick_layout(prs, ("Title Only",), 5)
 
+    # DFS exemplar engine: designed library slides are copied + filled when the
+    # curated manifest is present; layout-based building is the fallback.
+    exemplars = None
+    try:
+        exemplars = ExemplarDeck(prs)
+    except Exception:
+        exemplars = None
+
     for slide_spec in payload["slides"]:
         layout_kind = slide_spec["layout"]
+
+        if exemplars is not None and layout_kind in ("bullets", "two_col", "summary", "chart"):
+            heading = slide_spec["heading"]
+            if layout_kind in ("bullets", "summary"):
+                items = [str(b) for b in (slide_spec.get("bullets") or [])]
+                category = "bullets"
+            elif layout_kind == "two_col":
+                items = [str(x) for x in (slide_spec.get("col_left") or [])] + [
+                    str(x) for x in (slide_spec.get("col_right") or [])
+                ]
+                category = "two_col"
+            else:
+                category = "chart"
+                items = [str(b) for b in (slide_spec.get("bullets") or [])]
+            name = exemplars.pick(category, len(items)) if exemplars.has(category) else None
+            if name is not None:
+                exemplars.build_slide(
+                    name,
+                    heading,
+                    items,
+                    chart_spec=slide_spec.get("chart"),
+                    notes=slide_spec.get("notes"),
+                )
+                continue
+
         if layout_kind == "title":
             slide = prs.slides.add_slide(title_layout)
             slide.shapes.title.text = slide_spec["heading"]

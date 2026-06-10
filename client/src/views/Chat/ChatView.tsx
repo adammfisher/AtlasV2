@@ -126,6 +126,8 @@ export function ChatView({
   activeProjectName,
   onOpenArtifact,
   onOpenArtifactList,
+  onGenStream,
+  onArtifactReady,
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
@@ -135,10 +137,13 @@ export function ChatView({
   activeProjectName: string;
   onOpenArtifact: (a: ArtifactRef) => void;
   onOpenArtifactList: () => void;
+  onGenStream: (text: string | null, label: string) => void;
+  onArtifactReady: (a: ArtifactRef) => void;
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
+  const genRef = useRef<{ text: string | null; label: string }>({ text: null, label: '' });
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -181,7 +186,19 @@ export function ChatView({
             setLive((l) => (l ? { ...l, pipeline: true, skillBadge: d.skillBadge } : l));
           }
         } else if (event === 'artifact') {
-          setLive((l) => (l ? { ...l, artifact: data as unknown as ArtifactRef } : l));
+          const ref = data as unknown as ArtifactRef;
+          setLive((l) => (l ? { ...l, artifact: ref } : l));
+          genRef.current = { text: null, label: genRef.current.label };
+          onGenStream(null, genRef.current.label);
+          onArtifactReady(ref);
+        } else if (event === 'gen') {
+          const d = data as { reset?: boolean; delta?: string; label?: string };
+          if (d.reset) {
+            genRef.current = { text: '', label: d.label ?? genRef.current.label };
+          } else if (d.delta && genRef.current.text !== null) {
+            genRef.current = { ...genRef.current, text: genRef.current.text + d.delta };
+          }
+          onGenStream(genRef.current.text, genRef.current.label);
         } else if (event === 'assistant_text') {
           setLive((l) => (l ? { ...l, summary: (data as { text?: string }).text ?? '' } : l));
         } else if (event === 'error') {
@@ -190,6 +207,7 @@ export function ChatView({
         }
       },
       onClose: () => {
+        onGenStream(null, genRef.current.label);
         void queryClient.invalidateQueries({ queryKey: ['conversation', convId] }).then(() => {
           void queryClient.invalidateQueries({ queryKey: ['conversations'] });
           setLive((l) => (l?.error ? l : null));

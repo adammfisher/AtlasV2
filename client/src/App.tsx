@@ -6,6 +6,7 @@ import type { View } from './lib/store';
 import { Sidebar } from './components/Sidebar';
 import { ArtifactPanel } from './components/ArtifactPanel';
 import { ArtifactDrawer } from './components/ArtifactDrawer';
+import { LivePanel } from './components/LivePanel';
 import { ChatView } from './views/Chat/ChatView';
 import { PluginsView } from './views/Plugins/PluginsView';
 import { SkillsView } from './views/Skills/SkillsView';
@@ -15,8 +16,9 @@ export default function App() {
   const [view, setView] = useState<View>('chat');
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<
-    { kind: 'detail'; artifactId: string } | { kind: 'list' } | null
+    { kind: 'detail'; artifactId: string } | { kind: 'list' } | { kind: 'live' } | null
   >(null);
+  const [liveGen, setLiveGen] = useState<{ text: string; label: string } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: health } = useQuery({
@@ -72,6 +74,23 @@ export default function App() {
     if (ref.artifactId) setRightPanel({ kind: 'detail', artifactId: ref.artifactId });
   };
 
+  const onGenStream = (text: string | null, label: string) => {
+    if (text === null) {
+      setLiveGen(null);
+      setRightPanel((p) => (p?.kind === 'live' ? null : p));
+      return;
+    }
+    setLiveGen({ text, label });
+    setRightPanel((p) => (p === null || p.kind === 'live' ? { kind: 'live' } : p));
+  };
+
+  const onArtifactReady = (ref: ArtifactRef) => {
+    if (ref.artifactId) {
+      // the live writing view hands off to the finished document
+      setRightPanel((p) => (p === null || p.kind === 'live' ? { kind: 'detail', artifactId: ref.artifactId as string } : p));
+    }
+  };
+
   return (
     <div className="flex w-full" style={{ height: '100vh', background: C.bg, overflow: 'hidden' }}>
       <Sidebar
@@ -96,6 +115,8 @@ export default function App() {
             activeProjectName={convProject?.name ?? activeProject?.name ?? ''}
             onOpenArtifact={onOpenArtifact}
             onOpenArtifactList={() => setRightPanel({ kind: 'list' })}
+            onGenStream={onGenStream}
+            onArtifactReady={onArtifactReady}
           />
         ) : null}
         {view === 'plugins' ? (
@@ -111,6 +132,9 @@ export default function App() {
         ) : null}
         {view === 'chat' && rightPanel?.kind === 'detail' ? (
           <ArtifactPanel artifactId={rightPanel.artifactId} onClose={() => setRightPanel(null)} />
+        ) : null}
+        {view === 'chat' && rightPanel?.kind === 'live' && liveGen ? (
+          <LivePanel text={liveGen.text} label={liveGen.label} onClose={() => setRightPanel(null)} />
         ) : null}
         {view === 'chat' && rightPanel?.kind === 'list' ? (
           <ArtifactDrawer
