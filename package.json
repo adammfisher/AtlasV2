@@ -8,7 +8,9 @@
     "build": "pnpm -r build",
     "lint": "eslint client/src server/src scripts --ext .ts,.tsx",
     "typecheck": "pnpm -r typecheck",
-    "test:isolation": "tsx scripts/test/isolation.test.ts"
+    "test:isolation": "tsx scripts/test/isolation.test.ts",
+    "test:pipeline-validity": "tsx scripts/test/validity.test.ts",
+    "test:stage3-e2e": "tsx scripts/test/stage3-e2e.test.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

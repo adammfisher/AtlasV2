@@ -11,15 +11,25 @@ import {
   Zap,
   FolderKanban,
   AlertCircle,
+  Box,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
-import { api, type ModelsRegistry, type Message, type ArtifactRef, type PipelineMessageData } from '../../lib/api';
+import {
+  api,
+  type ModelsRegistry,
+  type Message,
+  type ArtifactRef,
+  type PipelineMessageData,
+  type PipelineStep,
+} from '../../lib/api';
 import { postSse } from '../../lib/sse';
 import { Badge } from '../../components/Badge';
 import { ModelMenu } from '../../components/ModelMenu';
 import { StepRow } from '../../components/StepRow';
 import { ArtifactCard } from '../../components/ArtifactCard';
+import { ArtifactPreview } from '../../components/ArtifactPreview';
+import { conversationArtifacts } from '../../components/ArtifactDrawer';
 
 const SUGGESTIONS = [
   'Build a QBR deck from the Q3 pipeline numbers',
@@ -27,7 +37,11 @@ const SUGGESTIONS = [
   'Forecast model for next quarter’s pipeline',
   'Diagram the org-intel ingest flow',
   'Landing page prototype for Atlas',
+  'Define a product — auto loan payment calculator',
 ];
+
+/** kinds whose preview renders inline in the chat thread (A18/A19) */
+const INLINE_PREVIEW_KINDS = ['mermaid', 'react', 'site', 'svg', 'md'];
 
 function Msg({ who, children }: { who: 'user' | 'assistant'; children: ReactNode }) {
   if (who === 'user') {
@@ -85,6 +99,22 @@ interface LiveExchange {
   assistantText: string;
   started: boolean;
   error: string | null;
+  /** live pipeline state — set when the router picks a document skill */
+  pipeline: boolean;
+  skillBadge?: string;
+  steps: PipelineStep[];
+  artifact?: ArtifactRef;
+  summary?: string;
+}
+
+function upsertStep(steps: PipelineStep[], step: PipelineStep): PipelineStep[] {
+  const i = steps.findIndex((s) => s.label === step.label);
+  if (i >= 0) {
+    const next = steps.slice();
+    next[i] = step;
+    return next;
+  }
+  return [...steps, step];
 }
 
 export function ChatView({
@@ -95,6 +125,7 @@ export function ChatView({
   userName,
   activeProjectName,
   onOpenArtifact,
+  onOpenArtifactList,
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
@@ -103,6 +134,7 @@ export function ChatView({
   userName: string;
   activeProjectName: string;
   onOpenArtifact: (a: ArtifactRef) => void;
+  onOpenArtifactList: () => void;
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
@@ -128,12 +160,30 @@ export function ChatView({
     const text = input.trim();
     if (!text || busy || convId === null) return;
     setInput('');
-    setLive({ userText: text, assistantText: '', started: false, error: null });
+    setLive({ userText: text, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
     void postSse(`/conversations/${convId}/messages`, { text }, {
       onEvent: (event, data) => {
         if (event === 'token') {
           const delta = typeof data.delta === 'string' ? data.delta : '';
           setLive((l) => (l ? { ...l, started: true, assistantText: l.assistantText + delta } : l));
+        } else if (event === 'step') {
+          setLive((l) =>
+            l ? { ...l, pipeline: true, steps: upsertStep(l.steps, data as unknown as PipelineStep) } : l,
+          );
+        } else if (event === 'route') {
+          // plain chat: drop the transient router row, fall back to Thinking…
+          if ((data as { intent?: string }).intent === 'chat') {
+            setLive((l) => (l ? { ...l, pipeline: false, steps: [] } : l));
+          }
+        } else if (event === 'pipeline') {
+          const d = data as { phase?: string; skillBadge?: string };
+          if (d.phase === 'start') {
+            setLive((l) => (l ? { ...l, pipeline: true, skillBadge: d.skillBadge } : l));
+          }
+        } else if (event === 'artifact') {
+          setLive((l) => (l ? { ...l, artifact: data as unknown as ArtifactRef } : l));
+        } else if (event === 'assistant_text') {
+          setLive((l) => (l ? { ...l, summary: (data as { text?: string }).text ?? '' } : l));
         } else if (event === 'error') {
           const message = typeof data.message === 'string' ? data.message : 'Unknown error';
           setLive((l) => (l ? { ...l, error: message } : l));
@@ -157,6 +207,7 @@ export function ChatView({
       : registry?.models.find((m) => m.id === registry.selected) ?? { name: 'Auto' };
   const empty = messages.length === 0 && live === null;
   const offline = llamaStatus !== 'ready';
+  const artifactCount = conversationArtifacts(messages).length + (live?.artifact?.artifactId && !messages.some((m) => m.kind === 'pipeline' && m.artifact?.artifactId === live.artifact?.artifactId) ? 1 : 0);
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
@@ -172,6 +223,24 @@ export function ChatView({
           Project
         </Badge>
         <span className="ml-auto" />
+        <button
+          onClick={onOpenArtifactList}
+          title="Artifacts in this chat"
+          className="relative flex items-center justify-center p-1.5 rounded-lg transition-colors"
+          style={{ color: artifactCount > 0 ? C.text : C.mute }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <Box size={16} />
+          {artifactCount > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-[10px] font-semibold"
+              style={{ minWidth: 14, height: 14, padding: '0 3px', background: C.accent, color: '#fff', fontFamily: sans }}
+            >
+              {artifactCount}
+            </span>
+          )}
+        </button>
         <Badge color={C.green} dim={C.greenDim} icon={Lock}>
           On-device · no data leaves this machine
         </Badge>
@@ -226,6 +295,16 @@ export function ChatView({
                   <p className="leading-relaxed mb-3" style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
                     {m.text}
                   </p>
+                  {m.artifact?.artifactId && INLINE_PREVIEW_KINDS.includes(m.artifact.kind) && (
+                    <div className="mb-3">
+                      <ArtifactPreview
+                        artifactId={m.artifact.artifactId}
+                        version={m.artifact.ver}
+                        kind={m.artifact.kind}
+                        height={280}
+                      />
+                    </div>
+                  )}
                   {m.artifact && <ArtifactCard artifact={m.artifact} onOpen={() => onOpenArtifact(m.artifact as ArtifactRef)} />}
                 </Msg>
               ) : (
@@ -243,6 +322,35 @@ export function ChatView({
               <>
                 <Msg who="user">{live.userText}</Msg>
                 <Msg who="assistant">
+                  {live.pipeline && (
+                    <div
+                      className="rounded-xl px-3.5 py-3 mb-3"
+                      style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Zap size={13} style={{ color: C.accent }} />
+                        <span className="text-xs font-medium" style={{ color: C.text, fontFamily: sans }}>
+                          Document pipeline
+                        </span>
+                        {live.skillBadge ? (
+                          <Badge color={C.accent} dim={C.accentDim}>
+                            {live.skillBadge}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {live.steps.map((s) => (
+                        <StepRow key={s.label} state={s.state} label={s.label} detail={s.detail} />
+                      ))}
+                    </div>
+                  )}
+                  {live.summary && (
+                    <p className="leading-relaxed mb-3" style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
+                      {live.summary}
+                    </p>
+                  )}
+                  {live.artifact && (
+                    <ArtifactCard artifact={live.artifact} onOpen={() => onOpenArtifact(live.artifact as ArtifactRef)} />
+                  )}
                   {live.error ? (
                     <div
                       className="flex items-start gap-2 text-sm rounded-xl px-3.5 py-3"
@@ -251,19 +359,19 @@ export function ChatView({
                       <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
                       <span>{live.error}</span>
                     </div>
-                  ) : !live.started ? (
+                  ) : !live.started && !live.pipeline ? (
                     <div className="flex items-center gap-2 text-sm" style={{ color: C.sub, fontFamily: sans }}>
                       <Loader2 size={14} className="animate-spin" style={{ color: C.accent }} />
                       Thinking…
                     </div>
-                  ) : (
+                  ) : live.assistantText ? (
                     <p
                       className="leading-relaxed whitespace-pre-wrap"
                       style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
                     >
                       {live.assistantText}
                     </p>
-                  )}
+                  ) : null}
                 </Msg>
               </>
             )}

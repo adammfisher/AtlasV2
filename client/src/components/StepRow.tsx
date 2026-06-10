@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { C, sans } from '../theme/tokens';
 
 export function StepRow({
@@ -17,7 +17,7 @@ export function StepRow({
       ) : state === 'ok' ? (
         <CheckCircle2 size={14} style={{ color: C.green, marginTop: 2 }} />
       ) : (
-        <Clock size={14} style={{ color: C.mute, marginTop: 2 }} />
+        <Loader2 size={14} className="animate-spin" style={{ color: C.accent, marginTop: 2 }} />
       )}
       <span className="text-xs" style={{ color: C.sub, fontFamily: sans }}>
         <span style={{ color: C.text }}>{label}</span>

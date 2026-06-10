@@ -4,7 +4,7 @@ import path from 'node:path';
 import { config } from './config.js';
 import { log } from './log.js';
 import { getDb, getSetting } from './db/db.js';
-import { seedIfNeeded } from './db/seed.js';
+import { seedIfNeeded, backfillSeedArtifactFiles } from './db/seed.js';
 import { startLlama, stopLlama, llamaState } from './llama/spawn.js';
 import { scanModels } from './llama/models.js';
 import { projectsRouter } from './routes/projects.js';
@@ -24,6 +24,7 @@ for (const dir of ['data', 'artifacts', 'credentials', 'logs']) {
 // 2. Database + first-boot fixtures
 getDb();
 seedIfNeeded();
+backfillSeedArtifactFiles();
 
 // 3. llama-server sidecar (async — /health reports progress)
 void startLlama(getSetting('selectedModel'));

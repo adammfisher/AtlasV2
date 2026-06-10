@@ -1,0 +1,4 @@
+{
+  "emit": "text",
+  "description": "Direct SVG emission — no JSON intermediate. Server validates XML well-formedness and viewBox presence."
+}
