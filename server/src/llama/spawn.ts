@@ -52,10 +52,9 @@ export function pickChatModel(selected: string | null): ModelEntry | null {
 }
 
 /**
- * Warm the fresh llama-server process with a request shaped like real chat traffic
- * (≈120-token prompt, streaming, same sampling params). The first sizeable prompt
- * batch pays one-time Metal pipeline compilation (~5 s) — pay it here, not on the
- * user's first message.
+ * Warm the fresh llama-server process with a chat-shaped request so first-message
+ * latency excludes weight paging and graph setup. Thinking is disabled to match
+ * real chat requests.
  */
 async function warmup(): Promise<void> {
   try {
@@ -73,6 +72,7 @@ async function warmup(): Promise<void> {
         temperature: 1.0,
         top_p: 0.95,
         top_k: 64,
+        chat_template_kwargs: { enable_thinking: false },
       }),
     });
     await res.text();
