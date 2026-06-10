@@ -53,14 +53,16 @@ export function validateMermaid(source: string): { ok: true } | { ok: false; err
   }
   const quotes = (text.match(/"/g) ?? []).length;
   if (quotes % 2 !== 0) return { ok: false, error: 'unbalanced quotes' };
-  for (const pair of [
-    ['[', ']'],
-    ['(', ')'],
-    ['{', '}'],
-  ] as const) {
-    const open = text.split(pair[0]).length - 1;
-    const close = text.split(pair[1]).length - 1;
-    if (open !== close) return { ok: false, error: `unbalanced ${pair[0]}${pair[1]}` };
+  // the most common real-world parse failure: unquoted (), {} or | inside [] / {} node labels
+  for (const match of text.matchAll(/\[([^\]]*)\]|\{([^}]*)\}/g)) {
+    const label = match[1] ?? match[2] ?? '';
+    if (label.startsWith('"') && label.endsWith('"')) continue;
+    if (/[(){}|]/.test(label)) {
+      return {
+        ok: false,
+        error: `node label ${JSON.stringify(label.slice(0, 40))} contains (), {} or | — wrap the whole label in double quotes`,
+      };
+    }
   }
   return { ok: true };
 }
