@@ -1,0 +1,4 @@
+{
+  "emit": "text",
+  "description": "Direct markdown emission — no JSON intermediate. The completion body IS the document; rendered client-side with the vendored marked.js."
+}

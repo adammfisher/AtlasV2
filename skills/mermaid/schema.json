@@ -1,0 +1,4 @@
+{
+  "emit": "text",
+  "description": "Direct mermaid-source emission — no JSON intermediate. Parse-validated server-side, rendered client-side with the vendored mermaid.js in a sandboxed iframe."
+}

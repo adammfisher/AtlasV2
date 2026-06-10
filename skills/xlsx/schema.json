@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sheets"],
+  "properties": {
+    "sheets": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "cells"],
+        "properties": {
+          "name": { "type": "string" },
+          "cells": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 120,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ref"],
+              "properties": {
+                "ref": { "type": "string" },
+                "valueText": { "type": "string" },
+                "valueNumber": { "type": "number" },
+                "formula": { "type": "string" },
+                "format": { "type": "string", "enum": ["header", "bold", "plain"] }
+              }
+            }
+          },
+          "widths": { "type": "array", "maxItems": 12, "items": { "type": "number" } }
+        }
+      }
+    }
+  }
+}

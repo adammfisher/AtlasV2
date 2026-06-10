@@ -1,0 +1,137 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "spine", "problem", "value_prop", "scope_in", "scope_out"],
+  "properties": {
+    "name": { "type": "string" },
+    "spine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lob", "domain"],
+      "properties": {
+        "lob": { "type": "string" },
+        "domain": { "type": "string" },
+        "capability_code": { "type": "string" },
+        "capability_name": { "type": "string" }
+      }
+    },
+    "problem": { "type": "string" },
+    "value_prop": { "type": "string" },
+    "strategy_refs": { "type": "array", "maxItems": 5, "items": { "type": "string" } },
+    "scope_in": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "string" } },
+    "scope_out": { "type": "array", "maxItems": 12, "items": { "type": "string" } },
+    "benefit_hypothesis": { "type": "string" },
+    "kpis": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "target"],
+        "properties": {
+          "name": { "type": "string" },
+          "target": { "type": "string" },
+          "measure": { "type": "string" }
+        }
+      }
+    },
+    "swag": { "type": "string", "enum": ["S", "M", "L", "XL"] },
+    "use_cases": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "actor", "flow"],
+        "properties": {
+          "title": { "type": "string" },
+          "actor": { "type": "string" },
+          "flow": { "type": "string" }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value"],
+        "properties": {
+          "name": { "type": "string" },
+          "value": { "type": "string" },
+          "swag": { "type": "string", "enum": ["S", "M", "L", "XL"] }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "maxItems": 24,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capability", "given", "when", "then"],
+        "properties": {
+          "capability": { "type": "string" },
+          "given": { "type": "string" },
+          "when": { "type": "string" },
+          "then": { "type": "string" }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["system", "nature"],
+        "properties": {
+          "system": { "type": "string" },
+          "nature": { "type": "string" }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["desc"],
+        "properties": {
+          "desc": { "type": "string" },
+          "mitigation": { "type": "string" }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "choice"],
+        "properties": {
+          "title": { "type": "string" },
+          "choice": { "type": "string" },
+          "rationale": { "type": "string" },
+          "date": { "type": "string" }
+        }
+      }
+    },
+    "as_built": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fact"],
+        "properties": {
+          "fact": { "type": "string" },
+          "source": { "type": "string" }
+        }
+      }
+    }
+  }
+}
