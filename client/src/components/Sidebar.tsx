@@ -96,7 +96,7 @@ export function Sidebar({
             <button
               key={c.id}
               onClick={() => openConv(c.id)}
-              className="text-left px-2.5 py-1.5 rounded-lg text-sm truncate transition-colors"
+              className="flex-shrink-0 text-left px-2.5 py-1.5 rounded-lg text-sm truncate transition-colors"
               style={{ color: active ? C.text : C.sub, background: active ? C.panel : 'transparent', fontFamily: sans }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = active ? C.panel : 'transparent')}
