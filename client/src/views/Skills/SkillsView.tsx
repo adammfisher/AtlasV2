@@ -19,7 +19,7 @@ export function SkillsView({ skills }: { skills: Skill[] }) {
   };
 
   return (
-    <div className="flex flex-col h-full min-w-0">
+    <div className="flex-1 flex flex-col h-full min-w-0">
       <div className="px-7 pt-6 pb-4">
         <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Skills</h1>
         <p className="text-sm mt-1 max-w-2xl" style={{ color: C.sub, fontFamily: sans }}>

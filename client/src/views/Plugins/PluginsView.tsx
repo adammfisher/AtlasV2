@@ -64,7 +64,7 @@ export function PluginsView({
   };
 
   return (
-    <div className="relative flex flex-col h-full min-w-0">
+    <div className="relative flex-1 flex flex-col h-full min-w-0">
       <div className="px-7 pt-6 pb-4">
         <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Plugins</h1>
         <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>

@@ -26,7 +26,7 @@ export function ProjectsView({
   };
 
   return (
-    <div className="flex flex-col h-full min-w-0">
+    <div className="flex-1 flex flex-col h-full min-w-0">
       <div className="px-7 pt-6 pb-4 flex items-end gap-3">
         <div>
           <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Projects</h1>

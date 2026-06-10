@@ -159,7 +159,7 @@ export function ChatView({
   const offline = llamaStatus !== 'ready';
 
   return (
-    <div className="flex flex-col h-full min-w-0">
+    <div className="flex-1 flex flex-col h-full min-w-0">
       <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
         <span className="text-sm" style={{ color: C.mute, fontFamily: sans }}>
           {activeProjectName}
