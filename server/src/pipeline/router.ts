@@ -10,7 +10,7 @@ export interface RouteResult {
 // PRD §4.1 system prompt verbatim + Amendment §A4.1 product line
 const ROUTER_SYSTEM = `You are a routing classifier inside Atlas. Output ONLY a raw JSON object, no markdown.
 Decide what the user's latest message asks for.
-intents: chat (conversation/questions), create_doc (make a document/deck/sheet/pdf/diagram/site/component), edit_doc (modify the most recent generated artifact).
+intents: chat (conversation/questions), create_doc (make a document/deck/sheet/pdf/diagram/site/component, or define a new product/concept), edit_doc (modify the most recent generated artifact, or log decisions/facts on it).
 skills: pptx docx xlsx pdf md mermaid svg react site product, or null when intent is chat.
 product: define a new product/concept, or evolve an existing product definition
 site: static HTML/CSS pages and landing pages. react: interactive components/apps/widgets.

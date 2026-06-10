@@ -199,6 +199,61 @@ artifactsRouter.get('/:id/versions/:v/content', (req, res) => {
   res.status(404).json({ error: 'no previewable content' });
 });
 
+/**
+ * Real document preview: pdf streams inline; pptx/docx/xlsx convert via soffice
+ * (cached per version) and stream the PDF inline. 404s when soffice is absent —
+ * the client falls back to the markitdown text preview (PRD §7 degradation).
+ */
+artifactsRouter.get('/:id/versions/:v/render.pdf', async (req, res) => {
+  const row = getArtifact(req.params.id);
+  const version = getDb()
+    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
+    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
+  if (!row || !version?.file_path || !existsSync(version.file_path) || statSync(version.file_path).isDirectory()) {
+    res.status(404).json({ error: 'no renderable file for this version' });
+    return;
+  }
+  const file = version.file_path;
+  const inline = (pdf: string) => {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline');
+    res.sendFile(pdf);
+  };
+  if (row.kind === 'pdf') {
+    inline(file);
+    return;
+  }
+  if (!['pptx', 'docx', 'xlsx'].includes(row.kind)) {
+    res.status(400).json({ error: `no PDF rendering for kind ${row.kind}` });
+    return;
+  }
+  const cached = path.join(path.dirname(file), `${path.basename(file)}.preview.pdf`);
+  if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(file).mtimeMs) {
+    inline(cached);
+    return;
+  }
+  const soffice = ['/opt/homebrew/bin/soffice', '/Applications/LibreOffice.app/Contents/MacOS/soffice'].find((p) =>
+    existsSync(p),
+  );
+  if (!soffice) {
+    res.status(404).json({ error: 'soffice not present — falling back to text preview' });
+    return;
+  }
+  try {
+    const outDir = path.dirname(file);
+    await execFileAsync(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', outDir, file], {
+      timeout: 120_000,
+    });
+    const produced = path.join(outDir, `${path.basename(file, path.extname(file))}.pdf`);
+    if (!existsSync(produced)) throw new Error('soffice produced no PDF');
+    const { renameSync } = await import('node:fs');
+    renameSync(produced, cached);
+    inline(cached);
+  } catch (err) {
+    res.status(500).json({ error: `render failed: ${err instanceof Error ? err.message : err}` });
+  }
+});
+
 /** extraction-based text preview for office kinds (markitdown, labeled "text preview" — PRD §7) */
 artifactsRouter.get('/:id/versions/:v/preview', async (req, res) => {
   const row = getArtifact(req.params.id);

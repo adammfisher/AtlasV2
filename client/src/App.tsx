@@ -5,6 +5,7 @@ import { api, type ArtifactRef } from './lib/api';
 import type { View } from './lib/store';
 import { Sidebar } from './components/Sidebar';
 import { ArtifactPanel } from './components/ArtifactPanel';
+import { ArtifactDrawer } from './components/ArtifactDrawer';
 import { ChatView } from './views/Chat/ChatView';
 import { PluginsView } from './views/Plugins/PluginsView';
 import { SkillsView } from './views/Skills/SkillsView';
@@ -13,7 +14,9 @@ import { ProjectsView } from './views/Projects/ProjectsView';
 export default function App() {
   const [view, setView] = useState<View>('chat');
   const [activeConv, setActiveConv] = useState<string | null>(null);
-  const [artifactId, setArtifactId] = useState<string | null>(null);
+  const [rightPanel, setRightPanel] = useState<
+    { kind: 'detail'; artifactId: string } | { kind: 'list' } | null
+  >(null);
   const queryClient = useQueryClient();
 
   const { data: health } = useQuery({
@@ -66,7 +69,7 @@ export default function App() {
   };
 
   const onOpenArtifact = (ref: ArtifactRef) => {
-    if (ref.artifactId) setArtifactId(ref.artifactId);
+    if (ref.artifactId) setRightPanel({ kind: 'detail', artifactId: ref.artifactId });
   };
 
   return (
@@ -92,6 +95,7 @@ export default function App() {
             userName={userName}
             activeProjectName={convProject?.name ?? activeProject?.name ?? ''}
             onOpenArtifact={onOpenArtifact}
+            onOpenArtifactList={() => setRightPanel({ kind: 'list' })}
           />
         ) : null}
         {view === 'plugins' ? (
@@ -105,8 +109,15 @@ export default function App() {
             setActiveProject={setActiveProject}
           />
         ) : null}
-        {view === 'chat' && artifactId ? (
-          <ArtifactPanel artifactId={artifactId} onClose={() => setArtifactId(null)} />
+        {view === 'chat' && rightPanel?.kind === 'detail' ? (
+          <ArtifactPanel artifactId={rightPanel.artifactId} onClose={() => setRightPanel(null)} />
+        ) : null}
+        {view === 'chat' && rightPanel?.kind === 'list' ? (
+          <ArtifactDrawer
+            convId={effectiveConv}
+            onSelect={(id) => setRightPanel({ kind: 'detail', artifactId: id })}
+            onClose={() => setRightPanel(null)}
+          />
         ) : null}
       </div>
     </div>

@@ -75,7 +75,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
   return (
     <div
       className="flex flex-col h-full flex-shrink-0"
-      style={{ width: 380, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }}
+      style={{ width: 'min(52vw, 880px)', minWidth: 480, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }}
     >
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
         <Icon size={15} style={{ color: C.accent }} />
@@ -253,7 +253,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
             </div>
           </>
         ) : (
-          <ArtifactPreview artifactId={a.id} version={activeVer} kind={a.kind} height={300} />
+          <ArtifactPreview artifactId={a.id} version={activeVer} kind={a.kind} height={'calc(100vh - 330px)'} />
         )}
 
         <div>
@@ -282,7 +282,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
             style={{ background: C.accent, color: '#fff', fontFamily: sans, textDecoration: 'none' }}
           >
-            <Download size={14} /> Download v{activeVer}
+            <Download size={14} /> Download as {a.kind === 'product' ? 'JSON' : a.kind.toUpperCase()} · v{activeVer}
           </a>
           {activeVer !== a.ver && (
             <button

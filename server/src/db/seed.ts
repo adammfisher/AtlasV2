@@ -1,5 +1,8 @@
+import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { getDb, getSetting, setSetting, now } from './db.js';
-import { config } from '../config.js';
+import { config, repoRoot } from '../config.js';
 import { log } from '../log.js';
 
 /** Mockup-parity first-boot fixtures (reference/atlas-v2-ui.jsx). */
@@ -159,4 +162,35 @@ export function seedIfNeeded(): void {
   });
   seed();
   log('seeded first-boot fixtures (atlas-v2-ui)');
+}
+
+/**
+ * PRD §7: the QBR seed artifact gets a real generated file at seed time so
+ * downloads work. Runs at boot whenever a1's file is missing and the Python
+ * toolchain exists (i.e. after bootstrap-python.sh); logged honestly when
+ * skipped.
+ */
+export function backfillSeedArtifactFiles(): void {
+  const db = getDb();
+  const row = db
+    .prepare(
+      "SELECT a.project_id, v.file_path FROM artifacts a JOIN artifact_versions v ON v.artifact_id = a.id WHERE a.id = 'a1' AND v.version = 1",
+    )
+    .get() as { project_id: string; file_path: string | null } | undefined;
+  if (!row || (row.file_path && existsSync(row.file_path))) return;
+  const python = path.join(repoRoot, 'runtimes/python/venv/bin/python');
+  if (!existsSync(python)) {
+    log('seed artifact backfill skipped — run scripts/dev/bootstrap-python.sh first');
+    return;
+  }
+  try {
+    execFileSync('npx', ['tsx', 'scripts/dev/backfill-seed-artifact.ts'], {
+      cwd: repoRoot,
+      timeout: 300_000,
+      stdio: 'ignore',
+    });
+    log('seed artifact files backfilled (Q3-Business-Review.pptx v1+v2)');
+  } catch (err) {
+    log(`seed artifact backfill failed: ${err instanceof Error ? err.message : err}`);
+  }
 }

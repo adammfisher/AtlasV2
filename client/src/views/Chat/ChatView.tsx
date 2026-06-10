@@ -11,6 +11,7 @@ import {
   Zap,
   FolderKanban,
   AlertCircle,
+  Box,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
@@ -28,6 +29,7 @@ import { ModelMenu } from '../../components/ModelMenu';
 import { StepRow } from '../../components/StepRow';
 import { ArtifactCard } from '../../components/ArtifactCard';
 import { ArtifactPreview } from '../../components/ArtifactPreview';
+import { conversationArtifacts } from '../../components/ArtifactDrawer';
 
 const SUGGESTIONS = [
   'Build a QBR deck from the Q3 pipeline numbers',
@@ -123,6 +125,7 @@ export function ChatView({
   userName,
   activeProjectName,
   onOpenArtifact,
+  onOpenArtifactList,
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
@@ -131,6 +134,7 @@ export function ChatView({
   userName: string;
   activeProjectName: string;
   onOpenArtifact: (a: ArtifactRef) => void;
+  onOpenArtifactList: () => void;
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
@@ -203,6 +207,7 @@ export function ChatView({
       : registry?.models.find((m) => m.id === registry.selected) ?? { name: 'Auto' };
   const empty = messages.length === 0 && live === null;
   const offline = llamaStatus !== 'ready';
+  const artifactCount = conversationArtifacts(messages).length + (live?.artifact?.artifactId && !messages.some((m) => m.kind === 'pipeline' && m.artifact?.artifactId === live.artifact?.artifactId) ? 1 : 0);
 
   return (
     <div className="flex-1 flex flex-col h-full min-w-0">
@@ -218,6 +223,24 @@ export function ChatView({
           Project
         </Badge>
         <span className="ml-auto" />
+        <button
+          onClick={onOpenArtifactList}
+          title="Artifacts in this chat"
+          className="relative flex items-center justify-center p-1.5 rounded-lg transition-colors"
+          style={{ color: artifactCount > 0 ? C.text : C.mute }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <Box size={16} />
+          {artifactCount > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-[10px] font-semibold"
+              style={{ minWidth: 14, height: 14, padding: '0 3px', background: C.accent, color: '#fff', fontFamily: sans }}
+            >
+              {artifactCount}
+            </span>
+          )}
+        </button>
         <Badge color={C.green} dim={C.greenDim} icon={Lock}>
           On-device · no data leaves this machine
         </Badge>

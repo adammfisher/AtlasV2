@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { C, sans, mono } from '../theme/tokens';
 import { Badge } from './Badge';
@@ -25,9 +25,17 @@ function SandboxFrame({
   chips,
 }: {
   srcdoc: string;
-  height: number;
+  height: number | string;
   chips: Array<{ ok: boolean; label: string }>;
 }) {
+  // blob URL rather than srcdoc: srcdoc documents inherit the parent's base URL,
+  // so a generated page setting location.hash would navigate the sandbox to the
+  // Atlas app itself. A blob document keeps hash navigation inside the sandbox.
+  const blobUrl = useMemo(
+    () => URL.createObjectURL(new Blob([srcdoc], { type: 'text/html' })),
+    [srcdoc],
+  );
+  useEffect(() => () => URL.revokeObjectURL(blobUrl), [blobUrl]);
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: C.raised }}>
@@ -51,7 +59,7 @@ function SandboxFrame({
       </div>
       <iframe
         sandbox="allow-scripts"
-        srcDoc={srcdoc}
+        src={blobUrl}
         style={{ width: '100%', height, border: 'none', background: '#262624', display: 'block' }}
         title="artifact preview"
       />
@@ -68,7 +76,7 @@ export function ArtifactPreview({
   artifactId: string;
   version: number;
   kind: string;
-  height?: number;
+  height?: number | string;
 }) {
   const sandboxed = SANDBOX_KINDS.includes(kind);
   const { data: content } = useQuery({
@@ -81,6 +89,19 @@ export function ArtifactPreview({
     enabled: sandboxed,
     staleTime: 60_000,
   });
+  const office = ['pptx', 'docx', 'xlsx', 'pdf'].includes(kind);
+  const { data: renderable } = useQuery({
+    queryKey: ['artifact-render', artifactId, version],
+    queryFn: async () => {
+      const res = await fetch(`/api/artifacts/${artifactId}/versions/${version}/render.pdf`, {
+        method: 'HEAD',
+      });
+      return res.ok;
+    },
+    enabled: office,
+    staleTime: 60_000,
+    retry: false,
+  });
   const { data: textPreview } = useQuery({
     queryKey: ['artifact-preview', artifactId, version],
     queryFn: async () => {
@@ -91,7 +112,7 @@ export function ArtifactPreview({
       }
       return res.json() as Promise<{ text: string; label: string }>;
     },
-    enabled: ['pptx', 'docx', 'xlsx', 'pdf'].includes(kind),
+    enabled: office && renderable === false,
     staleTime: 60_000,
     retry: false,
   });
@@ -168,6 +189,33 @@ export function ArtifactPreview({
   }
 
   if (kind === 'product') return null; // product renders its own sections in the panel
+
+  // office + pdf: real document view (pdf native; pptx/docx/xlsx soffice-rendered
+  // to PDF server-side). Falls back to the markitdown text preview when the
+  // render endpoint is unavailable (no soffice / no file).
+  if (renderable === undefined) {
+    return (
+      <div className="text-xs px-3 py-4" style={{ color: C.mute, fontFamily: sans }}>
+        rendering document…
+      </div>
+    );
+  }
+  if (renderable) {
+    return (
+      <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+        <div className="flex items-center gap-2 px-3 py-2" style={{ background: C.raised }}>
+          <span className="text-xs" style={{ color: C.mute, fontFamily: mono }}>
+            {kind === 'pdf' ? 'document view' : `document view · rendered from .${kind}`}
+          </span>
+        </div>
+        <iframe
+          src={`/api/artifacts/${artifactId}/versions/${version}/render.pdf#toolbar=0&navpanes=0&view=FitH`}
+          style={{ width: '100%', height, border: 'none', background: '#525659', display: 'block' }}
+          title="document preview"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
