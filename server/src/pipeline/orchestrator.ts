@@ -9,7 +9,7 @@ import { completeJson, completeText } from '../llama/json.js';
 import { streamChat } from '../llama/client.js';
 import { scanModels } from '../llama/models.js';
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
-import { validateJson, validateMermaid, validateSvg, stripFences } from './validate.js';
+import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences } from './validate.js';
 import {
   createArtifact,
   addVersion,
@@ -102,6 +102,7 @@ async function generateJson(
   ctx: Ctx,
   systemPrompt: string,
   maxTokens: number,
+  extraValidate?: (payload: unknown) => { ok: true } | { ok: false; error: string },
 ): Promise<{ payload: unknown; firstPass: boolean }> {
   const schema = ctx.skill.schema as Record<string, unknown>;
   let lastError = '';
@@ -124,8 +125,14 @@ async function generateJson(
     });
     const result = validateJson(ctx.skill.id, schema, raw);
     if (result.ok) {
-      logTo('pipeline', `${ctx.skill.id} json valid attempt=${attempt + 1} hash=${raw.length}`);
-      return { payload: result.value, firstPass: attempt === 0 };
+      const extra = extraValidate?.(result.value);
+      if (!extra || extra.ok) {
+        logTo('pipeline', `${ctx.skill.id} json valid attempt=${attempt + 1} hash=${raw.length}`);
+        return { payload: result.value, firstPass: attempt === 0 };
+      }
+      lastError = extra.error;
+      logTo('pipeline', `${ctx.skill.id} extra-validation attempt=${attempt + 1}: ${lastError}`);
+      continue;
     }
     lastError = result.error;
     logTo('pipeline', `${ctx.skill.id} repair attempt=${attempt + 1}: ${lastError}`);
@@ -262,7 +269,12 @@ export async function runCreateDoc(opts: {
     }
     pushStep(ctx, { state: 'pending', label: genLabel, detail: 'constrained json_schema' });
     const maxTokens = skill.id === 'product' ? 4096 : 3072;
-    const { payload, firstPass } = await generateJson(ctx, officePrompt(skill, opts.instructions, opts.text), maxTokens);
+    const fileMapCheck =
+      skill.id === 'react' || skill.id === 'site'
+        ? (payload: unknown) =>
+            validateFileMap(((payload as Record<string, unknown>).files ?? {}) as Record<string, string>)
+        : undefined;
+    const { payload, firstPass } = await generateJson(ctx, officePrompt(skill, opts.instructions, opts.text), maxTokens, fileMapCheck);
     pushStep(ctx, {
       state: 'ok',
       label: genLabel,
@@ -545,8 +557,17 @@ DESIGN GUIDANCE: ${skill.guidance}`;
     const raw = await completeJson(messages, skill.schema, { maxTokens: 3072, signal: ctx.signal });
     const result = validateJson(skill.id, skill.schema, raw);
     if (result.ok) {
-      edited = result.value;
-      okEdit = true;
+      const extra =
+        skill.id === 'react' || skill.id === 'site'
+          ? validateFileMap(((result.value as Record<string, unknown>).files ?? {}) as Record<string, string>)
+          : ({ ok: true } as const);
+      if (extra.ok) {
+        edited = result.value;
+        okEdit = true;
+      } else {
+        lastError = extra.error;
+        logTo('pipeline', `edit extra-validation attempt=${attempt + 1}: ${lastError}`);
+      }
     } else {
       lastError = result.error;
       logTo('pipeline', `edit repair attempt=${attempt + 1}: ${lastError}`);

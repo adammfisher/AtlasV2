@@ -211,6 +211,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
                     {row && row.outputRef && kind !== 'prototype_react' && (
                       <a
                         href={`/api/artifacts/${a.id}/projections/${row.id}/download`}
+                        download
                         title="Download"
                         className="p-1 rounded"
                         style={{ color: C.mute }}
@@ -279,6 +280,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
         <div className="flex gap-2">
           <a
             href={`/api/artifacts/${a.id}/versions/${activeVer}/download`}
+            download={a.name}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
             style={{ background: C.accent, color: '#fff', fontFamily: sans, textDecoration: 'none' }}
           >

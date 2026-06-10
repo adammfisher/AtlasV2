@@ -89,3 +89,26 @@ export function validateSvg(source: string): { ok: true } | { ok: false; error: 
 export function stripFences(source: string): string {
   return source.trim().replace(/^```[a-z]*\n?/i, '').replace(/```\s*$/, '').trim();
 }
+
+/**
+ * E4B sometimes writes literal backslash-n sequences (and stray JSON fragments)
+ * inside react/site file strings instead of real newlines — the rendered page
+ * then shows "\n" as text. Caught here so the repair loop fixes it honestly.
+ */
+export function validateFileMap(
+  files: Record<string, string>,
+): { ok: true } | { ok: false; error: string } {
+  for (const [name, content] of Object.entries(files)) {
+    const literalEscapes = (content.match(/\\n/g) ?? []).length;
+    if (literalEscapes >= 3) {
+      return {
+        ok: false,
+        error: `${name} contains ${literalEscapes} literal backslash-n sequences — emit real newlines inside file contents, never the two characters \\ and n`,
+      };
+    }
+    if (/^\s*\{\s*"/.test(content)) {
+      return { ok: false, error: `${name} starts with a JSON fragment — file contents must be the raw file source` };
+    }
+  }
+  return { ok: true };
+}

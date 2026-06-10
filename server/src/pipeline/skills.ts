@@ -62,12 +62,15 @@ export function skillEnabled(id: SkillId): boolean {
 }
 
 export function templatePath(id: SkillId): string | null {
-  const candidates: Record<string, string> = {
-    pptx: 'skills/pptx/templates/atlas_default.potx',
-    docx: 'skills/docx/templates/atlas_default.dotx',
+  // branded templates (e.g. the stripped DFS library) take precedence over the
+  // generated Atlas defaults
+  const candidates: Record<string, string[]> = {
+    pptx: ['skills/pptx/templates/dfs_default.potx', 'skills/pptx/templates/atlas_default.potx'],
+    docx: ['skills/docx/templates/atlas_default.dotx'],
   };
-  const rel = candidates[id];
-  if (!rel) return null;
-  const full = path.join(repoRoot, rel);
-  return existsSync(full) ? full : null;
+  for (const rel of candidates[id] ?? []) {
+    const full = path.join(repoRoot, rel);
+    if (existsSync(full)) return full;
+  }
+  return null;
 }

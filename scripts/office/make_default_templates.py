@@ -8,8 +8,8 @@ transparent to the pipeline.
 """
 from pathlib import Path
 
-ACCENT = "D97757"
-CHARCOAL = "262624"
+ACCENT = "371447"  # DFS deep purple (brand family)
+PLUM = "650360"
 TEXT_DARK = "1B1A18"
 REPO = Path(__file__).resolve().parents[2]
 
@@ -44,9 +44,10 @@ def make_dotx(path: Path) -> None:
     doc = Document()
     styles = doc.styles
     for name, size, bold, color in [
+        ("Title", 24, True, ACCENT),
         ("Heading 1", 20, True, ACCENT),
-        ("Heading 2", 15, True, TEXT_DARK),
-        ("Heading 3", 12, True, TEXT_DARK),
+        ("Heading 2", 14, True, PLUM),
+        ("Heading 3", 12, True, ACCENT),
         ("Normal", 10.5, False, TEXT_DARK),
     ]:
         st = styles[name]

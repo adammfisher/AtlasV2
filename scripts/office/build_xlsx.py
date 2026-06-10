@@ -9,7 +9,7 @@ from openpyxl.utils import column_index_from_string, coordinate_to_tuple
 
 import validate_common as vc
 
-ACCENT = "D97757"
+ACCENT = "371447"  # DFS deep purple
 
 
 def build(payload: dict, template: str | None, out: Path) -> dict:

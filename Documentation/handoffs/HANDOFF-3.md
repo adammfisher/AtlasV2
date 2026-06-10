@@ -15,6 +15,15 @@ Python toolchain: venv on **python 3.13.7** (`/opt/homebrew/opt/python@3.13`) �
 - Client: vendored `marked/mermaid/esbuild-wasm(+wasm)/react+react-dom UMD` under `public/vendor/`; esbuild warmed at app load; sandboxed previews (CSP `default-src 'none'`, fetch/XHR/WS shim reporting blocked attempts); mermaid preview runs the authoritative `mermaid.parse` and reports a Parse check chip (failure renders an honest fix-hint, not a fake success); react preview bundles in-browser with react externals mapped to the vendored UMDs; office kinds get extraction-based "text preview"; live pipeline card (steps upsert by label, pending spinner rows); artifact panel with version pills + Restore + product sections (state badge/timeline/Promote with unmet rules, PROJECTIONS rows with deterministic/generated tags + stale chips + regenerate/download, Export bundle gated at `specified`); tenth Skills row (product); sixth suggestion chip (A58).
 - `scripts/demo/stage3-demo.md` + `stage3-product-demo.md`; gate runners `pnpm test:pipeline-validity` + `pnpm test:stage3-e2e`.
 
+Mid-stage additions from Adam's live feedback:
+- **Artifact drawer** — chat header gets a box icon with a count badge (artifacts in the open conversation); clicking opens a drawer listing this chat's artifacts plus all project artifacts; selecting one opens the detail panel.
+- **Claude.ai-style document viewer** — the artifact panel widened to ~52vw; office artifacts render as real paginated pages (server converts pptx/docx/xlsx → PDF via soffice, cached per version, streamed chromeless; pdf streams natively); markitdown text extraction remains the fallback when soffice is absent. Download button reads "Download as PPTX/DOCX/…".
+- **Seed artifact backfill** (PRD §7 compliance, deferred from Stage 1): boot generates real Q3-Business-Review.pptx files (v1 + targeted-edit v2) from deterministic payloads when missing; `scripts/dev/backfill-seed-artifact.ts`.
+- **Sandbox hash-navigation fix** — preview documents serve from blob URLs, not srcdoc (a generated landing page setting `location.hash` was navigating the sandbox to the Atlas app itself).
+- **Mermaid honesty chain** — tightened server lexical check (unquoted parens in flowchart labels — the dominant real failure), authoritative `mermaid.parse` in the sandbox surfaces a Parse check chip, parse failures render a fix-hint; text-skill targeted edits added so "fix the diagram" re-emits through validation+repair.
+- **react/site targeted edits fixed** (were falling into the Python-helper path); file-map diff by key.
+- **Error boundary** at the app root — UI crashes degrade to an inline error with Retry, never a white screen.
+
 ## Gate results
 
 - **Constrained-JSON first-pass validity (E4B)** — PASS. Office 20-prompt set: **19/20 = 95%** (logged per-prompt in `logs/pipeline.log`; the single miss was `fetch failed` — a dev-loop tsx reload killed llama mid-request, an infrastructure casualty counted against the number, not a model validity failure). Product 10-prompt set: **10/10 = 100%**.
@@ -25,7 +34,7 @@ Python toolchain: venv on **python 3.13.7** (`/opt/homebrew/opt/python@3.13`) �
 - **React/site previews offline** — PASS: CSP-locked iframes; the fetch shim chip shows "No external requests"; bundling via local esbuild-wasm; react/react-dom from vendored UMDs.
 - **Opens in Keynote/PowerPoint, docx in Word/Pages** — soffice headless convert green on every generated office file (the executable proxy); the literal Keynote/Word open is a manual step in `stage3-demo.md` #11 for Adam.
 - **Skill-disabled refusal** — exact wording wired (`stage3-demo.md` #13 demonstrates).
-- Final e2e: `STAGE3 E2E PASS — see /tmp/atlas-e2e-final.log` (re-run after the final fixes; numbers in the log).
+- **e2e history, honestly:** run 1 failed at the site prompt (router sent it to react — the two are merged in the v2 mockup; a discriminator line + an explicitly-static prompt fixed it). Run 2 passed gates 1–2 (all nine skills, edit identity) but failed the product define (router prompt's create_doc description didn't mention product definitions — fixed). Final run on the final code: see the `STAGE3 E2E` line below.
 
 ## Decisions made
 

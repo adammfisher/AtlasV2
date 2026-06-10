@@ -28,6 +28,32 @@ async function vendorText(file: string): Promise<string> {
 const CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:;";
 
+/**
+ * Claude-artifact-style base stylesheet for generated pages/components: clean
+ * system typography, sensible spacing, readable measure. Injected BEFORE any
+ * generated CSS so the model's own styles always win.
+ */
+const BASE_STYLE = `<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:ui-sans-serif,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:#fafaf8;color:#1a1a18;line-height:1.6;font-size:16px;
+  -webkit-font-smoothing:antialiased}
+main,article,.container,body>div:only-child{max-width:760px;margin:0 auto;padding:40px 28px}
+h1,h2,h3,h4{line-height:1.25;font-weight:650;letter-spacing:-0.01em;margin:1.4em 0 .5em}
+h1{font-size:2rem;margin-top:.4em}h2{font-size:1.4rem}h3{font-size:1.15rem}
+p{margin:.65em 0}ul,ol{padding-left:1.4em}li{margin:.3em 0}
+a{color:#c2562f;text-decoration:none}a:hover{text-decoration:underline}
+button{font:inherit;background:#1a1a18;color:#fff;border:none;border-radius:8px;
+  padding:9px 18px;cursor:pointer}button:hover{opacity:.85}
+input,select,textarea{font:inherit;border:1px solid #d5d2ca;border-radius:8px;padding:8px 12px}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #e4e1d9}
+th{font-weight:650}
+code,pre{font-family:ui-monospace,Menlo,monospace;background:#f0eee8;border-radius:6px;padding:2px 6px;font-size:.9em}
+hr{border:none;border-top:1px solid #e4e1d9;margin:2em 0}
+img,svg{max-width:100%}
+section{margin:2.5em 0}
+</style>`;
+
 /** Records fetch/XHR attempts and reports them to the parent (CSP blocks them anyway). */
 const NET_SHIM = `<script>
 (function(){
@@ -110,7 +136,8 @@ const __mod = typeof AtlasEntry !== 'undefined' ? AtlasEntry : null;
 const __C = __mod && (__mod.default || __mod);
 if (__C) { window.ReactDOM.createRoot(__root).render(window.React.createElement(__C)); }`;
     const srcdoc = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${CSP}">
-<style>body{margin:0;background:#fff;font-family:-apple-system,Helvetica,Arial,sans-serif}${css}</style></head>
+${BASE_STYLE}
+<style>${css}</style></head>
 <body>${NET_SHIM}<div id="root"></div>
 <script>${escapeScript(react)}</script>
 <script>${escapeScript(reactDom)}</script>
@@ -146,8 +173,8 @@ export function buildSiteSrcdoc(files: Record<string, string>): BundleResult {
   );
   const cspTag = `<meta http-equiv="Content-Security-Policy" content="${CSP}">`;
   doc = doc.includes('<head>')
-    ? doc.replace('<head>', `<head>${cspTag}${NET_SHIM}`)
-    : `${cspTag}${NET_SHIM}${doc}`;
+    ? doc.replace('<head>', `<head>${cspTag}${BASE_STYLE}${NET_SHIM}`)
+    : `${cspTag}${BASE_STYLE}${NET_SHIM}${doc}`;
   return { srcdoc: doc, ok: true, error: null, ms: Math.round(performance.now() - started) };
 }
 

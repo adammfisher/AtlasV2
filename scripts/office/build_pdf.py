@@ -8,10 +8,10 @@ import validate_common as vc
 CSS = """
 @page { size: A4; margin: 22mm 18mm; }
 body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1b1a18; font-size: 10.5pt; }
-h1 { color: #d97757; font-size: 19pt; margin: 0 0 10px; }
-h2 { font-size: 13pt; margin: 18px 0 6px; }
+h1 { color: #371447; font-size: 20pt; margin: 0 0 4px; border-bottom: 2.5px solid #650360; padding-bottom: 8px; }
+h2 { color: #650360; font-size: 13pt; margin: 18px 0 6px; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-th { background: #d97757; color: #fff; text-align: left; padding: 5px 8px; font-size: 9.5pt; }
+th { background: #371447; color: #fff; text-align: left; padding: 6px 9px; font-size: 9.5pt; }
 td { border-bottom: 1px solid #ddd; padding: 5px 8px; font-size: 9.5pt; }
 .page-break { page-break-before: always; }
 """

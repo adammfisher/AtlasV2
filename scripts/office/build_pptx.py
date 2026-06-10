@@ -5,6 +5,7 @@ from pathlib import Path
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.enum.chart import XL_CHART_TYPE
+from pptx.enum.shapes import PP_PLACEHOLDER
 from pptx.util import Inches, Pt
 
 import validate_common as vc
@@ -62,7 +63,9 @@ def build(payload: dict, template: str, out: Path) -> dict:
             for body, col in zip(bodies[:2], cols):
                 fill_bullets(body, col)
         elif layout_kind == "chart":
-            slide = prs.slides.add_slide(blank_layout)
+            # chart goes INTO the content placeholder of Title-and-Content so it
+            # lands where the branded layout intends (no title overlap)
+            slide = prs.slides.add_slide(bullets_layout)
             if slide.shapes.title is not None:
                 slide.shapes.title.text = slide_spec["heading"]
             chart_spec = slide_spec.get("chart")
@@ -75,10 +78,20 @@ def build(payload: dict, template: str, out: Path) -> dict:
                     n = len(data.categories)
                     values = (values + [0] * n)[:n]
                     data.add_series(series.get("name", "series"), values)
-                slide.shapes.add_chart(
-                    CHART_TYPES.get(chart_spec.get("kind", "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED),
-                    Inches(0.8), Inches(1.6), Inches(8.4), Inches(4.8), data,
+                chart_type = CHART_TYPES.get(chart_spec.get("kind", "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED)
+                body = next(
+                    (p for p in slide.placeholders if p.placeholder_format.idx != 0
+                     and p.placeholder_format.type in (PP_PLACEHOLDER.OBJECT, PP_PLACEHOLDER.BODY)),
+                    None,
                 )
+                if body is not None:
+                    # take the placeholder's box, then replace it with the chart
+                    left, top, width, height = body.left, body.top, body.width, body.height
+                    body._element.getparent().remove(body._element)
+                    slide.shapes.add_chart(chart_type, left, top, width, height, data)
+                else:
+                    # safe region below a standard title band on 13.33x7.5 widescreen
+                    slide.shapes.add_chart(chart_type, Inches(0.9), Inches(1.9), Inches(11.5), Inches(4.9), data)
         else:  # defensive: unknown layout renders as bullets
             slide = prs.slides.add_slide(bullets_layout)
             slide.shapes.title.text = slide_spec["heading"]

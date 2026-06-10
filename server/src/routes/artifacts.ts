@@ -214,9 +214,12 @@ artifactsRouter.get('/:id/versions/:v/render.pdf', async (req, res) => {
     return;
   }
   const file = version.file_path;
+  // filename on the inline disposition: saves from the embedded PDF viewer
+  // otherwise land as UUID-named files with no extension
+  const pdfName = `${path.basename(file, path.extname(file))}.pdf`;
   const inline = (pdf: string) => {
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Content-Disposition', `inline; filename="${pdfName.replace(/"/g, '')}"`);
     res.sendFile(pdf);
   };
   if (row.kind === 'pdf') {

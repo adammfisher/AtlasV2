@@ -126,6 +126,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
       return;
     }
 
+    // one product master per conversation: a create_doc/product call in a
+    // conversation that already has a product artifact is an edit of it
+    // (Amendment §A4.2/§A8 — field-scoped edits and writeback depend on this)
+    if (routed.intent === 'create_doc' && routed.skill === 'product' && editable?.kind === 'product') {
+      routed.intent = 'edit_doc';
+      logTo('pipeline', `route downgraded to edit_doc — conversation already has product ${editable.artifactId}`);
+    }
+
     // create_doc / edit_doc
     const skillId: SkillId =
       routed.intent === 'edit_doc' && editable && isSkillId(editable.kind)

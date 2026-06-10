@@ -4,6 +4,9 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.text import WD_BREAK
+from docx.oxml.ns import qn
+from docx.oxml.shared import OxmlElement
+from docx.shared import RGBColor
 
 import validate_common as vc
 
@@ -36,9 +39,17 @@ def build(payload: dict, template: str, out: Path) -> dict:
             headers = [str(h) for h in table_spec["headers"]]
             rows = table_spec.get("rows") or []
             table = doc.add_table(rows=1 + len(rows), cols=len(headers))
-            table.style = "Light Grid Accent 1" if "Light Grid Accent 1" in [s.name for s in doc.styles] else table.style
+            table.style = "Table Grid" if "Table Grid" in [s.name for s in doc.styles] else table.style
             for i, header in enumerate(headers):
-                table.rows[0].cells[i].text = header
+                cell = table.rows[0].cells[i]
+                cell.text = header
+                shade = OxmlElement("w:shd")
+                shade.set(qn("w:fill"), "371447")
+                cell._tc.get_or_add_tcPr().append(shade)
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.font.bold = True
+                        run.font.color.rgb = RGBColor.from_string("FFFFFF")
             for r, row in enumerate(rows):
                 for c in range(len(headers)):
                     table.rows[r + 1].cells[c].text = str(row[c]) if c < len(row) else ""
