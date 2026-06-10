@@ -99,11 +99,15 @@ export function ArtifactPreview({
   const [srcdoc, setSrcdoc] = useState<string | null>(null);
   const [chips, setChips] = useState<Array<{ ok: boolean; label: string }>>([]);
   const [netAttempts, setNetAttempts] = useState(0);
+  const [parseChip, setParseChip] = useState<{ ok: boolean; label: string } | null>(null);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      const data = e.data as { type?: string; attempts?: number };
+      const data = e.data as { type?: string; attempts?: number; ok?: boolean };
       if (data?.type === 'atlas-net-attempt') setNetAttempts(data.attempts ?? 1);
+      if (data?.type === 'atlas-mermaid-parse') {
+        setParseChip(data.ok ? { ok: true, label: 'Parse check' } : { ok: false, label: 'Parse failed' });
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -151,6 +155,7 @@ export function ArtifactPreview({
       );
     const allChips = [
       ...chips,
+      ...(kind === 'mermaid' && parseChip ? [parseChip] : []),
       ...(kind === 'react' || kind === 'site'
         ? [
             netAttempts === 0

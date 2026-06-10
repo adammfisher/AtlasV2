@@ -115,7 +115,7 @@ async function main(): Promise<void> {
     ['mermaid', 'Diagram the org-intel ingest flow: sources, embed, graph store, MCP tools'],
     ['svg', 'Create an icon of a compass, minimal line style'],
     ['react', 'Build a small counter widget with increment and reset buttons'],
-    ['site', 'Landing page prototype for Atlas: hero, three feature blocks, footer'],
+    ['site', 'Static HTML landing page (plain HTML and CSS, no React) for Atlas: hero, three feature blocks, footer'],
   ];
   const artifacts: Record<string, { artifactId: string; ver: number; conv: string }> = {};
   for (const [skill, prompt] of NINE) {

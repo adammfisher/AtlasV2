@@ -457,7 +457,72 @@ export async function runEditDoc(opts: {
     return finishPayload(ctx, `Targeted edit · ${fields.join(', ')}`, true, summaryText, artifact);
   }
 
-  if (!skill.schema) throw new PipelineError(`targeted edits are not supported for ${skill.id} yet`);
+  if (!skill.schema) {
+    // text-emission skills (md/mermaid/svg): re-emit with the current source as
+    // context, through the same validation + repair loop as generation
+    const model = officeModel();
+    const currentSource = String((current.payload as { source?: string }).source ?? '');
+    pushStep(ctx, { state: 'pending', label: `${model.name} · edit`, detail: 're-emission with current source' });
+    let emitted = '';
+    let lastError = '';
+    let okEmit = false;
+    for (let attempt = 0; attempt < 2 && !okEmit; attempt++) {
+      emitted = stripFences(
+        await completeText(
+          [
+            {
+              role: 'system' as const,
+              content: `${skill.guidance}\n\nYou are EDITING an existing ${skill.id} document. Output ONLY the full corrected source.`,
+            },
+            { role: 'user' as const, content: `Current source:\n${currentSource}\n\nApply this change: "${opts.text}"` },
+            ...(attempt > 0
+              ? [{ role: 'user' as const, content: `Your previous output failed validation: ${lastError}. Output ONLY the corrected ${skill.id} source.` }]
+              : []),
+          ],
+          { maxTokens: 2048, signal: ctx.signal, temperature: 0.4 },
+        ),
+      );
+      if (skill.id === 'mermaid') {
+        const v = validateMermaid(emitted);
+        okEmit = v.ok;
+        lastError = v.ok ? '' : v.error;
+      } else if (skill.id === 'svg') {
+        const v = validateSvg(emitted);
+        okEmit = v.ok;
+        lastError = v.ok ? '' : v.error;
+      } else {
+        okEmit = emitted.length > 0;
+        lastError = 'empty output';
+      }
+      if (!okEmit) logTo('pipeline', `${skill.id} edit repair attempt=${attempt + 1}: ${lastError}`);
+    }
+    if (!okEmit) throw new PipelineError(`${skill.id} edit failed validation twice: ${lastError}`);
+    pushStep(ctx, { state: 'ok', label: `${model.name} · edit`, detail: 're-emitted · validated' });
+    const checkLabel =
+      skill.id === 'md' ? 'marked render (client)' : skill.id === 'mermaid' ? 'Syntax check' : 'XML + viewBox';
+    pushStep(ctx, { state: 'ok', label: checkLabel });
+    const newVer = current.version + 1;
+    const dir = versionDir(opts.projectId, opts.artifactId, newVer);
+    const outFile = path.join(dir, opts.artifactName);
+    writeFileSync(outFile, emitted);
+    const meta =
+      skill.id === 'md'
+        ? `${emitted.split('\n').length} lines`
+        : skill.id === 'mermaid'
+          ? `${emitted.split('\n')[0]?.split(/\s/)[0] ?? 'diagram'}`
+          : 'validated SVG';
+    const ver = addVersion(opts.artifactId, {
+      payload: { source: emitted },
+      meta,
+      validation: [{ state: 'ok', label: checkLabel }],
+      filePath: outFile,
+    });
+    const summaryText = await summarize(ctx, `edited ${opts.artifactName} (${meta})`);
+    const artifact = { artifactId: opts.artifactId, name: opts.artifactName, kind: skill.id, meta, ver };
+    ctx.send('artifact', artifact);
+    ctx.send('assistant_text', { text: summaryText });
+    return finishPayload(ctx, 'Targeted edit · re-emitted', true, summaryText, artifact);
+  }
 
   const model = officeModel();
   pushStep(ctx, { state: 'pending', label: `${model.name} · edit`, detail: 'constrained json_schema' });

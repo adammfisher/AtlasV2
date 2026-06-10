@@ -153,11 +153,25 @@ export function buildSiteSrcdoc(files: Record<string, string>): BundleResult {
 
 export async function buildMermaidSrcdoc(source: string): Promise<string> {
   const mermaid = await vendorText('mermaid.min.js');
+  // mermaid.parse is the authoritative check — its verdict is reported to the
+  // parent as a chip; render only proceeds when the parse passes.
   return `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${CSP}">
-<style>body{margin:12px;background:#262624;color:#f0eee6}</style></head><body>${NET_SHIM}
-<pre class="mermaid">${source.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
+<style>body{margin:12px;background:#262624;color:#f0eee6;font-family:-apple-system,sans-serif}
+.err{color:#d4ad6a;font-size:12px;white-space:pre-wrap}</style></head><body>${NET_SHIM}
+<div id="out"></div>
 <script>${escapeScript(mermaid)}</script>
-<script>mermaid.initialize({ startOnLoad: true, theme: 'dark', securityLevel: 'strict' });</script>
+<script>
+const SRC = ${JSON.stringify(source)};
+mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
+mermaid.parse(SRC).then(async () => {
+  parent.postMessage({ type: 'atlas-mermaid-parse', ok: true }, '*');
+  const { svg } = await mermaid.render('atlas-diagram', SRC);
+  document.getElementById('out').innerHTML = svg;
+}).catch((err) => {
+  parent.postMessage({ type: 'atlas-mermaid-parse', ok: false, error: String(err && err.message || err) }, '*');
+  document.getElementById('out').innerHTML = '<div class="err">Diagram failed to parse — ask Atlas to fix it (e.g. "fix the diagram — quote labels with parentheses").\\n\\n' + String(err && err.message || err).replace(/</g,'&lt;') + '</div>';
+});
+</script>
 </body></html>`;
 }
 

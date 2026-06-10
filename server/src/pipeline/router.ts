@@ -13,6 +13,7 @@ Decide what the user's latest message asks for.
 intents: chat (conversation/questions), create_doc (make a document/deck/sheet/pdf/diagram/site/component), edit_doc (modify the most recent generated artifact).
 skills: pptx docx xlsx pdf md mermaid svg react site product, or null when intent is chat.
 product: define a new product/concept, or evolve an existing product definition
+site: static HTML/CSS pages and landing pages. react: interactive components/apps/widgets.
 If intent is edit_doc, skill is the skill of the artifact being edited.`;
 
 const ROUTER_SCHEMA = {
