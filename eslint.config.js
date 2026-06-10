@@ -7,6 +7,10 @@ export default tseslint.config(
   {
     files: ['client/src/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
-    rules: { ...reactHooks.configs.recommended.rules },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      // The ported mockup defines small subcomponents inline (Row, Node, Arrow) — keep its idiom.
+      'react-hooks/static-components': 'off',
+    },
   },
 );
