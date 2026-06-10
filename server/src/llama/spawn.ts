@@ -44,11 +44,29 @@ function readVersion(binary: string): string {
   return line?.trim() ?? 'unknown';
 }
 
-/** Pick the chat model to serve: the selected one if present, else E4B (the guaranteed file). */
+/**
+ * Pick the chat model to serve: the selected one if present, else E4B (the
+ * guaranteed file). 'auto' routes by task from Stage 3; with E4B alone it
+ * resolves to E4B.
+ */
 export function pickChatModel(selected: string | null): ModelEntry | null {
   const models = scanModels();
-  const want = models.find((m) => m.id === selected && m.present && m.selectable);
+  const want =
+    selected && selected !== 'auto'
+      ? models.find((m) => m.id === selected && m.present && m.selectable)
+      : undefined;
   return want ?? models.find((m) => m.id === 'e4b' && m.present) ?? null;
+}
+
+/** Resident set size of the llama-server process, in GB (0 when not running). */
+export function llamaRssGB(): number {
+  if (!state.pid) return 0;
+  try {
+    const out = execFileSync('ps', ['-o', 'rss=', '-p', String(state.pid)], { encoding: 'utf8' });
+    return Math.round((parseInt(out.trim(), 10) / 1024 / 1024) * 10) / 10;
+  } catch {
+    return 0;
+  }
 }
 
 /**

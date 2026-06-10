@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Folder, Lock, Layers } from 'lucide-react';
+import { Plus, FolderKanban, Lock, Globe, Database } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { C, SERIF, MONO } from '../../theme/tokens';
+import { C, sans, serif } from '../../theme/tokens';
 import { api, type Project } from '../../lib/api';
+import { Badge } from '../../components/Badge';
 import { NewProjectModal } from '../../components/NewProjectModal';
 
 export function ProjectsView({
@@ -25,87 +26,88 @@ export function ProjectsView({
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <div className="flex items-center">
-          <h1 className="text-2xl" style={{ color: C.text, fontFamily: SERIF }}>
-            Projects
-          </h1>
-          <button
-            onClick={() => setShowNew(true)}
-            className="ml-auto text-sm px-3.5 py-2 rounded-lg inline-flex items-center gap-1.5 font-medium"
-            style={{ background: C.accent, color: '#fff' }}
-          >
-            <Plus size={14} /> New project
-          </button>
+    <div className="flex flex-col h-full min-w-0">
+      <div className="px-7 pt-6 pb-4 flex items-end gap-3">
+        <div>
+          <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Projects</h1>
+          <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>
+            Isolated workspaces — conversations, knowledge, memory, templates, and plugins never cross
+            projects unless you opt in.
+          </p>
         </div>
-        <p className="text-sm mt-1" style={{ color: C.dim }}>
-          Each project scopes its own chats, files, memory, templates, and plugins. Nothing crosses
-          between projects. Click a project to make it active.
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-6">
-          {projects.map((p) => {
-            const active = p.id === activeProject;
-            return (
-              <div
-                key={p.id}
-                onClick={() => setActiveProject(p.id)}
-                role="button"
-                className="rounded-xl p-4 cursor-pointer transition-colors"
-                style={{
-                  background: active ? C.raise : C.bg,
-                  border: `1px solid ${active ? C.accent : C.borderSoft}`,
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <Folder size={15} style={{ color: C.accent }} />
-                  <span className="text-sm font-medium" style={{ color: C.text }}>
-                    {p.name}
-                  </span>
-                  {active && (
-                    <span
-                      className="text-xs px-1.5 py-0.5 rounded"
-                      style={{ background: C.accentDim, color: C.accent }}
-                    >
-                      Active
-                    </span>
-                  )}
-                  <span
-                    className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-                    style={{ background: C.raise2, color: C.dim }}
-                  >
-                    <Lock size={10} /> Isolated
-                  </span>
-                </div>
-                <p className="text-xs mt-2.5 leading-relaxed" style={{ color: C.dim }}>
-                  {p.instructions || 'No instructions yet.'}
-                </p>
-                <div className="flex items-center gap-3 mt-3.5 text-xs" style={{ color: C.faint }}>
-                  <span>{p.chats} chats</span>
-                  <span>{p.artifacts} artifacts</span>
-                  <span className="ml-auto" style={{ fontFamily: MONO }}>
-                    {p.memory} memory
-                  </span>
-                </div>
+        <button
+          onClick={() => setShowNew(true)}
+          className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium"
+          style={{ background: C.accent, color: '#fff', fontFamily: sans }}
+        >
+          <Plus size={14} /> New project
+        </button>
+      </div>
+      <div className="px-7 pb-8 overflow-y-auto grid grid-cols-2 gap-3">
+        {projects.map((p) => {
+          const active = p.id === activeProject;
+          return (
+            <div
+              key={p.id}
+              onClick={() => setActiveProject(p.id)}
+              role="button"
+              className="rounded-xl p-4 flex flex-col gap-2.5 cursor-pointer transition-colors"
+              style={{ background: C.panel, border: `1px solid ${active ? C.accent : C.border}` }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.panelHover)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = C.panel)}
+            >
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="flex items-center justify-center rounded-lg"
+                  style={{ width: 34, height: 34, background: C.purpleDim }}
+                >
+                  <FolderKanban size={17} style={{ color: C.purple }} />
+                </span>
+                <span className="text-sm font-medium flex-1" style={{ color: C.text, fontFamily: sans }}>
+                  {p.name}
+                </span>
+                {active && (
+                  <Badge color={C.accent} dim={C.accentDim}>
+                    Active
+                  </Badge>
+                )}
+                {p.shared ? (
+                  <Badge color={C.amber} dim={C.amberDim} icon={Globe}>
+                    Shared library
+                  </Badge>
+                ) : (
+                  <Badge color={C.green} dim={C.greenDim} icon={Lock}>
+                    Isolated
+                  </Badge>
+                )}
               </div>
-            );
-          })}
-          <div
-            className="rounded-xl p-4 flex flex-col justify-center"
-            style={{ border: `1px dashed ${C.border}` }}
-          >
-            <div className="flex items-center gap-2">
-              <Layers size={15} style={{ color: C.dim }} />
-              <span className="text-sm font-medium" style={{ color: C.dim }}>
-                Shared library
-              </span>
+              <p className="text-xs leading-relaxed" style={{ color: C.sub, fontFamily: sans }}>
+                {p.instructions || 'No instructions yet.'}
+              </p>
+              <div
+                className="flex items-center gap-3 text-xs pt-1"
+                style={{ color: C.mute, fontFamily: sans, borderTop: `1px solid ${C.borderSoft}`, paddingTop: 10 }}
+              >
+                <span>{p.chats} chats</span>
+                <span>{p.templates} templates</span>
+                <span>{p.plugins} plugins</span>
+                <span className="ml-auto flex items-center gap-1">
+                  <Database size={11} /> own memory
+                </span>
+              </div>
             </div>
-            <p className="text-xs mt-2 leading-relaxed" style={{ color: C.faint }}>
-              Opt-in global partition. Publish artifacts, templates, or facts here to reference
-              them from any project.
-            </p>
-          </div>
+          );
+        })}
+        <div
+          onClick={() => setShowNew(true)}
+          role="button"
+          className="rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer"
+          style={{ border: `1px dashed ${C.border}`, minHeight: 140 }}
+        >
+          <Plus size={18} style={{ color: C.mute }} />
+          <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+            Create a project to scope chats, memory, and plugins
+          </span>
         </div>
       </div>
       {showNew && <NewProjectModal close={() => setShowNew(false)} create={create} />}

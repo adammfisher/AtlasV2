@@ -6,8 +6,9 @@ export interface Project {
   instructions: string;
   created_at: number;
   chats: number;
-  artifacts: number;
-  memory: string;
+  templates: number;
+  plugins: number;
+  shared: boolean;
 }
 
 export interface Conversation {
@@ -26,32 +27,30 @@ export interface ArtifactRef {
   ver: number;
 }
 
+export interface PipelineStep {
+  state: 'ok' | 'warn' | 'pending';
+  label: string;
+  detail?: string;
+}
+
 export interface TextMessage {
   id: string;
   role: 'user' | 'assistant';
   kind: 'text';
   text: string;
-  pending?: boolean;
-  error?: string;
 }
 
 export interface PipelineMessageData {
   id: string;
   role: 'assistant';
   kind: 'pipeline';
-  stage: number;
   skill: string;
+  skillBadge?: string;
+  duration?: string;
   edit?: boolean;
-  escalated?: boolean;
-  modelChip: string;
-  skillChip: string;
-  extraChip?: string;
-  steps: string[];
-  checks: Array<[string, number]>;
-  artifact?: ArtifactRef;
+  steps: PipelineStep[];
   text: string;
-  diagram?: boolean;
-  preview?: boolean;
+  artifact?: ArtifactRef;
 }
 
 export type Message = TextMessage | PipelineMessageData;
@@ -64,13 +63,15 @@ export interface Skill {
   id: string;
   name: string;
   ext: string;
+  icon: string;
+  colorToken: string;
   triggers: string;
   metaTokens: number;
-  fullTokens: string;
+  fullTokens: number;
   helper: string;
-  checks: string[];
+  validators: string[];
   tier: string;
-  schema: string;
+  note: string;
   enabled: boolean;
 }
 
@@ -78,24 +79,30 @@ export interface PluginEntry {
   id: string;
   name: string;
   vendor: string;
-  description: string;
+  featured?: boolean;
   icon: string;
+  colorToken: string;
   transport: string;
-  launch?: string;
-  url?: string;
-  auth: 'none' | 'token' | 'connection';
-  authFields?: Array<[string, string]>;
-  toolsPreview: Array<[string, string]>;
-  status: 'connected' | 'installing' | 'available' | 'planned' | 'error';
-  plannedNotice?: string;
-  bundledRuntime?: boolean;
-  category: string;
+  endpoint: string;
+  status: 'bundled' | 'installed' | 'available' | 'error';
+  description: string;
+  tools: string[];
+  creds: Array<{ key: string; label: string }>;
+  runtime: string;
   installId: string | null;
   enabledProjects: string[];
   lastError: string | null;
 }
 
-export interface ArtifactSummary {
+export interface ArtifactVersion {
+  version: number;
+  meta: string | null;
+  validation: PipelineStep[];
+  hasFile: boolean;
+  created_at: number;
+}
+
+export interface ArtifactDetailData {
   id: string;
   projectId: string;
   project: string;
@@ -104,17 +111,6 @@ export interface ArtifactSummary {
   ver: number;
   meta: string;
   created_at: number;
-}
-
-export interface ArtifactVersion {
-  version: number;
-  meta: string | null;
-  validation: Array<[string, number]>;
-  hasFile: boolean;
-  created_at: number;
-}
-
-export interface ArtifactDetailData extends ArtifactSummary {
   versions: ArtifactVersion[];
 }
 
@@ -133,7 +129,13 @@ export interface ModelsRegistry {
   models: ModelEntry[];
   selected: string;
   bedrock: { connected: boolean };
-  hardware: { ramGB: number; ctx: number; residentFile: string | null };
+  hardware: {
+    ramGB: number;
+    rssGB: number;
+    ctx: number;
+    residentFile: string | null;
+    residentTier: string | null;
+  };
 }
 
 export interface Health {
@@ -190,14 +192,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ connectorId }),
     }),
-  artifacts: () => request<ArtifactSummary[]>('/artifacts'),
   artifact: (id: string) => request<ArtifactDetailData>(`/artifacts/${id}`),
   models: () => request<ModelsRegistry>('/models'),
   selectModel: (id: string) =>
     request<{ ok: boolean }>('/models/select', { method: 'POST', body: JSON.stringify({ id }) }),
-  bedrockConnect: (region: string, profile: string) =>
-    request<{ ok: boolean }>('/models/bedrock/connect', {
-      method: 'POST',
-      body: JSON.stringify({ region, profile }),
-    }),
 };

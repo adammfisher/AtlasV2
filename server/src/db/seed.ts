@@ -2,44 +2,49 @@ import { getDb, getSetting, setSetting, now } from './db.js';
 import { config } from '../config.js';
 import { log } from '../log.js';
 
-/** Mockup-parity first-boot fixtures (PRD §7). */
+/** Mockup-parity first-boot fixtures (reference/atlas-v2-ui.jsx). */
 export function seedIfNeeded(): void {
-  if (getSetting('seeded') === '1') return;
+  if (getSetting('seeded') === '2') return;
   const db = getDb();
   const t = now();
 
   const seed = db.transaction(() => {
     const insProject = db.prepare(
-      'INSERT INTO projects (id, name, instructions, created_at) VALUES (?, ?, ?, ?)',
+      'INSERT INTO projects (id, name, instructions, created_at, settings) VALUES (?, ?, ?, ?, ?)',
     );
     insProject.run(
       'p1',
       'Lightspeed Atlas',
-      'Core product build. Prefer the Meridian brand templates. Keep all output in outputs/meridian/.',
+      'Enterprise rollout workspace. Prefer Lightspeed deck template; cite Jira keys.',
       t,
+      '{}',
     );
     insProject.run(
       'p2',
-      'Client Redline',
-      'Confidential contract work. Tracked changes only — never accept changes silently.',
+      'Client Alpha — QBR',
+      'Confidential. Hard isolation; never reference other client work.',
       t,
+      '{}',
     );
     insProject.run(
       'p3',
-      'Org Intel Dev',
-      'atlas-org-intel build sessions. Mirror Atlas stack choices: better-sqlite3, sqlite-vec, nomic-embed.',
+      'Internal Ops',
+      'Ops runbooks and weekly reporting.',
       t,
+      JSON.stringify({ shared: true }),
     );
 
     const insConv = db.prepare(
       'INSERT INTO conversations (id, project_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
     );
     const convs: Array<[string, string, string]> = [
-      ['c1', 'p1', 'Q3 QBR deck from pipeline data'],
-      ['c2', 'p3', 'Schema alignment — AOI parser'],
-      ['c3', 'p1', 'Template Library: Meridian potx audit'],
-      ['c4', 'p1', 'xlsx recalc fallback design'],
-      ['c5', 'p3', 'Org-intel phase 2 handoff'],
+      ['c1', 'p1', 'Q3 business review deck'],
+      ['c2', 'p1', 'Office pipeline validation gates'],
+      ['c3', 'p1', 'Knowledge Core connector spec'],
+      ['c4', 'p2', 'Budget model — FY27 scenarios'],
+      ['c5', 'p2', 'Redline: MSA section 4.2'],
+      ['c6', 'p3', 'Onboarding site preview build'],
+      ['c7', 'p3', 'Org chart traversal queries'],
     ];
     convs.forEach(([id, projectId, title], i) => {
       insConv.run(id, projectId, title, t - (i + 1) * 60_000, t - (i + 1) * 60_000);
@@ -54,7 +59,7 @@ export function seedIfNeeded(): void {
       'user',
       'text',
       JSON.stringify({
-        text: 'Build the Q3 QBR deck for Meridian from the pipeline numbers in /reports/q3 — use the client template.',
+        text: 'Create a Q3 business review deck from the project metrics — use the Lightspeed template.',
       }),
       t - 300_000,
     );
@@ -64,30 +69,26 @@ export function seedIfNeeded(): void {
       'assistant',
       'pipeline',
       JSON.stringify({
-        stage: 3,
         skill: 'pptx',
-        modelChip: 'Gemma 4 12B · constrained JSON',
-        skillChip: 'Presentations skill · 4.2k tokens',
-        extraChip: 'QBR_Master.potx',
+        skillBadge: 'pptx skill',
+        duration: '11.8s',
         steps: [
-          'slides JSON emitted — 9 slides, schema-valid first pass',
-          '14 placeholders filled on QBR_Master.potx',
-          'wrote outputs/meridian/Q3_QBR_Meridian.pptx',
+          { state: 'ok', label: 'Router · Gemma 4 E2B', detail: 'intent: create_doc · skill: pptx · 12 ms' },
+          { state: 'ok', label: 'Skill loaded', detail: 'pptx playbook · 4.2k tokens' },
+          { state: 'ok', label: 'Template', detail: 'Lightspeed — Client Deck.potx · 14 placeholders' },
+          { state: 'ok', label: 'Gemma 4 12B · slide JSON', detail: 'constrained json_schema · valid first pass' },
+          { state: 'ok', label: 'build_pptx.py', detail: '12 slides filled' },
+          { state: 'ok', label: 'openxml-audit · round-trip · placeholder grep', detail: 'all clean' },
+          { state: 'warn', label: 'soffice recalc', detail: 'skipped — LibreOffice not present on this machine' },
         ],
-        checks: [
-          ['OOXML schema', 1],
-          ['Round-trip', 1],
-          ['Placeholders clean', 1],
-          ['Recalc skipped — soffice not found', 0],
-        ],
+        text: "Here's the Q3 review deck — 12 slides on the Lightspeed template, with the revenue and pipeline charts built from the project metrics file. Formatting, theme colors, and the master come straight from the template; I only filled placeholders.",
         artifact: {
           artifactId: 'a1',
-          name: 'Q3_QBR_Meridian.pptx',
+          name: 'Q3-Business-Review.pptx',
           kind: 'pptx',
-          meta: '9 slides · 1.8 MB',
+          meta: '12 slides · Lightspeed template · v1',
           ver: 1,
         },
-        text: 'Built the Q3 QBR from pipeline_summary.xlsx — nine slides on the Meridian master, including the win-rate trend and the pipeline-by-stage waterfall.',
       }),
       t - 290_000,
     );
@@ -96,7 +97,7 @@ export function seedIfNeeded(): void {
       'c1',
       'user',
       'text',
-      JSON.stringify({ text: 'Make slide 3 punchier and turn the win-rate table into a chart.' }),
+      JSON.stringify({ text: 'Make the win-rate slide punchier.' }),
       t - 280_000,
     );
     insMsg.run(
@@ -105,68 +106,57 @@ export function seedIfNeeded(): void {
       'assistant',
       'pipeline',
       JSON.stringify({
-        stage: 3,
         skill: 'pptx',
         edit: true,
-        modelChip: 'Gemma 4 12B · constrained JSON',
-        skillChip: 'Targeted edit · slides[2] only',
-        steps: ['slides[2] regenerated — rest byte-identical'],
-        checks: [
-          ['OOXML schema', 1],
-          ['Chart series bound', 1],
+        steps: [
+          { state: 'ok', label: 'Targeted edit', detail: 'slides[4] regenerated only · re-validated · v2' },
         ],
+        text: 'Tightened it to one headline stat — win rate up 9 points — with a single supporting bar pair and a one-line takeaway. The rest of the deck is untouched.',
         artifact: {
           artifactId: 'a1',
-          name: 'Q3_QBR_Meridian.pptx',
+          name: 'Q3-Business-Review.pptx',
           kind: 'pptx',
-          meta: '9 slides · 1.8 MB',
+          meta: '12 slides · Lightspeed template · v2',
           ver: 2,
         },
-        text: 'Rewrote the headline to lead with the number — “Win rate up 9 points in two quarters” — and swapped the table for a line chart bound to the same series. Only slide 3 was regenerated; the rest of the deck is byte-identical to v1.',
       }),
       t - 270_000,
     );
 
-    const insArtifact = db.prepare(
+    db.prepare(
       'INSERT INTO artifacts (id, project_id, name, kind, current_version, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    );
+    ).run('a1', 'p1', 'Q3-Business-Review.pptx', 'pptx', 2, t);
     const insVersion = db.prepare(
       'INSERT INTO artifact_versions (id, artifact_id, version, file_path, meta, validation, payload, created_at) VALUES (?, ?, ?, NULL, ?, ?, NULL, ?)',
     );
     const validation = JSON.stringify([
-      ['Schema valid', 1],
-      ['Round-trip', 1],
+      { state: 'ok', label: 'openxml-audit', detail: 'schema-valid' },
+      { state: 'ok', label: 'python-pptx round-trip', detail: '12 slides · text intact' },
+      { state: 'ok', label: 'Placeholder grep', detail: 'no leftover {{ }} tags' },
+      { state: 'warn', label: 'soffice recalc / thumbnails', detail: 'skipped — not installed' },
     ]);
-    const artifacts: Array<[string, string, string, string, number, string]> = [
-      ['a1', 'p1', 'Q3_QBR_Meridian.pptx', 'pptx', 2, '9 slides · 1.8 MB'],
-      ['a2', 'p2', 'MSA_section7_redline.docx', 'docx', 4, 'Tracked changes · 22 pages'],
-      ['a3', 'p1', 'pipeline_forecast.xlsx', 'xlsx', 1, '3 sheets · recalc pending'],
-      ['a4', 'p3', 'org-intel-landing', 'site', 3, '4 files · bundled offline'],
-    ];
-    for (const [id, projectId, name, kind, ver, meta] of artifacts) {
-      insArtifact.run(id, projectId, name, kind, ver, t);
-      for (let v = 1; v <= ver; v++) {
-        insVersion.run(`${id}_v${v}`, id, v, meta, validation, t - (ver - v) * 60_000);
-      }
-    }
+    insVersion.run('a1_v1', 'a1', 1, '12 slides · Lightspeed template · v1', validation, t - 290_000);
+    insVersion.run('a1_v2', 'a1', 2, '12 slides · Lightspeed template · v2', validation, t - 270_000);
 
-    const insSkill = db.prepare('INSERT INTO skills_state (skill_id, enabled) VALUES (?, 1)');
+    const insSkill = db.prepare(
+      'INSERT OR REPLACE INTO skills_state (skill_id, enabled) VALUES (?, 1)',
+    );
     for (const id of ['pptx', 'docx', 'xlsx', 'pdf', 'md', 'mermaid', 'svg', 'react', 'site']) {
       insSkill.run(id);
     }
 
     const insPlugin = db.prepare(
-      "INSERT INTO plugin_installs (id, connector_id, source, status, enabled_projects, created_at) VALUES (?, ?, 'bundled', 'connected', ?, ?)",
+      "INSERT INTO plugin_installs (id, connector_id, source, status, enabled_projects, created_at) VALUES (?, ?, ?, 'installed', ?, ?)",
     );
-    insPlugin.run('pi_filesystem', 'filesystem', JSON.stringify(['p1', 'p2']), t);
-    insPlugin.run('pi_memory', 'memory', JSON.stringify(['p1', 'p2', 'p3']), t);
-    insPlugin.run('pi_sqlite', 'sqlite', JSON.stringify(['p3']), t);
+    insPlugin.run('pi_filesystem', 'filesystem', 'bundled', JSON.stringify(['p1', 'p2', 'p3']), t);
+    insPlugin.run('pi_atlas-memory', 'atlas-memory', 'bundled', JSON.stringify(['p1', 'p2', 'p3']), t);
+    insPlugin.run('pi_github', 'github', 'directory', JSON.stringify([]), t);
 
     setSetting('activeProjectId', 'p1');
-    setSetting('selectedModel', 'e4b');
+    setSetting('selectedModel', 'auto');
     setSetting('userName', config.userName);
-    setSetting('seeded', '1');
+    setSetting('seeded', '2');
   });
   seed();
-  log('seeded first-boot fixtures');
+  log('seeded first-boot fixtures (atlas-v2-ui)');
 }

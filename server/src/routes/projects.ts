@@ -6,6 +6,7 @@ export interface ProjectRow {
   name: string;
   instructions: string;
   created_at: number;
+  settings: string;
 }
 
 function withStats(p: ProjectRow) {
@@ -15,33 +16,28 @@ function withStats(p: ProjectRow) {
       n: number;
     }
   ).n;
-  const artifacts = (
+  // template libraries are post-v1 — artifact count stands in (PRD A47)
+  const templates = (
     db.prepare('SELECT COUNT(*) AS n FROM artifacts WHERE project_id = ?').get(p.id) as {
       n: number;
     }
   ).n;
-  const memBytes = (
-    db
-      .prepare(
-        `SELECT COALESCE(SUM(LENGTH(value)),0) + COALESCE((SELECT SUM(LENGTH(props)) FROM mem_graph_nodes WHERE project_id = ?),0) AS n
-         FROM mem_kv WHERE project_id = ?`,
-      )
-      .get(p.id, p.id) as { n: number }
-  ).n;
-  const memory =
-    memBytes >= 1024 * 1024
-      ? `${Math.round(memBytes / 1024 / 1024)} MB`
-      : memBytes >= 1024
-        ? `${Math.round(memBytes / 1024)} KB`
-        : `${memBytes} B`;
-  return { ...p, chats, artifacts, memory };
+  const installs = db
+    .prepare('SELECT enabled_projects FROM plugin_installs')
+    .all() as Array<{ enabled_projects: string }>;
+  const plugins = installs.filter((r) =>
+    (JSON.parse(r.enabled_projects) as string[]).includes(p.id),
+  ).length;
+  const shared = Boolean((JSON.parse(p.settings || '{}') as { shared?: boolean }).shared);
+  const { settings: _settings, ...rest } = p;
+  return { ...rest, chats, templates, plugins, shared };
 }
 
 export const projectsRouter = Router();
 
 projectsRouter.get('/', (_req, res) => {
   const rows = getDb()
-    .prepare('SELECT id, name, instructions, created_at FROM projects ORDER BY created_at')
+    .prepare('SELECT id, name, instructions, created_at, settings FROM projects ORDER BY created_at')
     .all() as ProjectRow[];
   res.json(rows.map(withStats));
 });
@@ -57,7 +53,7 @@ projectsRouter.post('/', (req, res) => {
     .prepare('INSERT INTO projects (id, name, instructions, created_at) VALUES (?, ?, ?, ?)')
     .run(id, name.trim(), instructions?.trim() ?? '', now());
   const row = getDb()
-    .prepare('SELECT id, name, instructions, created_at FROM projects WHERE id = ?')
+    .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
     .get(id) as ProjectRow;
   res.status(201).json(withStats(row));
 });
@@ -66,7 +62,7 @@ projectsRouter.patch('/:id', (req, res) => {
   const { name, instructions } = req.body as { name?: string; instructions?: string };
   const db = getDb();
   const existing = db
-    .prepare('SELECT id, name, instructions, created_at FROM projects WHERE id = ?')
+    .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
     .get(req.params.id) as ProjectRow | undefined;
   if (!existing) {
     res.status(404).json({ error: 'project not found' });
@@ -78,7 +74,7 @@ projectsRouter.patch('/:id', (req, res) => {
     existing.id,
   );
   const row = db
-    .prepare('SELECT id, name, instructions, created_at FROM projects WHERE id = ?')
+    .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
     .get(existing.id) as ProjectRow;
   res.json(withStats(row));
 });

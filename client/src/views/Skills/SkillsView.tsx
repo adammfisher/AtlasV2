@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Check, Info, PenTool } from 'lucide-react';
+import { ChevronDown, CheckCircle2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { C, SERIF, MONO, ICONS } from '../../theme/tokens';
+import { C, sans, serif, mono, namedIcon, tokenColor } from '../../theme/tokens';
 import { api, type Skill } from '../../lib/api';
-import { Toggle } from '../../components/Toggle';
-import { Chip } from '../../components/Chip';
+import { Badge } from '../../components/Badge';
 
 export function SkillsView({ skills }: { skills: Skill[] }) {
-  const [open, setOpen] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>('pptx');
   const queryClient = useQueryClient();
 
   const toggle = (s: Skill) => {
@@ -20,121 +19,121 @@ export function SkillsView({ skills }: { skills: Skill[] }) {
   };
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-8">
-        <h1 className="text-2xl" style={{ color: C.text, fontFamily: SERIF }}>
-          Skills
-        </h1>
-        <p className="text-sm mt-1 leading-relaxed" style={{ color: C.dim }}>
-          Playbooks that drive the on-device models through document creation. Metadata (~100
-          tokens each) is always in context; the full playbook loads only when the router matches a
-          task. The model emits structured JSON — deterministic helpers fill the templates.
+    <div className="flex flex-col h-full min-w-0">
+      <div className="px-7 pt-6 pb-4">
+        <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Skills</h1>
+        <p className="text-sm mt-1 max-w-2xl" style={{ color: C.sub, fontFamily: sans }}>
+          Playbooks the model loads on demand. Metadata stays in context (~100 tokens each); full
+          instructions load only when the router matches a task. The model emits structured JSON —
+          deterministic helpers do the rest.
         </p>
-
-        <div className="mt-6 space-y-2">
-          {skills.map((s) => {
-            const Icon = ICONS[s.id] ?? PenTool;
-            const expanded = open === s.id;
-            return (
-              <div
-                key={s.id}
-                className="rounded-xl transition-colors"
-                style={{
-                  background: expanded ? C.raise : C.bg,
-                  border: `1px solid ${expanded ? C.border : C.borderSoft}`,
-                  opacity: s.enabled ? 1 : 0.55,
-                }}
+      </div>
+      <div className="px-7 pb-8 overflow-y-auto flex flex-col gap-2">
+        {skills.map((s) => {
+          const Icon = namedIcon(s.icon);
+          const { color, dim } = tokenColor(s.colorToken);
+          const open = openId === s.id;
+          return (
+            <div
+              key={s.id}
+              className="rounded-xl transition-colors"
+              style={{
+                background: C.panel,
+                border: `1px solid ${open ? C.border : C.borderSoft}`,
+                opacity: s.enabled ? 1 : 0.55,
+              }}
+            >
+              <button
+                onClick={() => setOpenId(open ? null : s.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left"
               >
-                <div
-                  className="px-4 py-3.5 flex items-center gap-4 cursor-pointer"
-                  onClick={() => setOpen(expanded ? null : s.id)}
+                <span
+                  className="flex items-center justify-center rounded-lg flex-shrink-0"
+                  style={{ width: 34, height: 34, background: dim }}
                 >
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: C.raise2 }}
-                  >
-                    <Icon size={16} style={{ color: C.dim }} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium" style={{ color: C.text }}>
-                        {s.name}
-                      </span>
-                      <span className="text-xs" style={{ color: C.faint, fontFamily: MONO }}>
-                        {s.ext}
-                      </span>
-                    </div>
-                    <div className="text-xs mt-0.5 truncate" style={{ color: C.faint }}>
-                      {s.triggers}
-                    </div>
-                  </div>
-                  <div className="hidden md:block text-right flex-shrink-0">
-                    <div className="text-xs" style={{ color: C.dim, fontFamily: MONO }}>
-                      {s.metaTokens} / {s.fullTokens} tok
-                    </div>
-                    <div className="text-xs mt-0.5" style={{ color: C.faint, fontFamily: MONO }}>
-                      {s.helper}
-                    </div>
-                  </div>
-                  <span
-                    className="text-xs px-2 py-1 rounded-md flex-shrink-0"
-                    style={{ background: C.accentDim, color: C.accent, fontFamily: MONO }}
-                  >
-                    {s.tier}
+                  <Icon size={17} style={{ color }} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>
+                      {s.name}
+                    </span>
+                    <span className="text-xs" style={{ color: C.mute, fontFamily: mono }}>
+                      {s.ext}
+                    </span>
                   </span>
-                  <span onClick={(e) => e.stopPropagation()}>
-                    <Toggle on={s.enabled} onClick={() => toggle(s)} />
+                  <span className="block text-xs truncate" style={{ color: C.mute, fontFamily: sans }}>
+                    Triggers: {s.triggers}
                   </span>
-                </div>
-                {expanded && (
-                  <div className="px-4 pb-4" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-                    <div className="mt-3 text-xs font-medium" style={{ color: C.faint }}>
-                      MODEL EMITS
+                </span>
+                <span className="text-xs hidden md:block" style={{ color: C.mute, fontFamily: sans }}>
+                  {s.metaTokens} / {s.fullTokens.toLocaleString()} tokens
+                </span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(s);
+                  }}
+                  title={s.enabled ? 'Click to disable' : 'Click to enable'}
+                  className="cursor-pointer"
+                >
+                  <Badge
+                    color={s.enabled ? C.green : C.mute}
+                    dim={s.enabled ? C.greenDim : 'rgba(133,130,122,0.13)'}
+                  >
+                    {s.enabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                </span>
+                <ChevronDown
+                  size={15}
+                  style={{ color: C.mute, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}
+                />
+              </button>
+              {open ? (
+                <div
+                  className="px-4 pb-4 grid grid-cols-1 md:grid-cols-3 gap-4"
+                  style={{ borderTop: `1px solid ${C.borderSoft}`, paddingTop: 14 }}
+                >
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                      Pattern
                     </div>
-                    <div
-                      className="mt-1.5 rounded-lg px-3 py-2.5 text-xs break-all"
-                      style={{
-                        background: C.bg,
-                        color: C.dim,
-                        fontFamily: MONO,
-                        border: `1px solid ${C.borderSoft}`,
-                      }}
+                    <p className="text-xs leading-relaxed" style={{ color: C.sub, fontFamily: sans }}>
+                      {s.note}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                      Helper
+                    </div>
+                    <code
+                      className="block px-2.5 py-1.5 rounded-md text-xs mb-2"
+                      style={{ background: C.bg, color: C.green, border: `1px solid ${C.borderSoft}`, fontFamily: mono }}
                     >
-                      {s.schema}
-                    </div>
-                    <div className="mt-3 text-xs font-medium" style={{ color: C.faint }}>
-                      VALIDATION CHAIN
-                    </div>
-                    <div className="flex flex-wrap mt-1.5">
-                      {s.checks.map((c) => (
-                        <Chip key={c} icon={Check} tone="green">
-                          {c}
-                        </Chip>
-                      ))}
-                    </div>
-                    <div className="text-xs mt-1 leading-relaxed" style={{ color: C.faint }}>
-                      Constrained decoding (json_schema → GBNF) guarantees syntax; the chain above
-                      gates delivery. Failures trigger up to two repair retries, then tier
-                      escalation.
+                      {s.helper}
+                    </code>
+                    <div className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+                      Tier: <span style={{ color: C.sub }}>{s.tier}</span>
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div
-          className="mt-5 rounded-xl px-4 py-3.5 text-xs leading-relaxed flex gap-2.5"
-          style={{ background: C.bg, border: `1px solid ${C.borderSoft}`, color: C.faint }}
-        >
-          <Info size={14} className="flex-shrink-0 mt-0.5" style={{ color: C.dim }} />
-          <span>
-            † Recalc and thumbnail checks run only when LibreOffice is present on this machine.
-            When absent, validation degrades to OOXML schema, library round-trip, and placeholder
-            checks — and the output is flagged accordingly.
-          </span>
-        </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                      Validation gates
+                    </div>
+                    {s.validators.map((v) => (
+                      <div key={v} className="flex items-center gap-1.5 py-0.5">
+                        <CheckCircle2 size={12} style={{ color: C.green }} />
+                        <span className="text-xs" style={{ color: C.sub, fontFamily: sans }}>
+                          {v}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

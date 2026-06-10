@@ -25,7 +25,7 @@ function loadDirectory(): Connector[] {
 
 export const pluginsRouter = Router();
 
-/** Directory manifest ⨯ install state ⨯ per-project enablement (PRD §3). */
+/** Directory manifest ⨯ install state ⨯ per-project enablement. */
 pluginsRouter.get('/directory', (_req, res) => {
   const installs = new Map(
     (getDb().prepare('SELECT * FROM plugin_installs').all() as InstallRow[]).map((r) => [
@@ -35,13 +35,9 @@ pluginsRouter.get('/directory', (_req, res) => {
   );
   const entries = loadDirectory().map((c) => {
     const install = installs.get(c.id);
-    const status = install
-      ? install.status === 'installed'
-        ? 'connected'
-        : install.status
-      : c.status === 'bundled'
-        ? 'available'
-        : c.status;
+    // bundled connectors stay 'bundled'; anything else with an install row is 'installed'
+    const status =
+      c.status === 'bundled' ? 'bundled' : install ? (install.status === 'installed' ? 'installed' : install.status) : c.status;
     return {
       ...c,
       status,
