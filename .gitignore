@@ -5,3 +5,6 @@ dist/
 *.log
 runtimes/
 .env
+.playwright-mcp/
+*.png
+/tmp/

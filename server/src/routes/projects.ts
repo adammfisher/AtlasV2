@@ -29,8 +29,16 @@ function withStats(p: ProjectRow) {
     (JSON.parse(r.enabled_projects) as string[]).includes(p.id),
   ).length;
   const shared = Boolean((JSON.parse(p.settings || '{}') as { shared?: boolean }).shared);
-  const { settings: _settings, ...rest } = p;
-  return { ...rest, chats, templates, plugins, shared };
+  return {
+    id: p.id,
+    name: p.name,
+    instructions: p.instructions,
+    created_at: p.created_at,
+    chats,
+    templates,
+    plugins,
+    shared,
+  };
 }
 
 export const projectsRouter = Router();
