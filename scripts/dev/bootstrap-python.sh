@@ -25,7 +25,7 @@ PIP="$VENV/bin/pip"
   docxtpl==0.20.2 \
   weasyprint==69.0 \
   pdfplumber==0.11.9 \
-  "markitdown==0.1.6"
+  "markitdown[all]==0.1.6"
 
 # PRD §4.5: try openxml-audit; proceed without if unavailable (record in handoff)
 if "$PIP" install --quiet openxml-audit 2>/dev/null; then
