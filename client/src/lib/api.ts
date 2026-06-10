@@ -25,6 +25,7 @@ export interface ArtifactRef {
   kind: string;
   meta: string;
   ver: number;
+  state?: string | null;
 }
 
 export interface PipelineStep {
@@ -102,6 +103,25 @@ export interface ArtifactVersion {
   created_at: number;
 }
 
+export interface ProjectionRow {
+  id: string;
+  kind: string;
+  atVersion: number;
+  status: string;
+  stale: boolean;
+  generated: boolean;
+  outputRef: string | null;
+  targetRef: string | null;
+}
+
+export interface ProductStateRow {
+  state: string;
+  note: string;
+  stamped_by: string;
+  at_version: number;
+  created_at: number;
+}
+
 export interface ArtifactDetailData {
   id: string;
   projectId: string;
@@ -110,8 +130,13 @@ export interface ArtifactDetailData {
   kind: string;
   ver: number;
   meta: string;
+  state: string | null;
   created_at: number;
   versions: ArtifactVersion[];
+  timeline?: ProductStateRow[];
+  promote?: { to: string; unmet: string[] } | null;
+  projections?: ProjectionRow[];
+  payload?: Record<string, unknown> | null;
 }
 
 export interface ModelEntry {
@@ -193,6 +218,21 @@ export const api = {
       body: JSON.stringify({ connectorId }),
     }),
   artifact: (id: string) => request<ArtifactDetailData>(`/artifacts/${id}`),
+  restoreArtifact: (id: string, version: number) =>
+    request<{ ok: boolean; ver: number }>(`/artifacts/${id}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ version }),
+    }),
+  promoteProduct: (id: string, to: string, note: string) =>
+    request<{ ok: boolean; state: string; ambers: string[] }>(`/artifacts/${id}/state`, {
+      method: 'POST',
+      body: JSON.stringify({ to, note }),
+    }),
+  generateProjection: (id: string, kind: string) =>
+    request<ProjectionRow>(`/artifacts/${id}/projections`, {
+      method: 'POST',
+      body: JSON.stringify({ kind }),
+    }),
   models: () => request<ModelsRegistry>('/models'),
   selectModel: (id: string) =>
     request<{ ok: boolean }>('/models/select', { method: 'POST', body: JSON.stringify({ id }) }),

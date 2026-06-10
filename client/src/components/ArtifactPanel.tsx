@@ -1,32 +1,76 @@
 import { useState } from 'react';
-import { X, Download, Copy, Presentation } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { C, sans } from '../theme/tokens';
-import { api } from '../lib/api';
+import { X, Download, Package, ArrowUp, RefreshCw, FileText } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { C, sans, mono, namedIcon } from '../theme/tokens';
+import { api, type ProjectionRow } from '../lib/api';
 import { StepRow } from './StepRow';
-import { MiniSlide, SLIDES } from './MiniSlide';
+import { Badge } from './Badge';
+import { ArtifactPreview } from './ArtifactPreview';
+import type { PipelineStep } from '../lib/api';
+
+const KIND_ICONS: Record<string, string> = {
+  pptx: 'presentation',
+  docx: 'file-text',
+  xlsx: 'file-spreadsheet',
+  pdf: 'book-open',
+  md: 'file-code',
+  mermaid: 'git-branch',
+  svg: 'layers',
+  react: 'braces',
+  site: 'braces',
+  product: 'box',
+};
+
+const STATE_COLORS: Record<string, { color: string; dim: string }> = {
+  proposed: { color: C.sub, dim: 'rgba(184,180,169,0.13)' },
+  endorsed: { color: C.blue, dim: C.blueDim },
+  specified: { color: C.purple, dim: C.purpleDim },
+  built: { color: C.green, dim: C.greenDim },
+  operating: { color: C.accent, dim: C.accentDim },
+};
+
+const PROJECTION_KINDS = [
+  'concept_md',
+  'concept_docx',
+  'brd_docx',
+  'gate_pptx',
+  'context_mermaid',
+  'prototype_react',
+];
 
 export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onClose: () => void }) {
+  const queryClient = useQueryClient();
   const { data: a } = useQuery({
     queryKey: ['artifact', artifactId],
     queryFn: () => api.artifact(artifactId),
   });
   const [ver, setVer] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [busyKind, setBusyKind] = useState<string | null>(null);
+  const [promoteNote, setPromoteNote] = useState('');
 
   if (!a) return null;
+  const Icon = namedIcon(KIND_ICONS[a.kind] ?? 'file-text');
   const activeVer = ver ?? a.ver;
   const version = a.versions.find((v) => v.version === activeVer);
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['artifact', artifactId] });
 
-  const download = () => {
+  const act = (fn: () => Promise<unknown>, busy?: string) => {
     setNotice(null);
-    void fetch(`/api/artifacts/${a.id}/versions/${activeVer}/download`).then(async (res) => {
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setNotice(body.error ?? `${res.status} ${res.statusText}`);
-      }
-    });
+    if (busy) setBusyKind(busy);
+    void fn()
+      .catch((err: unknown) => setNotice(err instanceof Error ? err.message : String(err)))
+      .finally(() => {
+        setBusyKind(null);
+        refresh();
+      });
   };
+
+  const stateStyle = a.state ? STATE_COLORS[a.state] ?? STATE_COLORS.proposed : null;
+  const projections: ProjectionRow[] = a.projections ?? [];
+  const projByKind = new Map(projections.map((p) => [p.kind, p]));
+  const bundleUnlocked =
+    a.state === 'specified' || a.state === 'built' || a.state === 'operating';
 
   return (
     <div
@@ -34,10 +78,15 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
       style={{ width: 380, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }}
     >
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-        <Presentation size={15} style={{ color: C.accent }} />
+        <Icon size={15} style={{ color: C.accent }} />
         <span className="text-sm font-medium truncate" style={{ color: C.text, fontFamily: sans }}>
           {a.name}
         </span>
+        {a.state && stateStyle && (
+          <Badge color={stateStyle.color} dim={stateStyle.dim}>
+            {a.state}
+          </Badge>
+        )}
         <span className="ml-auto flex items-center gap-1">
           {a.versions
             .slice()
@@ -61,42 +110,193 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
           <X size={15} />
         </button>
       </div>
-      <div className="px-4 py-3 grid grid-cols-2 gap-2.5 overflow-y-auto">
-        {SLIDES.map((s, i) => (
-          <MiniSlide key={i} s={s} active={activeVer === 2 && i === 4} />
-        ))}
-      </div>
-      <div className="px-4 py-3 mt-auto" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-        <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
-          Validation
+
+      <div className="px-4 py-3 overflow-y-auto flex-1 flex flex-col gap-4">
+        {a.kind === 'product' ? (
+          <>
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                State timeline
+              </div>
+              {(a.timeline ?? []).length === 0 ? (
+                <div className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+                  proposed — no stamps yet
+                </div>
+              ) : (
+                (a.timeline ?? []).map((t, i) => (
+                  <div key={i} className="flex items-start gap-2 py-1 text-xs" style={{ fontFamily: sans }}>
+                    <span style={{ color: STATE_COLORS[t.state]?.color ?? C.sub }}>{t.state}</span>
+                    <span style={{ color: C.mute }}>
+                      {t.stamped_by} · v{t.at_version}
+                      {t.note ? ` · ${t.note}` : ''}
+                    </span>
+                  </div>
+                ))
+              )}
+              {a.promote && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    value={promoteNote}
+                    onChange={(e) => setPromoteNote(e.target.value)}
+                    placeholder={a.promote.to === 'operating' ? 'note (required)' : 'note (optional)'}
+                    className="flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none"
+                    style={{ background: C.panel, color: C.text, border: `1px solid ${C.borderSoft}`, fontFamily: sans }}
+                  />
+                  <span title={a.promote.unmet.length > 0 ? `Unmet: ${a.promote.unmet.join(' · ')}` : ''}>
+                    <button
+                      disabled={a.promote.unmet.length > 0}
+                      onClick={() =>
+                        act(() => api.promoteProduct(a.id, a.promote?.to ?? '', promoteNote).then(() => setPromoteNote('')))
+                      }
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{
+                        background: a.promote.unmet.length > 0 ? C.raised : C.accent,
+                        color: a.promote.unmet.length > 0 ? C.mute : '#fff',
+                        fontFamily: sans,
+                        cursor: a.promote.unmet.length > 0 ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <ArrowUp size={12} /> Promote → {a.promote.to}
+                    </button>
+                  </span>
+                </div>
+              )}
+              {a.promote && a.promote.unmet.length > 0 && (
+                <div className="text-xs mt-1.5" style={{ color: C.amber, fontFamily: sans }}>
+                  Unmet: {a.promote.unmet.join(' · ')}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                Projections
+              </div>
+              {PROJECTION_KINDS.map((kind) => {
+                const row = projByKind.get(kind);
+                const busy = busyKind === kind;
+                return (
+                  <div
+                    key={kind}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2 mb-1"
+                    style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
+                  >
+                    <span className="text-xs flex-1 truncate" style={{ color: C.text, fontFamily: mono }}>
+                      {kind}
+                    </span>
+                    <Badge
+                      color={kind === 'prototype_react' ? C.amber : C.green}
+                      dim={kind === 'prototype_react' ? C.amberDim : C.greenDim}
+                    >
+                      {kind === 'prototype_react' ? 'generated' : 'deterministic'}
+                    </Badge>
+                    {row && (
+                      <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+                        v{row.atVersion}
+                      </span>
+                    )}
+                    {row?.stale && (
+                      <Badge color={C.amber} dim={C.amberDim}>
+                        stale
+                      </Badge>
+                    )}
+                    <button
+                      title={row ? 'Regenerate' : 'Generate'}
+                      onClick={() => act(() => api.generateProjection(a.id, kind), kind)}
+                      className="p-1 rounded"
+                      style={{ color: busy ? C.accent : C.mute }}
+                    >
+                      <RefreshCw size={12} className={busy ? 'animate-spin' : ''} />
+                    </button>
+                    {row && row.outputRef && kind !== 'prototype_react' && (
+                      <a
+                        href={`/api/artifacts/${a.id}/projections/${row.id}/download`}
+                        title="Download"
+                        className="p-1 rounded"
+                        style={{ color: C.mute }}
+                      >
+                        <Download size={12} />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+              <span title={bundleUnlocked ? '' : "unlocks at 'specified'"}>
+                <button
+                  disabled={!bundleUnlocked}
+                  onClick={() => {
+                    if (bundleUnlocked) window.open(`/api/artifacts/${a.id}/bundle`, '_blank');
+                  }}
+                  className="mt-1 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium"
+                  style={{
+                    background: bundleUnlocked ? C.accent : C.raised,
+                    color: bundleUnlocked ? '#fff' : C.mute,
+                    fontFamily: sans,
+                    cursor: bundleUnlocked ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  <Package size={13} /> Export bundle{bundleUnlocked ? '' : " — unlocks at 'specified'"}
+                </button>
+              </span>
+            </div>
+
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                Definition (v{activeVer})
+              </div>
+              <pre
+                className="rounded-lg px-3 py-2.5 overflow-auto"
+                style={{ background: C.bg, color: C.sub, fontFamily: mono, fontSize: 10.5, maxHeight: 220, margin: 0, border: `1px solid ${C.borderSoft}` }}
+              >
+                {JSON.stringify(a.payload ?? {}, null, 2)}
+              </pre>
+            </div>
+          </>
+        ) : (
+          <ArtifactPreview artifactId={a.id} version={activeVer} kind={a.kind} height={300} />
+        )}
+
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
+            Validation
+          </div>
+          {((version?.validation ?? []) as PipelineStep[]).map((v) => (
+            <StepRow key={v.label} state={v.state} label={v.label} detail={v.detail} />
+          ))}
         </div>
-        {(version?.validation ?? []).map((v) => (
-          <StepRow key={v.label} state={v.state} label={v.label} detail={v.detail} />
-        ))}
+
         {notice && (
           <div
-            className="mt-2 rounded-lg px-3 py-2 text-xs leading-relaxed"
-            style={{ background: C.amberDim, color: C.amber, border: `1px solid ${C.amber}` }}
+            className="rounded-lg px-3 py-2 text-xs leading-relaxed"
+            style={{ background: C.amberDim, color: C.amber, border: `1px solid ${C.amber}`, fontFamily: sans }}
           >
             {notice}
           </div>
         )}
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={download}
+      </div>
+
+      <div className="px-4 py-3" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+        <div className="flex gap-2">
+          <a
+            href={`/api/artifacts/${a.id}/versions/${activeVer}/download`}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
-            style={{ background: C.accent, color: '#fff', fontFamily: sans }}
+            style={{ background: C.accent, color: '#fff', fontFamily: sans, textDecoration: 'none' }}
           >
-            <Download size={14} /> Download
-          </button>
-          <button
-            onClick={() => setNotice('Copy ships with real artifact files in Stage 3.')}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm"
-            style={{ background: C.raised, color: C.sub, fontFamily: sans, border: `1px solid ${C.border}` }}
-          >
-            <Copy size={14} /> Copy
-          </button>
+            <Download size={14} /> Download v{activeVer}
+          </a>
+          {activeVer !== a.ver && (
+            <button
+              onClick={() => act(() => api.restoreArtifact(a.id, activeVer))}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm"
+              style={{ background: C.raised, color: C.sub, fontFamily: sans, border: `1px solid ${C.border}` }}
+            >
+              <FileText size={14} /> Restore
+            </button>
+          )}
         </div>
+        <p className="text-xs mt-2" style={{ color: C.mute, fontFamily: sans }}>
+          Edits regenerate only the affected sections — earlier versions stay byte-exact for diffing.
+        </p>
       </div>
     </div>
   );
