@@ -1,22 +1,22 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import { getDb, newId, now } from '../db/db.js';
-import { streamChat, type ChatMessage } from '../llama/client.js';
 import { llamaState } from '../llama/spawn.js';
+import { scanModels } from '../llama/models.js';
 import { logTo } from '../log.js';
-
-const PERSONA =
-  'You are Atlas, a fully on-device AI assistant. You run entirely on this machine — nothing the user shares ever leaves it. ' +
-  'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
-  'Be direct, concise, and concrete.';
+import { route } from '../pipeline/router.js';
+import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
+import {
+  runCreateDoc,
+  runEditDoc,
+  streamPlainChat,
+  PipelineError,
+  type PipelinePayload,
+} from '../pipeline/orchestrator.js';
+import { lastPipelineArtifact } from '../pipeline/artifacts.js';
 
 function sse(res: Response, event: string, data: unknown): void {
-  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-}
-
-/** Router stub — Stage 1 routes every message to plain chat (real router lands in Stage 3). */
-function routeIntent(): { intent: 'chat' } {
-  return { intent: 'chat' };
+  if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
 export const chatRouter = Router();
@@ -43,10 +43,6 @@ chatRouter.post('/:id/messages', async (req, res) => {
   });
   res.flushHeaders();
   const keepAlive = setInterval(() => res.write(': keep-alive\n\n'), 15_000);
-  // Abort the upstream llama generation if the client disconnects — otherwise the
-  // abandoned stream keeps a slot busy for up to max_tokens. res 'close' fires with
-  // writableEnded=false only on premature disconnect (req 'close' fires once the body
-  // is consumed, which is far too early).
   const abort = new AbortController();
   res.on('close', () => {
     clearInterval(keepAlive);
@@ -69,16 +65,25 @@ chatRouter.post('/:id/messages', async (req, res) => {
   }
   db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(t, conv.id);
 
+  const persistAssistant = (kind: 'text' | 'pipeline', payload: unknown): string => {
+    const id = newId('m');
+    db.prepare(
+      'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(id, conv.id, 'assistant', kind, JSON.stringify(payload), now());
+    db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(now(), conv.id);
+    return id;
+  };
+
   try {
     if (llamaState().status !== 'ready') {
       throw new Error('Local model is offline — llama-server is not ready');
     }
-    routeIntent(); // Stage 1: always chat
-    sse(res, 'stage', { stage: 'routing' });
 
-    const project = db.prepare('SELECT instructions FROM projects WHERE id = ?').get(conv.project_id) as
-      | { instructions: string }
-      | undefined;
+    const project = db
+      .prepare('SELECT instructions FROM projects WHERE id = ?')
+      .get(conv.project_id) as { instructions: string } | undefined;
+    const instructions = project?.instructions ?? '';
+
     const history = (
       db
         .prepare(
@@ -88,39 +93,95 @@ chatRouter.post('/:id/messages', async (req, res) => {
     )
       .reverse()
       .filter((m) => m.kind === 'text')
-      .map((m): ChatMessage => {
+      .map((m) => {
         const payload = JSON.parse(m.payload) as { text?: string };
         return { role: m.role, content: payload.text ?? '' };
       });
 
-    const system = [PERSONA, project?.instructions ? `Project instructions: ${project.instructions}` : '']
-      .filter(Boolean)
-      .join('\n\n');
-    const messages: ChatMessage[] = [{ role: 'system', content: system }, ...history];
+    const routerModel = scanModels().some((m) => m.id === 'e2b' && m.present)
+      ? 'Gemma 4 E2B'
+      : 'Gemma 4 E4B';
+    sse(res, 'step', { state: 'pending', label: `Router · ${routerModel}`, detail: 'classifying the task' });
+    const editable = lastPipelineArtifact(conv.id);
+    const tRoute = Date.now();
+    const routed = await route(history.slice(0, -1), text.trim(), editable !== null);
+    const routerMs = Date.now() - tRoute;
+    logTo('pipeline', `route conv=${conv.id} intent=${routed.intent} skill=${routed.skill ?? '-'} ms=${routerMs}`);
 
-    let full = '';
-    const tStream = Date.now();
-    let tFirst: number | null = null;
-    for await (const delta of streamChat(messages, { signal: abort.signal })) {
-      if (tFirst === null) {
-        tFirst = Date.now();
-        logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms (route entry +${tStream - t}ms)`);
+    if (routed.intent === 'chat') {
+      sse(res, 'route', { intent: 'chat' }); // client drops the router row for plain chat
+      let full = '';
+      const tStream = Date.now();
+      let tFirst: number | null = null;
+      for await (const delta of streamPlainChat(history, instructions, abort.signal)) {
+        if (tFirst === null) {
+          tFirst = Date.now();
+          logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms`);
+        }
+        full += delta;
+        sse(res, 'token', { delta });
       }
-      full += delta;
-      sse(res, 'token', { delta });
+      const id = persistAssistant('text', { text: full });
+      sse(res, 'done', { messageId: id });
+      return;
     }
 
-    const assistantId = newId('m');
-    db.prepare(
-      'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(assistantId, conv.id, 'assistant', 'text', JSON.stringify({ text: full }), now());
-    db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(now(), conv.id);
-    sse(res, 'done', { messageId: assistantId });
+    // create_doc / edit_doc
+    const skillId: SkillId =
+      routed.intent === 'edit_doc' && editable && isSkillId(editable.kind)
+        ? editable.kind
+        : (routed.skill as SkillId);
+
+    if (!skillEnabled(skillId)) {
+      const skillName = loadSkill(skillId).name;
+      const refusal = `The ${skillName} skill is turned off, so I can't generate that right now. Flip it back on in Skills and ask again — the router will pick it up immediately.`;
+      sse(res, 'route', { intent: 'chat' });
+      sse(res, 'token', { delta: refusal });
+      const id = persistAssistant('text', { text: refusal });
+      sse(res, 'done', { messageId: id });
+      return;
+    }
+
+    const send = (event: string, data: unknown): void => sse(res, event, data);
+    let payload: PipelinePayload;
+    if (routed.intent === 'edit_doc' && editable) {
+      payload = await runEditDoc({
+        skillId,
+        artifactId: editable.artifactId,
+        artifactName: editable.name,
+        text: text.trim(),
+        projectId: conv.project_id,
+        instructions,
+        routerMs,
+        routerModel,
+        send,
+        signal: abort.signal,
+      });
+    } else {
+      payload = await runCreateDoc({
+        skillId,
+        text: text.trim(),
+        projectId: conv.project_id,
+        instructions,
+        routerMs,
+        routerModel,
+        send,
+        signal: abort.signal,
+      });
+    }
+    const id = persistAssistant('pipeline', payload);
+    sse(res, 'pipeline', { phase: 'end', duration: payload.duration });
+    sse(res, 'done', { messageId: id });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logTo('app', `chat error: ${message}`);
-    if (!res.writableEnded && !abort.signal.aborted) {
-      sse(res, 'error', { message, retryable: true });
+    logTo('pipeline', `pipeline error: ${message}`);
+    if (!abort.signal.aborted) {
+      const honest =
+        err instanceof PipelineError
+          ? `Generation failed: ${message}`
+          : `Something went wrong: ${message}`;
+      persistAssistant('text', { text: honest });
+      sse(res, 'error', { message: honest, retryable: true });
     }
   } finally {
     clearInterval(keepAlive);
