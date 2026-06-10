@@ -43,7 +43,15 @@ chatRouter.post('/:id/messages', async (req, res) => {
   });
   res.flushHeaders();
   const keepAlive = setInterval(() => res.write(': keep-alive\n\n'), 15_000);
-  req.on('close', () => clearInterval(keepAlive));
+  // Abort the upstream llama generation if the client disconnects — otherwise the
+  // abandoned stream keeps a slot busy for up to max_tokens. res 'close' fires with
+  // writableEnded=false only on premature disconnect (req 'close' fires once the body
+  // is consumed, which is far too early).
+  const abort = new AbortController();
+  res.on('close', () => {
+    clearInterval(keepAlive);
+    if (!res.writableEnded) abort.abort();
+  });
 
   const t = now();
   const messageCount = (
@@ -91,7 +99,13 @@ chatRouter.post('/:id/messages', async (req, res) => {
     const messages: ChatMessage[] = [{ role: 'system', content: system }, ...history];
 
     let full = '';
-    for await (const delta of streamChat(messages)) {
+    const tStream = Date.now();
+    let tFirst: number | null = null;
+    for await (const delta of streamChat(messages, { signal: abort.signal })) {
+      if (tFirst === null) {
+        tFirst = Date.now();
+        logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms (route entry +${tStream - t}ms)`);
+      }
       full += delta;
       sse(res, 'token', { delta });
     }
@@ -105,7 +119,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logTo('app', `chat error: ${message}`);
-    sse(res, 'error', { message, retryable: true });
+    if (!res.writableEnded && !abort.signal.aborted) {
+      sse(res, 'error', { message, retryable: true });
+    }
   } finally {
     clearInterval(keepAlive);
     res.end();

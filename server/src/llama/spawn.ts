@@ -51,18 +51,31 @@ export function pickChatModel(selected: string | null): ModelEntry | null {
   return want ?? models.find((m) => m.id === 'e4b' && m.present) ?? null;
 }
 
-/** One-token generation to page weights in and compile Metal shaders, so the first user message is fast. */
+/**
+ * Warm the fresh llama-server process with a request shaped like real chat traffic
+ * (≈120-token prompt, streaming, same sampling params). The first sizeable prompt
+ * batch pays one-time Metal pipeline compilation (~5 s) — pay it here, not on the
+ * user's first message.
+ */
 async function warmup(): Promise<void> {
   try {
-    await fetch(`http://127.0.0.1:${config.llamaServer.chatPort}/v1/chat/completions`, {
+    const filler = Array.from({ length: 110 }, (_, i) => `token${i}`).join(' ');
+    const res = await fetch(`http://127.0.0.1:${config.llamaServer.chatPort}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{ role: 'user', content: 'hi' }],
-        max_tokens: 1,
-        stream: false,
+        messages: [
+          { role: 'system', content: `You are a warmup probe. Ignore this: ${filler}` },
+          { role: 'user', content: 'Reply with the single word: ok' },
+        ],
+        max_tokens: 4,
+        stream: true,
+        temperature: 1.0,
+        top_p: 0.95,
+        top_k: 64,
       }),
     });
+    await res.text();
     log('llama-server warmed up');
   } catch {
     // warmup is best-effort

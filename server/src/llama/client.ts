@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { logTo } from '../log.js';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -16,9 +17,12 @@ export async function* streamChat(
   messages: ChatMessage[],
   opts: ChatOptions = {},
 ): AsyncGenerator<string> {
+  const t0 = Date.now();
   const res = await fetch(`http://127.0.0.1:${config.llamaServer.chatPort}/v1/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // identity: undici's default Accept-Encoding lets llama-server gzip the SSE
+    // stream, and the decompressor buffers tokens for seconds before flushing
+    headers: { 'Content-Type': 'application/json', 'Accept-Encoding': 'identity' },
     signal: opts.signal ?? null,
     body: JSON.stringify({
       messages,
@@ -33,11 +37,17 @@ export async function* streamChat(
     throw new Error(`llama-server responded ${res.status}: ${await res.text().catch(() => '')}`);
   }
 
+  const tHeaders = Date.now();
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let logged = false;
   for (;;) {
     const { done, value } = await reader.read();
+    if (!logged) {
+      logged = true;
+      logTo('app', `streamChat: headers +${tHeaders - t0}ms, first chunk +${Date.now() - t0}ms`);
+    }
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
