@@ -581,6 +581,34 @@ DESIGN GUIDANCE: ${skill.guidance}`;
 
   const newVer = current.version + 1;
   const dir = versionDir(opts.projectId, opts.artifactId, newVer);
+
+  // file-map skills have no Python helper — persist files and re-check the entry
+  if (skill.id === 'react' || skill.id === 'site') {
+    const files = ((edited as Record<string, unknown>).files ?? {}) as Record<string, string>;
+    const beforeFiles = ((current.payload as Record<string, unknown>).files ?? {}) as Record<string, string>;
+    const changedFiles = [...new Set([...Object.keys(files), ...Object.keys(beforeFiles)])].filter(
+      (k) => files[k] !== beforeFiles[k],
+    );
+    changed.length = 0;
+    changed.push(...changedFiles.map((_, i) => i));
+    writeVersionFiles(dir, files);
+    const entry = skill.id === 'react' ? String((edited as Record<string, unknown>).entry ?? '/App.jsx') : '/index.html';
+    if (!files[entry]) throw new PipelineError(`entry file ${entry} missing from emitted files`);
+    pushStep(ctx, { state: 'ok', label: 'Files persisted', detail: `${Object.keys(files).length} files · entry ${entry}` });
+    const meta = `${Object.keys(files).length} files · bundled offline`;
+    const ver = addVersion(opts.artifactId, {
+      payload: edited,
+      meta,
+      validation: [{ state: 'ok', label: 'Files persisted' }],
+      filePath: dir,
+    });
+    const summaryText = await summarize(ctx, `targeted edit of ${opts.artifactName} — ${changed.length} files changed`);
+    const artifact = { artifactId: opts.artifactId, name: opts.artifactName, kind: skill.id, meta, ver };
+    ctx.send('artifact', artifact);
+    ctx.send('assistant_text', { text: summaryText });
+    return finishPayload(ctx, `Targeted edit · ${changed.length} files changed`, true, summaryText, artifact);
+  }
+
   const outFile = path.join(dir, opts.artifactName);
   const helper = await runHelper(skill.id, edited, outFile);
   const blocked = helperChecksToSteps(ctx, helper.checks);
