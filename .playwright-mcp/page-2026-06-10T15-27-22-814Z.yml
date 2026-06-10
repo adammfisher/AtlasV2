@@ -1,0 +1,65 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: A
+      - generic [ref=e8]:
+        - generic [ref=e9]: Atlas
+        - generic [ref=e10]: Local · on-device
+    - generic [ref=e11]:
+      - button "New chat" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+        - text: New chat
+      - button "Projects" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+        - text: Projects
+      - button "Artifacts" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+        - text: Artifacts
+      - button "Plugins" [ref=e21] [cursor=pointer]:
+        - img [ref=e22]
+        - text: Plugins
+      - button "Skills" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+        - text: Skills
+    - generic [ref=e28]: Recents
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - img [ref=e32]
+        - text: starting…
+      - generic [ref=e35]:
+        - generic [ref=e36]: A
+        - generic [ref=e37]: Adam
+        - img [ref=e38] [cursor=pointer]
+  - generic [ref=e42]:
+    - generic [ref=e43]:
+      - img [ref=e44]
+      - generic [ref=e46]: New chat
+      - generic [ref=e47]:
+        - img [ref=e48]
+        - text: Local — nothing leaves this machine
+    - generic [ref=e51]:
+      - img [ref=e52]
+      - text: Local model starting — loading weights…
+    - generic [ref=e55]:
+      - generic [ref=e56]: What are we building, Adam?
+      - generic [ref=e57]: Documents, decks, models, diagrams, and prototypes — all on this machine.
+      - generic [ref=e58]:
+        - button "Build a QBR deck from the Q3 pipeline numbers" [ref=e59] [cursor=pointer]
+        - button "Redline section 7 of the Meridian MSA" [ref=e60] [cursor=pointer]
+        - button "Forecast model for next quarter’s pipeline" [ref=e61] [cursor=pointer]
+        - button "Diagram the org-intel ingest flow" [ref=e62] [cursor=pointer]
+        - button "Landing page prototype for Atlas" [ref=e63] [cursor=pointer]
+    - generic [ref=e65]:
+      - generic [ref=e66]:
+        - textbox "Message Atlas…" [ref=e67]
+        - generic [ref=e68]:
+          - img [ref=e69] [cursor=pointer]
+          - generic "File uploads post-v1" [ref=e70]:
+            - img [ref=e71]
+          - button "Gemma 4 E4B" [ref=e73] [cursor=pointer]:
+            - img [ref=e74]
+            - text: Gemma 4 E4B
+            - img [ref=e77]
+          - button [ref=e79] [cursor=pointer]:
+            - img [ref=e80]
+      - generic [ref=e82]: Atlas runs entirely on this machine. Generated documents are validated before delivery.

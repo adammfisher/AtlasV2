@@ -1,0 +1,344 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  ChevronRight,
+  ChevronDown,
+  Lock,
+  Loader2,
+  Paperclip,
+  Sparkles,
+  Mic,
+  ArrowUp,
+  Zap,
+  FolderKanban,
+  AlertCircle,
+} from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { C, sans, serif } from '../../theme/tokens';
+import { api, type ModelsRegistry, type Message, type ArtifactRef, type PipelineMessageData } from '../../lib/api';
+import { postSse } from '../../lib/sse';
+import { Badge } from '../../components/Badge';
+import { ModelMenu } from '../../components/ModelMenu';
+import { StepRow } from '../../components/StepRow';
+import { ArtifactCard } from '../../components/ArtifactCard';
+
+const SUGGESTIONS = [
+  'Build a QBR deck from the Q3 pipeline numbers',
+  'Redline section 4.2 of the MSA',
+  'Forecast model for next quarter’s pipeline',
+  'Diagram the org-intel ingest flow',
+  'Landing page prototype for Atlas',
+];
+
+function Msg({ who, children }: { who: 'user' | 'assistant'; children: ReactNode }) {
+  if (who === 'user') {
+    return (
+      <div className="flex justify-end mb-5">
+        <div
+          className="rounded-2xl px-4 py-2.5 max-w-md text-sm leading-relaxed"
+          style={{ background: C.panel, color: C.text, fontFamily: sans, border: `1px solid ${C.borderSoft}` }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
+  return <div className="mb-6 max-w-2xl">{children}</div>;
+}
+
+function PipelineCard({ m }: { m: PipelineMessageData }) {
+  if (m.edit) {
+    return (
+      <div className="rounded-xl px-3.5 py-2.5 mb-3" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
+        {m.steps.map((s) => (
+          <StepRow key={s.label} state={s.state} label={s.label} detail={s.detail} />
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl px-3.5 py-3 mb-3" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <Zap size={13} style={{ color: C.accent }} />
+        <span className="text-xs font-medium" style={{ color: C.text, fontFamily: sans }}>
+          Document pipeline
+        </span>
+        {m.skillBadge ? (
+          <Badge color={C.accent} dim={C.accentDim}>
+            {m.skillBadge}
+          </Badge>
+        ) : null}
+        {m.duration ? (
+          <span className="text-xs ml-auto" style={{ color: C.mute, fontFamily: sans }}>
+            {m.duration}
+          </span>
+        ) : null}
+      </div>
+      {m.steps.map((s) => (
+        <StepRow key={s.label} state={s.state} label={s.label} detail={s.detail} />
+      ))}
+    </div>
+  );
+}
+
+interface LiveExchange {
+  userText: string;
+  assistantText: string;
+  started: boolean;
+  error: string | null;
+}
+
+export function ChatView({
+  convId,
+  registry,
+  llamaStatus,
+  llamaError,
+  userName,
+  activeProjectName,
+  onOpenArtifact,
+}: {
+  convId: string | null;
+  registry: ModelsRegistry | undefined;
+  llamaStatus: string;
+  llamaError: string | null;
+  userName: string;
+  activeProjectName: string;
+  onOpenArtifact: (a: ArtifactRef) => void;
+}) {
+  const [input, setInput] = useState('');
+  const [menu, setMenu] = useState(false);
+  const [live, setLive] = useState<LiveExchange | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  const { data: conv } = useQuery({
+    queryKey: ['conversation', convId],
+    queryFn: () => api.conversation(convId as string),
+    enabled: convId !== null,
+  });
+
+  const messages: Message[] = conv?.messages ?? [];
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, live?.assistantText]);
+
+  const busy = live !== null;
+
+  const send = () => {
+    const text = input.trim();
+    if (!text || busy || convId === null) return;
+    setInput('');
+    setLive({ userText: text, assistantText: '', started: false, error: null });
+    void postSse(`/conversations/${convId}/messages`, { text }, {
+      onEvent: (event, data) => {
+        if (event === 'token') {
+          const delta = typeof data.delta === 'string' ? data.delta : '';
+          setLive((l) => (l ? { ...l, started: true, assistantText: l.assistantText + delta } : l));
+        } else if (event === 'error') {
+          const message = typeof data.message === 'string' ? data.message : 'Unknown error';
+          setLive((l) => (l ? { ...l, error: message } : l));
+        }
+      },
+      onClose: () => {
+        void queryClient.invalidateQueries({ queryKey: ['conversation', convId] }).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          setLive((l) => (l?.error ? l : null));
+        });
+      },
+      onError: (message) => {
+        setLive((l) => (l ? { ...l, error: message } : l));
+      },
+    });
+  };
+
+  const selectedRow =
+    registry?.selected === 'auto'
+      ? { name: 'Auto' }
+      : registry?.models.find((m) => m.id === registry.selected) ?? { name: 'Auto' };
+  const empty = messages.length === 0 && live === null;
+  const offline = llamaStatus !== 'ready';
+
+  return (
+    <div className="flex flex-col h-full min-w-0">
+      <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
+        <span className="text-sm" style={{ color: C.mute, fontFamily: sans }}>
+          {activeProjectName}
+        </span>
+        <ChevronRight size={13} style={{ color: C.mute }} />
+        <span className="text-sm font-medium truncate" style={{ color: C.text, fontFamily: sans }}>
+          {conv?.title ?? 'New chat'}
+        </span>
+        <Badge color={C.purple} dim={C.purpleDim} icon={FolderKanban}>
+          Project
+        </Badge>
+        <span className="ml-auto" />
+        <Badge color={C.green} dim={C.greenDim} icon={Lock}>
+          On-device · no data leaves this machine
+        </Badge>
+      </div>
+
+      {offline && (
+        <div
+          className="flex items-center gap-2 px-5 py-2 text-xs"
+          style={{ background: C.amberDim, color: C.amber, borderBottom: `1px solid ${C.borderSoft}`, fontFamily: sans }}
+        >
+          {llamaStatus === 'error' ? <AlertCircle size={13} /> : <Loader2 size={13} className="animate-spin" />}
+          {llamaStatus === 'error'
+            ? `Local model offline — ${llamaError ?? 'llama-server crashed'}`
+            : llamaStatus === 'restarting'
+              ? 'Local model crashed — restarting llama-server…'
+              : 'Local model starting — loading weights…'}
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        {empty ? (
+          <div className="h-full flex flex-col items-center justify-center">
+            <div className="mb-1" style={{ color: C.text, fontFamily: serif, fontSize: 26 }}>
+              What are we building, {userName}?
+            </div>
+            <div className="text-sm mb-6" style={{ color: C.mute, fontFamily: sans }}>
+              Documents, decks, models, diagrams, and prototypes — all on this machine.
+            </div>
+            <div className="flex flex-wrap gap-2 justify-center max-w-xl">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setInput(s)}
+                  className="text-xs px-3 py-2 rounded-full transition-colors"
+                  style={{ background: C.panel, color: C.sub, border: `1px solid ${C.borderSoft}`, fontFamily: sans }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-2xl mx-auto">
+            {messages.map((m) =>
+              m.role === 'user' ? (
+                <Msg key={m.id} who="user">
+                  {m.kind === 'text' ? m.text : ''}
+                </Msg>
+              ) : m.kind === 'pipeline' ? (
+                <Msg key={m.id} who="assistant">
+                  <PipelineCard m={m} />
+                  <p className="leading-relaxed mb-3" style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
+                    {m.text}
+                  </p>
+                  {m.artifact && <ArtifactCard artifact={m.artifact} onOpen={() => onOpenArtifact(m.artifact as ArtifactRef)} />}
+                </Msg>
+              ) : (
+                <Msg key={m.id} who="assistant">
+                  <p
+                    className="leading-relaxed whitespace-pre-wrap"
+                    style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
+                  >
+                    {m.text}
+                  </p>
+                </Msg>
+              ),
+            )}
+            {live && (
+              <>
+                <Msg who="user">{live.userText}</Msg>
+                <Msg who="assistant">
+                  {live.error ? (
+                    <div
+                      className="flex items-start gap-2 text-sm rounded-xl px-3.5 py-3"
+                      style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
+                    >
+                      <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                      <span>{live.error}</span>
+                    </div>
+                  ) : !live.started ? (
+                    <div className="flex items-center gap-2 text-sm" style={{ color: C.sub, fontFamily: sans }}>
+                      <Loader2 size={14} className="animate-spin" style={{ color: C.accent }} />
+                      Thinking…
+                    </div>
+                  ) : (
+                    <p
+                      className="leading-relaxed whitespace-pre-wrap"
+                      style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
+                    >
+                      {live.assistantText}
+                    </p>
+                  )}
+                </Msg>
+              </>
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
+      </div>
+
+      <div className="px-6 pb-5">
+        <div className="max-w-2xl mx-auto relative rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
+          <textarea
+            rows={2}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder="Message Atlas…"
+            className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
+            style={{ color: C.text, fontFamily: sans }}
+          />
+          <div className="flex items-center gap-1.5 px-3 pb-2.5">
+            <button className="p-1.5 rounded-lg cursor-not-allowed" style={{ color: C.mute }} title="File uploads post-v1">
+              <Paperclip size={16} />
+            </button>
+            <button className="p-1.5 rounded-lg" style={{ color: C.mute }}>
+              <Sparkles size={16} />
+            </button>
+            <span className="ml-auto relative">
+              <button
+                onClick={() => setMenu(!menu)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors"
+                style={{ color: C.sub, fontFamily: sans }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                {selectedRow.name}
+                <ChevronDown size={13} />
+              </button>
+              {menu && registry ? (
+                <ModelMenu
+                  registry={registry}
+                  onSelect={(id) => {
+                    void api.selectModel(id).then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['models'] });
+                    });
+                  }}
+                  onClose={() => setMenu(false)}
+                />
+              ) : null}
+            </span>
+            <button className="p-1.5 rounded-lg" style={{ color: C.mute }}>
+              <Mic size={16} />
+            </button>
+            <button
+              onClick={send}
+              disabled={busy}
+              className="flex items-center justify-center rounded-lg"
+              style={{ width: 30, height: 30, background: C.accent, opacity: busy ? 0.5 : 1 }}
+            >
+              {busy ? (
+                <Loader2 size={15} color="#fff" className="animate-spin" />
+              ) : (
+                <ArrowUp size={16} color="#fff" strokeWidth={2.4} />
+              )}
+            </button>
+          </div>
+        </div>
+        <p className="text-center text-xs mt-2.5" style={{ color: C.mute, fontFamily: sans }}>
+          Atlas runs on this machine. Models: Gemma 4 E2B · E4B · 12B — Bedrock optional.
+        </p>
+      </div>
+    </div>
+  );
+}
