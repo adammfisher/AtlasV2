@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS messages (
   payload TEXT NOT NULL,
   created_at INTEGER
 );
+-- kind is open TEXT: office/skill kinds plus 'product' (PRD Amendment 1 §A2)
 CREATE TABLE IF NOT EXISTS artifacts (
   id TEXT PRIMARY KEY, project_id TEXT REFERENCES projects(id),
   name TEXT NOT NULL, kind TEXT NOT NULL, current_version INTEGER DEFAULT 1, created_at INTEGER
@@ -27,6 +28,21 @@ CREATE TABLE IF NOT EXISTS plugin_installs (
   credentials_ref TEXT, last_error TEXT, created_at INTEGER
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+-- PRD Amendment 1 §A2 — product masters & projections (project-scoped through their artifact)
+CREATE TABLE IF NOT EXISTS product_states (
+  id TEXT PRIMARY KEY, artifact_id TEXT NOT NULL REFERENCES artifacts(id),
+  state TEXT CHECK(state IN ('proposed','endorsed','specified','built','operating')),
+  note TEXT DEFAULT '', stamped_by TEXT, at_version INTEGER, created_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS projections (
+  id TEXT PRIMARY KEY, artifact_id TEXT NOT NULL REFERENCES artifacts(id),
+  kind TEXT CHECK(kind IN ('concept_md','concept_docx','brd_docx','gate_pptx',
+                           'context_mermaid','prototype_react','bundle',
+                           'confluence_page','jira_epics')),
+  at_version INTEGER NOT NULL, output_ref TEXT, target_ref TEXT,
+  status TEXT DEFAULT 'local' CHECK(status IN ('local','pushed','stale','error')),
+  created_at INTEGER
+);
 CREATE TABLE IF NOT EXISTS mem_kv (project_id TEXT, key TEXT, value TEXT, PRIMARY KEY(project_id, key));
 CREATE TABLE IF NOT EXISTS mem_graph_nodes (id TEXT PRIMARY KEY, project_id TEXT, kind TEXT, name TEXT, props TEXT);
 CREATE TABLE IF NOT EXISTS mem_graph_edges (src TEXT, dst TEXT, project_id TEXT, rel TEXT, props TEXT);

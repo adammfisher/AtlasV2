@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getDb } from '../db/db.js';
+import { scopedArtifacts } from '../db/scoped.js';
 
 interface ArtifactRow {
   id: string;
@@ -44,10 +45,22 @@ export const artifactsRouter = Router();
 
 artifactsRouter.get('/', (req, res) => {
   const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : null;
-  // Gallery spans projects when unscoped (mockup shows the project label per card).
-  const rows = projectId
-    ? (getDb().prepare(`${SELECT} WHERE a.project_id = ? ORDER BY a.created_at DESC`).all(projectId) as ArtifactRow[])
-    : (getDb().prepare(`${SELECT} ORDER BY a.created_at DESC`).all() as ArtifactRow[]);
+  // Gallery spans projects when unscoped (mockup shows the project label per card);
+  // scoped reads go through the isolation helpers, then join the project name.
+  if (projectId) {
+    const names = new Map(
+      (getDb().prepare('SELECT id, name FROM projects').all() as Array<{ id: string; name: string }>).map(
+        (p) => [p.id, p.name],
+      ),
+    );
+    res.json(
+      scopedArtifacts(projectId).map((a) =>
+        summarize({ ...a, project_name: names.get(a.project_id) ?? '' }),
+      ),
+    );
+    return;
+  }
+  const rows = getDb().prepare(`${SELECT} ORDER BY a.created_at DESC`).all() as ArtifactRow[];
   res.json(rows.map(summarize));
 });
 
