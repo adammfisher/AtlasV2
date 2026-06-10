@@ -53,15 +53,18 @@ export function validateMermaid(source: string): { ok: true } | { ok: false; err
   }
   const quotes = (text.match(/"/g) ?? []).length;
   if (quotes % 2 !== 0) return { ok: false, error: 'unbalanced quotes' };
-  // the most common real-world parse failure: unquoted (), {} or | inside [] / {} node labels
-  for (const match of text.matchAll(/\[([^\]]*)\]|\{([^}]*)\}/g)) {
-    const label = match[1] ?? match[2] ?? '';
-    if (label.startsWith('"') && label.endsWith('"')) continue;
-    if (/[(){}|]/.test(label)) {
-      return {
-        ok: false,
-        error: `node label ${JSON.stringify(label.slice(0, 40))} contains (), {} or | — wrap the whole label in double quotes`,
-      };
+  // the most common real-world parse failure in flowcharts: unquoted (), {} or |
+  // inside [] node labels (other diagram types use different bracket syntax)
+  if (firstLine.startsWith('flowchart') || firstLine.startsWith('graph')) {
+    for (const match of text.matchAll(/\[([^\]]*)\]/g)) {
+      const label = match[1] ?? '';
+      if (label.startsWith('"') && label.endsWith('"')) continue;
+      if (/[(){}|]/.test(label)) {
+        return {
+          ok: false,
+          error: `node label ${JSON.stringify(label.slice(0, 40))} contains (), {} or | — wrap the whole label in double quotes`,
+        };
+      }
     }
   }
   return { ok: true };
