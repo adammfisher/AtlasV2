@@ -55,7 +55,7 @@ export function PluginCard({
       <div className="flex items-center gap-1.5 flex-wrap">
         <TransportBadge t={p.transport} />
         <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
-          {p.tools.length} tools
+          {(p.tools ?? []).length} tools
         </span>
       </div>
       <div className="flex items-center gap-2 pt-1" style={{ borderTop: `1px solid ${C.borderSoft}` }}>

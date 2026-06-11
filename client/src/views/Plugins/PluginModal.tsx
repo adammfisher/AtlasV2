@@ -34,7 +34,7 @@ export function PluginModal({
     enabled: Boolean(p.installId && (p.status === 'connected' || p.status === 'bundled')),
     retry: false,
   });
-  const tools = liveTools?.map((t) => t.name) ?? p.tools;
+  const tools = liveTools?.map((t) => t.name) ?? p.tools ?? [];
 
   const run = (kind: 'restart' | 'remove' | 'cred', fn: () => Promise<unknown>) => {
     setBusy(kind);
@@ -129,12 +129,12 @@ export function PluginModal({
             </div>
           ) : null}
 
-          {p.creds.length > 0 ? (
+          {(p.creds ?? []).length > 0 ? (
             <div>
               <div className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: C.mute, fontFamily: sans }}>
                 Credentials · stored per user (customUserVars)
               </div>
-              {p.creds.map((c) => (
+              {(p.creds ?? []).map((c) => (
                 <div
                   key={c.key}
                   className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-1.5"
