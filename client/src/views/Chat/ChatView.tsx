@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Box,
   Cog,
+  Cloud,
   FileText,
   X,
 } from 'lucide-react';
@@ -314,9 +315,15 @@ export function ChatView({
             </span>
           )}
         </button>
-        <Badge color={C.green} dim={C.greenDim} icon={Lock}>
-          On-device · no data leaves this machine
-        </Badge>
+        {registry?.selected === 'bedrock' ? (
+          <Badge color={C.blue} dim={C.blueDim} icon={Cloud}>
+            Bedrock connected · office + chat via Claude
+          </Badge>
+        ) : (
+          <Badge color={C.green} dim={C.greenDim} icon={Lock}>
+            On-device · no data leaves this machine
+          </Badge>
+        )}
       </div>
 
       {offline && (

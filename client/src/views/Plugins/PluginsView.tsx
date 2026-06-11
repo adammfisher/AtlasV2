@@ -95,7 +95,12 @@ export function PluginsView({
             style={{ color: C.text, fontFamily: sans }}
           />
         </div>
-        {FILTERS.map((f) => (
+        {FILTERS.map((f) => {
+          const count = plugins.filter((x) =>
+            f === 'All' ? true : f === 'Installed' ? x.installId !== null || x.status === 'bundled'
+            : f === 'stdio' ? x.transport === 'stdio' : x.transport !== 'stdio',
+          ).length;
+          return (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -107,9 +112,16 @@ export function PluginsView({
               fontFamily: sans,
             }}
           >
-            {f}
+            {f} · {count}
           </button>
-        ))}
+          );
+        })}
+        <span
+          className="px-2.5 py-1.5 rounded-lg text-xs"
+          style={{ color: C.mute, border: `1px dashed ${C.borderSoft}`, fontFamily: sans }}
+        >
+          SSRF allowlisted
+        </span>
         <button
           onClick={() => setShowCustom(true)}
           className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
