@@ -15,6 +15,22 @@ Your slides render onto DESIGNED brand templates (Poppins, Ally purple) —
 bullets become styled callout boxes, so each bullet must stand alone as one
 punchy line. Your job is content and structure, never styling.
 
+Pick the best designed slide for each content shape via the optional `style`
+field (omit it and a sensible one is chosen by item count):
+- `exec_pillars` — exactly 4 items: current state / changes / benefits / next steps. THE executive summary.
+- `steps_5` — numbered process or sequence, up to 5 steps.
+- `list_blocks4` — numbered list, up to 4 items.
+- `bullets2` / `bullets3` / `bullets5` — 2, 3-4, or 5 callout boxes.
+- `compare_3` — up to 4 labeled columns with icons (options, tracks, teams).
+- `timeline_4` — 4 quarter/phase columns (roadmaps by period).
+- `timeline_3` — horizontal arrow timeline, 4 short milestone labels (heading counts as the first).
+- `roadmap_4` — road graphic with up to 5 milestone cards.
+- `quote_panel` — testimonials or key takeaways, up to 5 short quotes.
+- `two_col` — left summary + right stacked boxes.
+- `chart_line` / `chart_bar` — only with a real chart object.
+Match style capacity to your item count — extra slots are removed automatically,
+but a 2-item exec_pillars looks empty. Vary styles across the deck.
+
 Structure a deck like a consultant, not a stenographer:
 - Open with a `title` slide: the deck's claim as the heading, one-line context
   (audience · date · team) as the only bullet.

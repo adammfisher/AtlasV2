@@ -1,195 +1,412 @@
 {
-  "source": "dfs_library.pptx",
-  "comment": "0-based slide indices into the DFS library with explicit fill maps (shape ids from the library). slots fill one content item each (first paragraph; the rest cleared); unused slots are deleted together with their icon shapes. always_delete removes hidden duplicate frames that exist in the library file.",
-  "exemplars": {
-    "bullets2": {
-      "slide": 40,
-      "heading": 12,
-      "slots": [
-        {
-          "text": 20,
-          "icons": [
-            21
-          ]
-        },
-        {
-          "text": 22,
-          "icons": [
-            23
-          ]
-        }
-      ],
-      "always_delete": [
-        5
-      ],
-      "heading_style": {
-        "size": 26,
-        "bold": true,
-        "color": "371447"
-      }
+ "source": "dfs_library.pptx",
+ "comment": "0-based slide indices into the DFS library with explicit fill maps (shape ids from the library). slots fill one content item each (first paragraph; the rest cleared); unused slots are deleted together with their icon shapes. always_delete removes hidden duplicate frames that exist in the library file.",
+ "exemplars": {
+  "bullets2": {
+   "slide": 40,
+   "heading": 12,
+   "slots": [
+    {
+     "text": 20,
+     "icons": [
+      21
+     ]
     },
-    "bullets3": {
-      "slide": 44,
-      "heading": 3,
-      "slots": [
-        {
-          "text": 8,
-          "icons": [
-            9
-          ]
-        },
-        {
-          "text": 4,
-          "icons": [
-            5
-          ]
-        },
-        {
-          "text": 6,
-          "icons": [
-            7
-          ]
-        },
-        {
-          "text": 11,
-          "icons": [
-            10
-          ]
-        }
-      ],
-      "always_delete": [],
-      "heading_style": {
-        "size": 22,
-        "bold": true,
-        "color": "371447"
-      }
-    },
-    "bullets5": {
-      "slide": 42,
-      "heading": 12,
-      "subtitle": 16,
-      "slots": [
-        {
-          "text": 4,
-          "icons": []
-        },
-        {
-          "text": 10,
-          "icons": []
-        },
-        {
-          "text": 13,
-          "icons": []
-        },
-        {
-          "text": 15,
-          "icons": []
-        },
-        {
-          "text": 18,
-          "icons": []
-        }
-      ],
-      "always_delete": [
-        5,
-        6,
-        7,
-        8
-      ],
-      "heading_style": {
-        "size": 26,
-        "bold": true,
-        "color": "371447"
-      }
-    },
-    "two_col": {
-      "slide": 41,
-      "heading": 16,
-      "left": 8,
-      "slots": [
-        {
-          "text": 3,
-          "icons": [
-            18
-          ]
-        },
-        {
-          "text": 4,
-          "icons": [
-            19
-          ]
-        },
-        {
-          "text": 9,
-          "icons": [
-            15
-          ]
-        }
-      ],
-      "always_delete": [
-        5
-      ],
-      "heading_style": {
-        "size": 18,
-        "bold": true
-      }
-    },
-    "chart_line": {
-      "slide": 255,
-      "heading": 4,
-      "sidebar": 6,
-      "sidebar_frame": 5,
-      "chart": true,
-      "slots": [],
-      "always_delete": [],
-      "kind": "line"
-    },
-    "chart_bar": {
-      "slide": 257,
-      "heading": 7,
-      "slots": [
-        {
-          "text": 8,
-          "icons": []
-        }
-      ],
-      "chart": true,
-      "always_delete": [],
-      "kind": "bar"
-    },
-    "section": {
-      "slide": 26,
-      "heading": 2,
-      "slots": [],
-      "always_delete": [
-        4
-      ]
-    },
-    "closing": {
-      "slide": 283,
-      "heading": 2,
-      "slots": [],
-      "always_delete": []
+    {
+     "text": 22,
+     "icons": [
+      23
+     ]
     }
+   ],
+   "always_delete": [
+    5
+   ],
+   "heading_style": {
+    "size": 26,
+    "bold": true,
+    "color": "371447"
+   }
   },
-  "categories": {
-    "bullets": [
-      "bullets2",
-      "bullets3",
-      "bullets5"
-    ],
-    "two_col": [
-      "two_col"
-    ],
-    "chart": [
-      "chart_line",
-      "chart_bar"
-    ],
-    "section": [
-      "section"
-    ],
-    "closing": [
-      "closing"
-    ]
+  "bullets3": {
+   "slide": 44,
+   "heading": 3,
+   "slots": [
+    {
+     "text": 8,
+     "icons": [
+      9
+     ]
+    },
+    {
+     "text": 4,
+     "icons": [
+      5
+     ]
+    },
+    {
+     "text": 6,
+     "icons": [
+      7
+     ]
+    },
+    {
+     "text": 11,
+     "icons": [
+      10
+     ]
+    }
+   ],
+   "always_delete": [],
+   "heading_style": {
+    "size": 22,
+    "bold": true,
+    "color": "371447"
+   }
+  },
+  "bullets5": {
+   "slide": 42,
+   "heading": 12,
+   "subtitle": 16,
+   "slots": [
+    {
+     "text": 4,
+     "icons": []
+    },
+    {
+     "text": 10,
+     "icons": []
+    },
+    {
+     "text": 13,
+     "icons": []
+    },
+    {
+     "text": 15,
+     "icons": []
+    },
+    {
+     "text": 18,
+     "icons": []
+    }
+   ],
+   "always_delete": [
+    5,
+    6,
+    7,
+    8
+   ],
+   "heading_style": {
+    "size": 26,
+    "bold": true,
+    "color": "371447"
+   }
+  },
+  "two_col": {
+   "slide": 41,
+   "heading": 16,
+   "left": 8,
+   "slots": [
+    {
+     "text": 3,
+     "icons": [
+      18
+     ]
+    },
+    {
+     "text": 4,
+     "icons": [
+      19
+     ]
+    },
+    {
+     "text": 9,
+     "icons": [
+      15
+     ]
+    }
+   ],
+   "always_delete": [
+    5
+   ],
+   "heading_style": {
+    "size": 18,
+    "bold": true
+   }
+  },
+  "chart_line": {
+   "slide": 255,
+   "heading": 4,
+   "sidebar": 6,
+   "sidebar_frame": 5,
+   "chart": true,
+   "slots": [],
+   "always_delete": [],
+   "kind": "line"
+  },
+  "chart_bar": {
+   "slide": 257,
+   "heading": 7,
+   "slots": [
+    {
+     "text": 8,
+     "icons": []
+    }
+   ],
+   "chart": true,
+   "always_delete": [],
+   "kind": "bar"
+  },
+  "section": {
+   "slide": 26,
+   "heading": 2,
+   "slots": [],
+   "always_delete": [
+    4
+   ]
+  },
+  "closing": {
+   "slide": 283,
+   "heading": 2,
+   "slots": [],
+   "always_delete": []
+  },
+  "exec_pillars": {
+   "slide": 79,
+   "heading": 11,
+   "slots": [
+    {
+     "text": 50,
+     "icons": []
+    },
+    {
+     "text": 54,
+     "icons": []
+    },
+    {
+     "text": 51,
+     "icons": []
+    },
+    {
+     "text": 55,
+     "icons": []
+    }
+   ],
+   "always_delete": []
+  },
+  "list_blocks4": {
+   "slide": 113,
+   "heading": 5,
+   "slots": [
+    {
+     "text": 17,
+     "icons": []
+    },
+    {
+     "text": 19,
+     "icons": []
+    },
+    {
+     "text": 21,
+     "icons": []
+    },
+    {
+     "text": 3,
+     "icons": []
+    }
+   ],
+   "always_delete": []
+  },
+  "steps_5": {
+   "slide": 121,
+   "heading": 24,
+   "slots": [
+    {
+     "text": 14,
+     "icons": []
+    },
+    {
+     "text": 16,
+     "icons": []
+    },
+    {
+     "text": 18,
+     "icons": []
+    },
+    {
+     "text": 20,
+     "icons": []
+    },
+    {
+     "text": 22,
+     "icons": []
+    }
+   ],
+   "always_delete": []
+  },
+  "compare_3": {
+   "slide": 156,
+   "heading": 7,
+   "slots": [
+    {
+     "text": 15,
+     "icons": [
+      8,
+      13,
+      16,
+      23
+     ]
+    },
+    {
+     "text": 19,
+     "icons": [
+      8,
+      13,
+      16,
+      23
+     ]
+    },
+    {
+     "text": 11,
+     "icons": [
+      8,
+      13,
+      16,
+      23
+     ]
+    }
+   ],
+   "always_delete": []
+  },
+  "timeline_4": {
+   "slide": 192,
+   "heading": 3,
+   "slots": [
+    {
+     "text": 26,
+     "icons": []
+    },
+    {
+     "text": 28,
+     "icons": []
+    },
+    {
+     "text": 29,
+     "icons": []
+    },
+    {
+     "text": 30,
+     "icons": []
+    }
+   ],
+   "always_delete": []
+  },
+  "timeline_3": {
+   "slide": 196,
+   "heading": 8,
+   "slots": [
+    {
+     "text": 25,
+     "icons": []
+    },
+    {
+     "text": 24,
+     "icons": []
+    },
+    {
+     "text": 26,
+     "icons": []
+    }
+   ],
+   "always_delete": []
+  },
+  "roadmap_4": {
+   "slide": 198,
+   "heading": 118,
+   "slots": [
+    {
+     "text": 134,
+     "icons": []
+    },
+    {
+     "text": 136,
+     "icons": []
+    },
+    {
+     "text": 138,
+     "icons": []
+    },
+    {
+     "text": 140,
+     "icons": []
+    }
+   ],
+   "always_delete": []
+  },
+  "quote_panel": {
+   "slide": 248,
+   "heading": 12,
+   "slots": [
+    {
+     "text": 10,
+     "icons": []
+    },
+    {
+     "text": 8,
+     "icons": []
+    },
+    {
+     "text": 14,
+     "icons": []
+    },
+    {
+     "text": 17,
+     "icons": []
+    }
+   ],
+   "always_delete": []
   }
+ },
+ "categories": {
+  "bullets": [
+   "bullets2",
+   "bullets3",
+   "bullets5",
+   "exec_pillars",
+   "list_blocks4",
+   "steps_5"
+  ],
+  "two_col": [
+   "two_col",
+   "compare_3"
+  ],
+  "chart": [
+   "chart_line",
+   "chart_bar"
+  ],
+  "section": [
+   "section"
+  ],
+  "closing": [
+   "closing"
+  ]
+ },
+ "styles": [
+  "bullets2",
+  "bullets3",
+  "bullets5",
+  "chart_bar",
+  "chart_line",
+  "closing",
+  "compare_3",
+  "exec_pillars",
+  "list_blocks4",
+  "quote_panel",
+  "roadmap_4",
+  "section",
+  "steps_5",
+  "timeline_3",
+  "timeline_4",
+  "two_col"
+ ]
 }

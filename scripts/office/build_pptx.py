@@ -72,7 +72,12 @@ def build(payload: dict, template: str, out: Path) -> dict:
                 category = "chart"
                 items = [str(b) for b in (slide_spec.get("bullets") or [])]
             chart_kind = (slide_spec.get("chart") or {}).get("kind") if layout_kind == "chart" else None
-            name = exemplars.pick(category, len(items), chart_kind=chart_kind) if exemplars.has(category) else None
+            # the model may request a specific style (the 24-slide library); else capacity-pick
+            requested = slide_spec.get("style")
+            if requested and requested in exemplars.exemplars:
+                name = requested
+            else:
+                name = exemplars.pick(category, len(items), chart_kind=chart_kind) if exemplars.has(category) else None
             if name is not None:
                 exemplars.build_slide(
                     name,

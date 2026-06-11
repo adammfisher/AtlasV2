@@ -104,6 +104,26 @@
           },
           "notes": {
             "type": "string"
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "bullets2",
+              "bullets3",
+              "bullets5",
+              "chart_bar",
+              "chart_line",
+              "compare_3",
+              "exec_pillars",
+              "list_blocks4",
+              "quote_panel",
+              "roadmap_4",
+              "steps_5",
+              "timeline_3",
+              "timeline_4",
+              "two_col"
+            ],
+            "description": "Optional designed-slide style from the DFS library; omit to auto-pick."
           }
         }
       }

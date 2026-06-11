@@ -4,6 +4,7 @@ library into a generated deck and fill them through EXPLICIT per-exemplar maps
 icon shapes; hidden duplicate frames present in the library are always removed.
 """
 import json
+import re
 from copy import deepcopy
 from pathlib import Path
 
@@ -27,6 +28,9 @@ class ExemplarDeck:
 
     def has(self, category):
         return bool(self.categories.get(category))
+
+    def styles(self):
+        return list(self.exemplars.keys())
 
     def pick(self, category, item_count, chart_kind=None):
         """Smallest exemplar whose slot capacity fits; charts match the requested
@@ -194,6 +198,32 @@ class ExemplarDeck:
                     shape.chart.has_title = False  # the slide banner carries the heading
                     break
 
+        self._sweep_placeholders(slide)
         if notes:
             slide.notes_slide.notes_text_frame.text = str(notes)
         return slide
+
+    _PLACEHOLDER_LINE = re.compile(
+        r"^\s*(insert\b.*|placeholder|title|topic|lorem ipsum.*|presenter names?.*|#\s*minutes.*"
+        r"|x{1,3}%|#{1,3}%.*|date\s*[–-]\s*date|chart title|\d?\.?\s*milestone \d.*"
+        r"|bullet point \d.*|your text here|description:\s*insert.*|metric title|#{2,})\s*$",
+        re.I | re.S,
+    )
+
+    def _sweep_placeholders(self, slide):
+        """After mapped fills, clear ANY remaining placeholder-pattern paragraph
+        anywhere on the slide (incl. inside groups) — template residue like
+        'Insert description here.' must never ship."""
+        def walk(shapes):
+            for sh in shapes:
+                if sh.shape_type == 6 and hasattr(sh, "shapes"):
+                    walk(sh.shapes)
+                    continue
+                if not getattr(sh, "has_text_frame", False):
+                    continue
+                for para in sh.text_frame.paragraphs:
+                    text = para.text.strip()
+                    if text and self._PLACEHOLDER_LINE.match(text):
+                        for run in para.runs:
+                            run.text = ""
+        walk(slide.shapes)
