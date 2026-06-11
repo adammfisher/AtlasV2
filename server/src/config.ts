@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -18,11 +18,36 @@ export interface AtlasConfig {
   bedrock: { enabled: boolean; region: string; profile: string };
 }
 
-export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+/** Walk up from this module until atlas.config.json appears — the same code
+ * runs from server/src (dev) and from the flatter portable bundle layout. */
+function findRoot(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 5; i++) {
+    if (existsSync(path.join(dir, 'atlas.config.json'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+}
+
+export const repoRoot = findRoot();
+
+function resolveRel(p: string): string {
+  return p.startsWith('./') || p.startsWith('../') ? path.resolve(repoRoot, p) : p;
+}
 
 export function loadConfig(): AtlasConfig {
   const raw = readFileSync(path.join(repoRoot, 'atlas.config.json'), 'utf8');
-  return JSON.parse(raw) as AtlasConfig;
+  const cfg = JSON.parse(raw) as AtlasConfig;
+  // portable folder: relative paths resolve against the folder; if the
+  // configured macOS dataDir is absent, fall back to ./data (PRD Stage 5)
+  cfg.dataDir = resolveRel(cfg.dataDir);
+  cfg.models.dir = resolveRel(cfg.models.dir);
+  if (cfg.llamaServer.binary !== 'auto') cfg.llamaServer.binary = resolveRel(cfg.llamaServer.binary);
+  if (!existsSync(path.dirname(cfg.dataDir))) {
+    cfg.dataDir = path.join(repoRoot, 'data');
+    cfg.models.dir = path.join(cfg.dataDir, 'models');
+  }
+  return cfg;
 }
 
 export const config = loadConfig();

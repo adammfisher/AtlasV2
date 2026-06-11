@@ -6,7 +6,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { getDb } from '../db/db.js';
@@ -73,9 +73,13 @@ export function urlAllowed(url: string): boolean {
 }
 
 function bundledTransport(connectorId: string, projectId: string): StdioClientTransport {
+  // portable build ships pre-bundled .mjs servers run by the vendored node;
+  // dev runs the .ts sources through tsx
+  const bundled = path.join(repoRoot, 'servers', `${connectorId}.mjs`);
+  const useBundled = existsSync(bundled);
   return new StdioClientTransport({
-    command: path.join(repoRoot, 'node_modules/.bin/tsx'),
-    args: [path.join(repoRoot, 'servers', `${connectorId}.ts`)],
+    command: useBundled ? process.execPath : path.join(repoRoot, 'node_modules/.bin/tsx'),
+    args: [useBundled ? bundled : path.join(repoRoot, 'servers', `${connectorId}.ts`)],
     cwd: dataDir, // jail: built-ins never run with the repo as cwd
     env: {
       ATLAS_PROJECT_ID: projectId,
