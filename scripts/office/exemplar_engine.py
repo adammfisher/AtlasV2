@@ -28,17 +28,16 @@ class ExemplarDeck:
     def has(self, category):
         return bool(self.categories.get(category))
 
-    def pick(self, category, item_count):
-        """Smallest exemplar whose slot capacity fits; charts rotate and are
-        single-use per deck (their chart part is a shared object)."""
+    def pick(self, category, item_count, chart_kind=None):
+        """Smallest exemplar whose slot capacity fits; charts match the requested
+        kind and are single-use per deck (their chart part is a shared object)."""
         names = self.categories.get(category, [])
         if not names:
             return None
         if category == "chart":
-            i = self.rotation.get(category, 0)
-            self.rotation[category] = i + 1
-            for offset in range(len(names)):
-                name = names[(i + offset) % len(names)]
+            preferred = [n for n in names if self.exemplars[n].get("kind") == (chart_kind or "bar")]
+            ordered = preferred + [n for n in names if n not in preferred]
+            for name in ordered:
                 if name not in self.used:
                     self.used.add(name)
                     return name
@@ -142,9 +141,12 @@ class ExemplarDeck:
         self._set_text(heading_shape, heading)
         style = spec.get("heading_style")
         if style and heading_shape is not None and getattr(heading_shape, "has_text_frame", False):
+            size = style.get("size")
+            if size and len(heading) > 32:  # long headings shrink so they never overlap content
+                size = max(12, int(size * 0.7))
             for run in heading_shape.text_frame.paragraphs[0].runs:
-                if style.get("size"):
-                    run.font.size = Pt(style["size"])
+                if size:
+                    run.font.size = Pt(size)
                 if style.get("bold"):
                     run.font.bold = True
                 if style.get("color"):

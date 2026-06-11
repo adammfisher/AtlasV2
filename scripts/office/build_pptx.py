@@ -71,7 +71,8 @@ def build(payload: dict, template: str, out: Path) -> dict:
             else:
                 category = "chart"
                 items = [str(b) for b in (slide_spec.get("bullets") or [])]
-            name = exemplars.pick(category, len(items)) if exemplars.has(category) else None
+            chart_kind = (slide_spec.get("chart") or {}).get("kind") if layout_kind == "chart" else None
+            name = exemplars.pick(category, len(items), chart_kind=chart_kind) if exemplars.has(category) else None
             if name is not None:
                 exemplars.build_slide(
                     name,
@@ -85,6 +86,13 @@ def build(payload: dict, template: str, out: Path) -> dict:
         if layout_kind == "title":
             slide = prs.slides.add_slide(title_layout)
             slide.shapes.title.text = slide_spec["heading"]
+            # long deck titles shrink so they never clip the title band
+            heading_len = len(slide_spec["heading"])
+            if heading_len > 38:
+                title_size = Pt(28) if heading_len > 60 else Pt(36)
+                for para in slide.shapes.title.text_frame.paragraphs:
+                    for run in para.runs:
+                        run.font.size = title_size
             subtitle = slide_spec.get("bullets") or []
             placeholders = [p for p in slide.placeholders if p.placeholder_format.idx != 0]
             if subtitle and placeholders:

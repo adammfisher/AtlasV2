@@ -57,7 +57,12 @@
           ]
         }
       ],
-      "always_delete": []
+      "always_delete": [],
+      "heading_style": {
+        "size": 22,
+        "bold": true,
+        "color": "371447"
+      }
     },
     "bullets5": {
       "slide": 42,
@@ -125,7 +130,7 @@
         5
       ],
       "heading_style": {
-        "size": 20,
+        "size": 18,
         "bold": true
       }
     },
@@ -136,7 +141,8 @@
       "sidebar_frame": 5,
       "chart": true,
       "slots": [],
-      "always_delete": []
+      "always_delete": [],
+      "kind": "line"
     },
     "chart_bar": {
       "slide": 257,
@@ -148,7 +154,8 @@
         }
       ],
       "chart": true,
-      "always_delete": []
+      "always_delete": [],
+      "kind": "bar"
     },
     "section": {
       "slide": 26,
