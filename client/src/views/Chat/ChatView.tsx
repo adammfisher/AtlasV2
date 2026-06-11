@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Box,
   Cog,
+  FileText,
+  X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
@@ -115,6 +117,7 @@ function PipelineCard({ m }: { m: PipelineMessageData }) {
 
 interface LiveExchange {
   toolChips: Array<{ tool: string; connector: string }>;
+  userAttachments?: Array<{ id: string; name: string; kind: string }>;
   userText: string;
   assistantText: string;
   started: boolean;
@@ -164,6 +167,31 @@ export function ChatView({
   const [menu, setMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
   const [bedrockModal, setBedrockModal] = useState(false);
+  const [attachments, setAttachments] = useState<
+    Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean }>
+  >([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = (files: FileList | null): void => {
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      const tempId = `pending-${file.name}-${Date.now()}`;
+      const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name);
+      const thumb = isImage ? URL.createObjectURL(file) : undefined;
+      setAttachments((a) => [...a, { id: tempId, name: file.name, kind: isImage ? 'image' : 'document', thumb, uploading: true }]);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = String(reader.result).split(',')[1] ?? '';
+        void api
+          .uploadAttachment(file.name, base64)
+          .then((meta) =>
+            setAttachments((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))),
+          )
+          .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   const genRef = useRef<{ text: string | null; label: string }>({ text: null, label: '' });
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -185,9 +213,12 @@ export function ChatView({
   const send = () => {
     const text = input.trim();
     if (!text || busy || convId === null) return;
+    if (attachments.some((a) => a.uploading)) return; // wait for uploads
+    const sendAtts = attachments.map(({ id, name, kind }) => ({ id, name, kind }));
     setInput('');
-    setLive({ toolChips: [], userText: text, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
-    void postSse(`/conversations/${convId}/messages`, { text }, {
+    setAttachments([]);
+    setLive({ toolChips: [], userText: text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
+    void postSse(`/conversations/${convId}/messages`, { text, attachments: sendAtts }, {
       onEvent: (event, data) => {
         if (event === 'token') {
           const delta = typeof data.delta === 'string' ? data.delta : '';
@@ -329,6 +360,19 @@ export function ChatView({
             {messages.map((m) =>
               m.role === 'user' ? (
                 <Msg key={m.id} who="user">
+                  {m.kind === 'text' && m.attachments?.length ? (
+                    <span className="flex flex-wrap gap-1.5 mb-1.5">
+                      {m.attachments.map((a) => (
+                        <span
+                          key={a.id}
+                          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs"
+                          style={{ background: 'rgba(255,255,255,0.08)', fontFamily: sans }}
+                        >
+                          <FileText size={11} /> {a.name}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
                   {m.kind === 'text' ? m.text : ''}
                 </Msg>
               ) : m.kind === 'pipeline' ? (
@@ -363,7 +407,18 @@ export function ChatView({
             )}
             {live && (
               <>
-                <Msg who="user">{live.userText}</Msg>
+                <Msg who="user">
+                  {live.userAttachments?.length ? (
+                    <span className="flex flex-wrap gap-1.5 mb-1.5">
+                      {live.userAttachments.map((a) => (
+                        <span key={a.id} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: sans }}>
+                          <FileText size={11} /> {a.name}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  {live.userText}
+                </Msg>
                 <Msg who="assistant">
                   {live.pipeline && (
                     <div
@@ -443,8 +498,50 @@ export function ChatView({
             className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
             style={{ color: C.text, fontFamily: sans }}
           />
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-3 pt-1 pb-0.5">
+              {attachments.map((a) => (
+                <span
+                  key={a.id}
+                  className="relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-6 py-1 text-xs"
+                  style={{ background: C.panel, border: `1px solid ${C.borderSoft}`, color: C.sub, fontFamily: sans }}
+                >
+                  {a.thumb ? (
+                    <img src={a.thumb} alt="" className="rounded" style={{ width: 28, height: 28, objectFit: 'cover' }} />
+                  ) : (
+                    <FileText size={14} style={{ color: C.accent }} />
+                  )}
+                  <span className="max-w-[160px] truncate">{a.name}</span>
+                  {a.uploading ? <Loader2 size={11} className="animate-spin" /> : null}
+                  <button
+                    onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded"
+                    style={{ color: C.mute }}
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-1.5 px-3 pb-2.5">
-            <button className="p-1.5 rounded-lg cursor-not-allowed" style={{ color: C.mute }} title="File uploads post-v1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx,.pptx,.xlsx,.csv,.md,.txt,.json,.html"
+              className="hidden"
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1.5 rounded-lg"
+              style={{ color: C.mute }}
+              title="Attach images, office files, PDFs, markdown"
+            >
               <Paperclip size={16} />
             </button>
             <button className="p-1.5 rounded-lg" style={{ color: C.mute }}>

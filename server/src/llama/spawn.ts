@@ -1,4 +1,5 @@
 import { spawn, spawnSync, execFileSync, type ChildProcess } from 'node:child_process';
+import { readdirSync } from 'node:fs';
 import os from 'node:os';
 import { config } from '../config.js';
 import { log, logTo } from '../log.js';
@@ -234,7 +235,17 @@ export async function startLlama(selectedModel: string | null): Promise<void> {
     '-np', String(config.llamaServer.parallel),
     ...config.llamaServer.extraFlags,
   ];
-  log(`spawning llama-server (${entry.file}) on :${config.llamaServer.chatPort}`);
+  // Gemma vision projector: image attachments work when the mmproj sits in the models dir
+  const mmproj = (() => {
+    try {
+      const f = readdirSync(config.models.dir).find((n) => n.toLowerCase().startsWith('mmproj'));
+      return f ? `${config.models.dir}/${f}` : null;
+    } catch {
+      return null;
+    }
+  })();
+  if (mmproj) args.push('--mmproj', mmproj);
+  log(`spawning llama-server (${entry.file}${mmproj ? ' + mmproj' : ''}) on :${config.llamaServer.chatPort}`);
   child = spawn(binary, args, { stdio: ['ignore', 'pipe', 'pipe'] });
   state.pid = child.pid ?? null;
   child.stdout?.on('data', (d: Buffer) => logTo('llama', d.toString().trimEnd()));

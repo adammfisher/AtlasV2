@@ -40,6 +40,7 @@ export interface TextMessage {
   kind: 'text';
   text: string;
   toolCalls?: Array<{ tool: string; connector: string }>;
+  attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
 }
 
 export interface PipelineMessageData {
@@ -259,6 +260,11 @@ export const api = {
   models: () => request<ModelsRegistry>('/models'),
   selectModel: (id: string) =>
     request<{ ok: boolean }>('/models/select', { method: 'POST', body: JSON.stringify({ id }) }),
+  uploadAttachment: (name: string, dataBase64: string) =>
+    request<{ id: string; name: string; kind: 'image' | 'document'; size: number }>('/uploads', {
+      method: 'POST',
+      body: JSON.stringify({ name, dataBase64 }),
+    }),
   revealModelsFolder: () => request<{ ok: boolean }>('/models/reveal', { method: 'POST' }),
   refreshModels: () => request<ModelsRegistry>('/models/refresh', { method: 'POST' }),
   connectBedrock: (region: string, profile: string) =>

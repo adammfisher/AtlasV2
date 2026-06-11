@@ -16,9 +16,10 @@ import { pluginsRouter } from './routes/plugins.js';
 import { modelsRouter } from './routes/models.js';
 import { artifactsRouter } from './routes/artifacts.js';
 import { ensureBundledInstalled, probeKnowledgeCore } from './mcp/manager.js';
+import { uploadsRouter } from './routes/uploads.js';
 
 // 1. App data directories (models/ already exists and is never touched)
-for (const dir of ['data', 'artifacts', 'credentials', 'logs']) {
+for (const dir of ['data', 'artifacts', 'credentials', 'logs', 'uploads']) {
   mkdirSync(path.join(config.dataDir, dir), { recursive: true });
 }
 
@@ -67,6 +68,7 @@ app.use('/api/conversations', conversationsRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/plugins', pluginsRouter);
 app.use('/api/models', modelsRouter);
+app.use('/api/uploads', uploadsRouter);
 app.use('/api/artifacts', artifactsRouter);
 
 if (existsSync(clientDist)) {
