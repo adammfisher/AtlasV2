@@ -1,23 +1,52 @@
-import { X, Wrench, KeyRound, FolderKanban, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { X, Wrench, KeyRound, FolderKanban, ShieldCheck, RotateCw, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon, tokenColor } from '../../theme/tokens';
 import { Toggle } from '../../components/Toggle';
 import { TransportBadge } from './TransportBadge';
-import type { PluginEntry, Project } from '../../lib/api';
+import { api, type PluginEntry, type Project } from '../../lib/api';
 
 export function PluginModal({
   p,
   projects,
+  activeProject,
   onClose,
   toggleProj,
 }: {
   p: PluginEntry;
   projects: Project[];
+  activeProject: string;
   onClose: () => void;
   toggleProj: (projectId: string, enabled: boolean) => void;
 }) {
   const Icon = namedIcon(p.icon);
   const { color, dim } = tokenColor(p.colorToken);
   const configurable = p.installId !== null;
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState<'restart' | 'remove' | 'cred' | null>(null);
+  const [credValue, setCredValue] = useState('');
+  const [error, setError] = useState<string | null>(p.lastError ?? null);
+
+  // live listTools replaces toolsPreview once connected
+  const { data: liveTools } = useQuery({
+    queryKey: ['plugin-tools', p.installId, activeProject],
+    queryFn: () => api.pluginTools(p.installId as string, activeProject),
+    enabled: Boolean(p.installId && (p.status === 'connected' || p.status === 'bundled')),
+    retry: false,
+  });
+  const tools = liveTools?.map((t) => t.name) ?? p.tools;
+
+  const run = (kind: 'restart' | 'remove' | 'cred', fn: () => Promise<unknown>) => {
+    setBusy(kind);
+    setError(null);
+    fn()
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => {
+        setBusy(null);
+        void queryClient.invalidateQueries({ queryKey: ['plugins'] });
+        void queryClient.invalidateQueries({ queryKey: ['plugin-tools'] });
+      });
+  };
   return (
     <div
       className="absolute inset-0 z-30 flex items-center justify-center p-6"
@@ -68,10 +97,10 @@ export function PluginModal({
 
           <div>
             <div className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: C.mute, fontFamily: sans }}>
-              Tools ({p.tools.length})
+              Tools ({tools.length}){liveTools ? ' · live' : ' · preview'}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {p.tools.map((t) => (
+              {tools.map((t) => (
                 <span
                   key={t}
                   className="px-2 py-1 rounded-md text-xs"
@@ -83,6 +112,22 @@ export function PluginModal({
               ))}
             </div>
           </div>
+
+          {p.id === 'memory' ? (
+            <p className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+              Semantic recall off — add an EmbeddingGemma GGUF to the models folder. Keyword (FTS5)
+              recall is active.
+            </p>
+          ) : null}
+
+          {error ? (
+            <div
+              className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
+              style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
+            >
+              <AlertCircle size={13} className="mt-0.5 flex-shrink-0" /> {error}
+            </div>
+          ) : null}
 
           {p.creds.length > 0 ? (
             <div>
@@ -101,14 +146,31 @@ export function PluginModal({
                   </span>
                   <input
                     type="password"
-                    defaultValue="••••••••••••"
-                    disabled
-                    title="Encrypted credential storage ships in Stage 4"
-                    className="bg-transparent text-right text-sm outline-none w-32"
-                    style={{ color: C.mute, fontFamily: sans }}
+                    placeholder={p.hasCredentials ? '••••••••••••' : 'paste token'}
+                    value={credValue}
+                    disabled={!configurable}
+                    onChange={(e) => setCredValue(e.target.value)}
+                    className="bg-transparent text-right text-sm outline-none w-40"
+                    style={{ color: C.text, fontFamily: sans }}
                   />
+                  <button
+                    disabled={!configurable || !credValue || busy === 'cred'}
+                    onClick={() =>
+                      run('cred', async () => {
+                        await api.setPluginCredential(p.installId as string, credValue);
+                        setCredValue('');
+                      })
+                    }
+                    className="px-2 py-1 rounded-md text-xs font-medium"
+                    style={{ background: C.raised, color: credValue ? C.text : C.mute, border: `1px solid ${C.border}`, fontFamily: sans }}
+                  >
+                    {busy === 'cred' ? <Loader2 size={11} className="animate-spin" /> : 'Save'}
+                  </button>
                 </div>
               ))}
+              <p className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+                AES-256-GCM at rest in the data dir — never in the database, never logged.
+              </p>
             </div>
           ) : null}
 
@@ -144,12 +206,37 @@ export function PluginModal({
           <span className="text-xs flex items-center gap-1.5" style={{ color: C.mute, fontFamily: sans }}>
             <ShieldCheck size={13} style={{ color: C.green }} /> Vetted · SSRF allowlisted · audit logged
           </span>
+          {configurable ? (
+            <>
+              <button
+                onClick={() => run('restart', () => api.restartPlugin(p.installId as string, activeProject))}
+                className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
+                style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
+              >
+                {busy === 'restart' ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />} Restart
+              </button>
+              {p.status !== 'bundled' ? (
+                <button
+                  onClick={() =>
+                    run('remove', async () => {
+                      await api.removePlugin(p.installId as string);
+                      onClose();
+                    })
+                  }
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
+                  style={{ background: 'transparent', color: C.amber, border: `1px solid ${C.amber}`, fontFamily: sans }}
+                >
+                  {busy === 'remove' ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Remove
+                </button>
+              ) : null}
+            </>
+          ) : null}
           <button
             onClick={onClose}
-            className="ml-auto px-4 py-2 rounded-lg text-sm font-medium"
+            className={configurable ? 'px-4 py-2 rounded-lg text-sm font-medium' : 'ml-auto px-4 py-2 rounded-lg text-sm font-medium'}
             style={{ background: C.accent, color: '#fff', fontFamily: sans }}
           >
-            Save changes
+            Done
           </button>
         </div>
       </div>

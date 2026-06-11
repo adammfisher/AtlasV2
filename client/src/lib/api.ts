@@ -39,6 +39,7 @@ export interface TextMessage {
   role: 'user' | 'assistant';
   kind: 'text';
   text: string;
+  toolCalls?: Array<{ tool: string; connector: string }>;
 }
 
 export interface PipelineMessageData {
@@ -77,6 +78,7 @@ export interface Skill {
 }
 
 export interface PluginEntry {
+  hasCredentials?: boolean;
   id: string;
   name: string;
   vendor: string;
@@ -85,7 +87,7 @@ export interface PluginEntry {
   colorToken: string;
   transport: string;
   endpoint: string;
-  status: 'bundled' | 'installed' | 'available' | 'error';
+  status: 'bundled' | 'installed' | 'available' | 'error' | 'connected' | 'installing' | 'planned';
   description: string;
   tools: string[];
   creds: Array<{ key: string; label: string }>;
@@ -212,11 +214,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ projectId, enabled }),
     }),
-  installPlugin: (connectorId: string) =>
-    request<{ ok: boolean }>('/plugins/installs', {
+  installPlugin: (connectorId: string, projectId?: string) =>
+    request<{ installId: string; status: string; lastError: string | null }>('/plugins/installs', {
       method: 'POST',
-      body: JSON.stringify({ connectorId }),
+      body: JSON.stringify({ connectorId, projectId }),
     }),
+  removePlugin: (installId: string) =>
+    request<{ ok: boolean }>(`/plugins/installs/${installId}`, { method: 'DELETE' }),
+  restartPlugin: (installId: string, projectId?: string) =>
+    request<{ status: string; lastError: string | null }>(`/plugins/installs/${installId}/restart`, {
+      method: 'POST',
+      body: JSON.stringify({ projectId }),
+    }),
+  setPluginCredential: (installId: string, value: string) =>
+    request<{ ok: boolean; hasCredentials: boolean }>(`/plugins/installs/${installId}/credentials`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
+  addCustomPlugin: (cfg: { name: string; transport: string; command?: string; args?: string[]; url?: string; projectId?: string }) =>
+    request<{ installId: string; status: string; lastError: string | null }>('/plugins/custom', {
+      method: 'POST',
+      body: JSON.stringify(cfg),
+    }),
+  pluginTools: (installId: string, projectId: string) =>
+    request<Array<{ name: string; description: string }>>(
+      `/plugins/installs/${installId}/tools?projectId=${encodeURIComponent(projectId)}`,
+    ),
   artifact: (id: string) => request<ArtifactDetailData>(`/artifacts/${id}`),
   restoreArtifact: (id: string, version: number) =>
     request<{ ok: boolean; ver: number }>(`/artifacts/${id}/restore`, {

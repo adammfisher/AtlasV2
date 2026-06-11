@@ -4,12 +4,13 @@ import { getDb, newId, now } from '../db/db.js';
 import { llamaState } from '../llama/spawn.js';
 import { scanModels } from '../llama/models.js';
 import { logTo } from '../log.js';
+import { streamChatWithTools } from '../mcp/toolloop.js';
+import { installFor, callTool } from '../mcp/manager.js';
 import { route } from '../pipeline/router.js';
 import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
 import {
   runCreateDoc,
   runEditDoc,
-  streamPlainChat,
   PipelineError,
   type PipelinePayload,
 } from '../pipeline/orchestrator.js';
@@ -113,7 +114,41 @@ chatRouter.post('/:id/messages', async (req, res) => {
       let full = '';
       const tStream = Date.now();
       let tFirst: number | null = null;
-      for await (const delta of streamPlainChat(history, instructions, abort.signal)) {
+      const chips: Array<{ tool: string; connector: string }> = [];
+
+      // §6.2 memory recall: top-3 hits injected when the memory connector is on
+      let recall = '';
+      try {
+        const memInstall = installFor('memory');
+        if (memInstall && (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id)) {
+          const hits = await callTool('memory', conv.project_id, 'memory_search', {
+            query: text.trim().slice(0, 200),
+            limit: 3,
+          });
+          if (hits && hits !== 'no memory matches') recall = `Known context:\n${hits}`;
+        }
+      } catch (err) {
+        logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
+      }
+
+      const PERSONA =
+        'You are Atlas, a fully on-device AI assistant. You run entirely on this machine — nothing the user shares ever leaves it. ' +
+        'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
+        'Be direct, concise, and concrete.';
+      const system = [PERSONA, instructions ? `Project instructions: ${instructions}` : '', recall]
+        .filter(Boolean)
+        .join('\n\n');
+
+      for await (const delta of streamChatWithTools(
+        history,
+        system,
+        conv.project_id,
+        abort.signal,
+        (chip) => {
+          chips.push(chip);
+          sse(res, 'tool', chip);
+        },
+      )) {
         if (tFirst === null) {
           tFirst = Date.now();
           logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms`);
@@ -121,7 +156,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         full += delta;
         sse(res, 'token', { delta });
       }
-      const id = persistAssistant('text', { text: full });
+      const id = persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
       sse(res, 'done', { messageId: id });
       return;
     }

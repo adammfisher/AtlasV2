@@ -9,13 +9,27 @@
       "colorToken": "accent",
       "transport": "streamable-http",
       "endpoint": "http://127.0.0.1:7979/mcp",
-      "status": "available",
+      "status": "planned",
       "description": "Org-wide semantic + graph intelligence over Confluence and Jira. Ask who knows what, trace decisions, find experts.",
-      "tools": ["org_search", "org_ask", "org_get_entity", "org_traverse", "org_find_experts", "org_recent_activity"],
-      "creds": [{ "key": "ORG_INTEL_KEY", "label": "Service API key" }],
+      "tools": [
+        "org_search",
+        "org_ask",
+        "org_get_entity",
+        "org_traverse",
+        "org_find_experts",
+        "org_recent_activity"
+      ],
+      "creds": [
+        {
+          "key": "ORG_INTEL_KEY",
+          "label": "Service API key"
+        }
+      ],
       "runtime": "Standalone Node service (peer MCP server)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "url": "http://127.0.0.1:7979/mcp",
+      "warning": "Requires the AOI parser service \u2014 reserved until the Knowledge Core responds on port 7979."
     },
     {
       "id": "filesystem",
@@ -27,14 +41,19 @@
       "endpoint": "bundled Node runtime",
       "status": "bundled",
       "description": "Scoped read/write on project-bound folders with explicit permission gates and audit logging.",
-      "tools": ["read_file", "write_file", "list_directory", "search_files", "move_file"],
+      "tools": [
+        "fs_read",
+        "fs_write",
+        "fs_list",
+        "fs_search"
+      ],
       "creds": [],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
       "minAtlasVersion": "0.1.0"
     },
     {
-      "id": "atlas-memory",
+      "id": "memory",
       "name": "Atlas Memory",
       "vendor": "Atlas built-in",
       "icon": "database",
@@ -42,10 +61,60 @@
       "transport": "stdio",
       "endpoint": "bundled CPython runtime",
       "status": "bundled",
-      "description": "Four-layer memory: asserted facts, semantic recall (sqlite-vec), knowledge graph, project RAG — exposed as MCP tools.",
-      "tools": ["memory.search", "memory.upsert", "graph.query", "graph.add_fact"],
+      "description": "Four-layer memory: asserted facts, semantic recall (sqlite-vec), knowledge graph, project RAG \u2014 exposed as MCP tools.",
+      "tools": [
+        "memory_search",
+        "memory_upsert",
+        "graph_query",
+        "graph_add_fact"
+      ],
       "creds": [],
       "runtime": "runtimes/python (portable folder)",
+      "projectScopable": true,
+      "minAtlasVersion": "0.1.0"
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "vendor": "Atlas built-in",
+      "icon": "database",
+      "colorToken": "blue",
+      "transport": "stdio",
+      "endpoint": "bundled Node runtime",
+      "status": "bundled",
+      "description": "Read-only SQL over the Atlas workspace database and sqlite files in the data dir. PRAGMA query_only enforced.",
+      "tools": [
+        "sql_query",
+        "sql_schema"
+      ],
+      "creds": [],
+      "runtime": "runtimes/node (portable folder)",
+      "projectScopable": true,
+      "minAtlasVersion": "0.1.0"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "vendor": "GitHub",
+      "icon": "git-branch",
+      "colorToken": "text",
+      "transport": "stdio",
+      "endpoint": "bundled Node runtime",
+      "status": "available",
+      "description": "Repos, PRs, issues, and code search through the bundled runtime \u2014 no global npx required.",
+      "tools": [
+        "search_code",
+        "get_pr",
+        "list_issues",
+        "create_issue"
+      ],
+      "creds": [
+        {
+          "key": "GITHUB_PAT",
+          "label": "Personal access token"
+        }
+      ],
+      "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
       "minAtlasVersion": "0.1.0"
     },
@@ -59,11 +128,22 @@
       "endpoint": "https://mcp.atlassian.com/v1/jira",
       "status": "available",
       "description": "Issues, sprints, and boards. Read and update tickets from chat with per-project scoping.",
-      "tools": ["search_issues", "get_issue", "create_issue", "transition_issue"],
-      "creds": [{ "key": "ATLASSIAN_TOKEN", "label": "OAuth / API token" }],
+      "tools": [
+        "search_issues",
+        "get_issue",
+        "create_issue",
+        "transition_issue"
+      ],
+      "creds": [
+        {
+          "key": "ATLASSIAN_TOKEN",
+          "label": "OAuth / API token"
+        }
+      ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "url": "https://mcp.atlassian.com/v1/jira"
     },
     {
       "id": "confluence",
@@ -75,43 +155,47 @@
       "endpoint": "https://mcp.atlassian.com/v1/confluence",
       "status": "available",
       "description": "Search and read spaces and pages; cite sources back into project knowledge.",
-      "tools": ["search_pages", "get_page", "list_spaces"],
-      "creds": [{ "key": "ATLASSIAN_TOKEN", "label": "OAuth / API token" }],
+      "tools": [
+        "search_pages",
+        "get_page",
+        "list_spaces"
+      ],
+      "creds": [
+        {
+          "key": "ATLASSIAN_TOKEN",
+          "label": "OAuth / API token"
+        }
+      ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "url": "https://mcp.atlassian.com/v1/confluence"
     },
     {
-      "id": "github",
-      "name": "GitHub",
-      "vendor": "GitHub",
-      "icon": "git-branch",
-      "colorToken": "text",
-      "transport": "stdio",
-      "endpoint": "bundled Node runtime",
-      "status": "available",
-      "description": "Repos, PRs, issues, and code search through the bundled runtime — no global npx required.",
-      "tools": ["search_code", "get_pr", "list_issues", "create_issue"],
-      "creds": [{ "key": "GITHUB_PAT", "label": "Personal access token" }],
-      "runtime": "runtimes/node (portable folder)",
-      "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
-    },
-    {
-      "id": "slack",
-      "name": "Slack",
-      "vendor": "Slack",
-      "icon": "message-square",
-      "colorToken": "amber",
+      "id": "sharepoint",
+      "name": "SharePoint",
+      "vendor": "Microsoft",
+      "icon": "folder-open",
+      "colorToken": "blue",
       "transport": "streamable-http",
       "endpoint": "https://mcp.slack.com/v1",
       "status": "available",
-      "description": "Search channels and threads; draft and post messages with confirmation gates.",
-      "tools": ["search_messages", "post_message", "list_channels"],
-      "creds": [{ "key": "SLACK_TOKEN", "label": "Bot token" }],
+      "description": "Search and read SharePoint sites, lists and document libraries from chat.",
+      "tools": [
+        "sp_search",
+        "sp_get_page",
+        "sp_list_documents"
+      ],
+      "creds": [
+        {
+          "key": "SLACK_TOKEN",
+          "label": "Bot token"
+        }
+      ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "url": "https://mcp.slack.com/v1"
     },
     {
       "id": "postgres",
@@ -123,8 +207,17 @@
       "endpoint": "bundled Node runtime",
       "status": "available",
       "description": "Read-only SQL over allowlisted databases. Results stream into spreadsheets and analyses.",
-      "tools": ["query", "list_schemas", "describe_table"],
-      "creds": [{ "key": "PG_CONN", "label": "Connection string" }],
+      "tools": [
+        "query",
+        "list_schemas",
+        "describe_table"
+      ],
+      "creds": [
+        {
+          "key": "PG_CONN",
+          "label": "Connection string"
+        }
+      ],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
       "minAtlasVersion": "0.1.0"

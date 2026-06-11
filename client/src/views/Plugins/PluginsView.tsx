@@ -5,6 +5,7 @@ import { C, sans, serif } from '../../theme/tokens';
 import { api, type PluginEntry, type Project } from '../../lib/api';
 import { PluginCard } from './PluginCard';
 import { PluginModal } from './PluginModal';
+import { CustomServerModal } from './CustomServerModal';
 
 const FILTERS = ['All', 'Installed', 'stdio', 'Remote'] as const;
 type Filter = (typeof FILTERS)[number];
@@ -22,6 +23,7 @@ export function PluginsView({
   const [filter, setFilter] = useState<Filter>('All');
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
   const queryClient = useQueryClient();
 
   const matches = (p: PluginEntry): boolean => {
@@ -39,9 +41,16 @@ export function PluginsView({
 
   const install = (id: string) => {
     setNotice(null);
-    void api.installPlugin(id).catch((err: unknown) => {
-      setNotice(err instanceof Error ? err.message : String(err));
-    });
+    queryClient.setQueryData<PluginEntry[]>(['plugins'], (old) =>
+      old?.map((e) => (e.id === id ? { ...e, status: 'installing' } : e)),
+    );
+    void api
+      .installPlugin(id, activeProject)
+      .then((r) => {
+        if (r.lastError) setNotice(r.lastError);
+      })
+      .catch((err: unknown) => setNotice(err instanceof Error ? err.message : String(err)))
+      .finally(() => void queryClient.invalidateQueries({ queryKey: ['plugins'] }));
   };
 
   const toggleProj = (p: PluginEntry, projectId: string, enabled: boolean) => {
@@ -102,7 +111,7 @@ export function PluginsView({
           </button>
         ))}
         <button
-          onClick={() => setNotice('Custom servers ship in Stage 4 — the MCP lifecycle layer is not built yet.')}
+          onClick={() => setShowCustom(true)}
           className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
           style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
         >
@@ -155,8 +164,19 @@ export function PluginsView({
         <PluginModal
           p={open}
           projects={projects}
+          activeProject={activeProject}
           onClose={() => setOpenId(null)}
           toggleProj={(projId, enabled) => toggleProj(open, projId, enabled)}
+        />
+      ) : null}
+      {showCustom ? (
+        <CustomServerModal
+          activeProject={activeProject}
+          onClose={() => setShowCustom(false)}
+          onResult={(msg) => {
+            if (msg) setNotice(msg);
+            void queryClient.invalidateQueries({ queryKey: ['plugins'] });
+          }}
         />
       ) : null}
     </div>
