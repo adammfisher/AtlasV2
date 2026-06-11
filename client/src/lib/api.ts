@@ -274,6 +274,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, dataBase64 }),
     }),
+  projectMemory: (projectId: string) =>
+    request<{
+      kv: Array<{ key: string; value: string }>;
+      notes: Array<{ id: string; content: string; created_at: number }>;
+      facts: Array<{ src: string; rel: string; dst: string }>;
+    }>(`/projects/${projectId}/memory`),
+  upsertProjectMemory: (projectId: string, key: string, value: string) =>
+    request<{ ok: boolean }>(`/projects/${projectId}/memory/kv`, {
+      method: 'PUT',
+      body: JSON.stringify({ key, value }),
+    }),
+  deleteProjectMemory: (projectId: string, kind: string, ref: Record<string, string>) =>
+    request<{ ok: boolean }>(`/projects/${projectId}/memory/delete`, {
+      method: 'POST',
+      body: JSON.stringify({ kind, ref }),
+    }),
+  conversationRemember: (convId: string) =>
+    request<{ remember: boolean }>(`/conversations/${convId}/remember`),
+  setConversationRemember: (convId: string, enabled: boolean) =>
+    request<{ ok: boolean }>(`/conversations/${convId}/remember`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
   revealModelsFolder: () => request<{ ok: boolean }>('/models/reveal', { method: 'POST' }),
   refreshModels: () => request<ModelsRegistry>('/models/refresh', { method: 'POST' }),
   connectBedrock: (region: string, profile: string) =>

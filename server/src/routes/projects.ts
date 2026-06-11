@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getDb, newId, now } from '../db/db.js';
+import { memorySnapshot, upsertKv, deleteMemory } from '../memory/engine.js';
 
 export interface ProjectRow {
   id: string;
@@ -60,6 +61,15 @@ projectsRouter.post('/', (req, res) => {
   getDb()
     .prepare('INSERT INTO projects (id, name, instructions, created_at) VALUES (?, ?, ?, ?)')
     .run(id, name.trim(), instructions?.trim() ?? '', now());
+  // holistic memory: every new project gets its own (isolated) memory, on by default
+  const mem = getDb().prepare("SELECT id, enabled_projects FROM plugin_installs WHERE connector_id = 'memory'").get() as
+    | { id: string; enabled_projects: string }
+    | undefined;
+  if (mem) {
+    const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
+    enabled.add(id);
+    getDb().prepare('UPDATE plugin_installs SET enabled_projects = ? WHERE id = ?').run(JSON.stringify([...enabled]), mem.id);
+  }
   const row = getDb()
     .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
     .get(id) as ProjectRow;
@@ -85,4 +95,30 @@ projectsRouter.patch('/:id', (req, res) => {
     .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
     .get(existing.id) as ProjectRow;
   res.json(withStats(row));
+});
+
+/* ---------- holistic project memory (browse/edit) ---------- */
+
+projectsRouter.get('/:id/memory', (req, res) => {
+  res.json(memorySnapshot(req.params.id));
+});
+
+projectsRouter.put('/:id/memory/kv', (req, res) => {
+  const { key, value } = req.body as { key?: string; value?: string };
+  if (!key || value === undefined) {
+    res.status(400).json({ error: 'key and value are required' });
+    return;
+  }
+  upsertKv(req.params.id, key, value);
+  res.json({ ok: true });
+});
+
+projectsRouter.post('/:id/memory/delete', (req, res) => {
+  const { kind, ref } = req.body as { kind?: 'kv' | 'note' | 'fact'; ref?: Record<string, string> };
+  if (!kind || !ref) {
+    res.status(400).json({ error: 'kind and ref are required' });
+    return;
+  }
+  deleteMemory(req.params.id, kind, ref);
+  res.json({ ok: true });
 });

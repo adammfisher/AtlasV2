@@ -12,6 +12,7 @@ import {
   FolderKanban,
   AlertCircle,
   Box,
+  Brain,
   Cog,
   Cloud,
   Square,
@@ -169,6 +170,12 @@ export function ChatView({
   const [menu, setMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
   const [bedrockModal, setBedrockModal] = useState(false);
+  const { data: rememberState } = useQuery({
+    queryKey: ['remember', convId],
+    queryFn: () => api.conversationRemember(convId as string),
+    enabled: convId !== null,
+  });
+  const remember = rememberState?.remember ?? true;
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean }>
   >([]);
@@ -305,6 +312,24 @@ export function ChatView({
           Project
         </Badge>
         <span className="ml-auto" />
+        <button
+          onClick={() => {
+            if (convId === null) return;
+            void api.setConversationRemember(convId, !remember).then(() => {
+              void queryClient.invalidateQueries({ queryKey: ['remember', convId] });
+            });
+          }}
+          title={remember ? 'Memory on — Atlas remembers this chat. Click to exclude it.' : 'Memory off for this chat'}
+          className="relative p-1.5 rounded-lg"
+          style={{ color: remember ? C.accent : C.mute, opacity: convId === null ? 0.4 : 1 }}
+        >
+          <Brain size={16} />
+          {!remember && (
+            <span className="absolute inset-0 flex items-center justify-center text-[16px]" style={{ color: C.mute }}>
+              ⃠
+            </span>
+          )}
+        </button>
         <button
           onClick={onOpenArtifactList}
           title="Artifacts in this chat"

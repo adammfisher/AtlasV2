@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, FolderKanban, Lock, Globe, Database } from 'lucide-react';
+import { Plus, Brain, FolderKanban, Lock, Globe } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
 import { api, type Project } from '../../lib/api';
+import { MemoryModal } from '../../components/MemoryModal';
 import { Badge } from '../../components/Badge';
 import { NewProjectModal } from '../../components/NewProjectModal';
 
@@ -15,6 +16,7 @@ export function ProjectsView({
   activeProject: string;
   setActiveProject: (id: string) => void;
 }) {
+  const [memoryFor, setMemoryFor] = useState<{ id: string; name: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
   const queryClient = useQueryClient();
 
@@ -91,9 +93,17 @@ export function ProjectsView({
                 <span>{p.chats} chats</span>
                 <span>{p.templates} templates</span>
                 <span>{p.plugins} plugins</span>
-                <span className="ml-auto flex items-center gap-1">
-                  <Database size={11} /> own memory
-                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMemoryFor({ id: p.id, name: p.name });
+                  }}
+                  className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-md"
+                  style={{ color: C.accent, border: `1px solid ${C.borderSoft}`, fontFamily: sans }}
+                  title="View and edit this project's memory"
+                >
+                  <Brain size={11} /> Memory
+                </button>
               </div>
             </div>
           );
@@ -111,6 +121,9 @@ export function ProjectsView({
         </div>
       </div>
       {showNew && <NewProjectModal close={() => setShowNew(false)} create={create} />}
+      {memoryFor ? (
+        <MemoryModal projectId={memoryFor.id} projectName={memoryFor.name} onClose={() => setMemoryFor(null)} />
+      ) : null}
     </div>
   );
 }

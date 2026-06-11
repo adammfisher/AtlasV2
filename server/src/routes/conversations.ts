@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { setRemember, rememberEnabled } from '../memory/engine.js';
 import { getDb, getSetting, newId, now } from '../db/db.js';
 import { scopedConversations, type ConversationRow } from '../db/scoped.js';
 
@@ -91,4 +92,19 @@ conversationsRouter.post('/delete', (req, res) => {
   });
   run(ids);
   res.json({ ok: true, deleted });
+});
+
+/** Per-conversation "remember this chat" toggle (memory capture + recall). */
+conversationsRouter.post('/:id/remember', (req, res) => {
+  const { enabled } = req.body as { enabled?: boolean };
+  if (typeof enabled !== 'boolean') {
+    res.status(400).json({ error: 'enabled is required' });
+    return;
+  }
+  setRemember(req.params.id, enabled);
+  res.json({ ok: true, remember: enabled });
+});
+
+conversationsRouter.get('/:id/remember', (req, res) => {
+  res.json({ remember: rememberEnabled(req.params.id) });
 });

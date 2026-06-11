@@ -5,9 +5,10 @@ import { llamaState } from '../llama/spawn.js';
 import { scanModels } from '../llama/models.js';
 import { logTo } from '../log.js';
 import { streamChatWithTools } from '../mcp/toolloop.js';
-import { installFor, callTool } from '../mcp/manager.js';
+import { installFor } from '../mcp/manager.js';
 import { bedrockSettings, bedrockStreamChat } from '../providers/bedrock.js';
 import { attachmentDataUrl, attachmentText } from './uploads.js';
+import { recallContext, scheduleExtraction, rememberEnabled } from '../memory/engine.js';
 import { streamChat, type ChatMessage } from '../llama/client.js';
 import { route } from '../pipeline/router.js';
 import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
@@ -149,16 +150,17 @@ chatRouter.post('/:id/messages', async (req, res) => {
       let tFirst: number | null = null;
       const chips: Array<{ tool: string; connector: string }> = [];
 
-      // §6.2 memory recall: top-3 hits injected when the memory connector is on
+      // holistic recall: all project KV facts (capped) + top-3 note hits —
+      // direct table read, zero tool-call latency; per-conversation toggle honored
       let recall = '';
       try {
         const memInstall = installFor('memory');
-        if (memInstall && (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id)) {
-          const hits = await callTool('memory', conv.project_id, 'memory_search', {
-            query: text.trim().slice(0, 200),
-            limit: 3,
-          });
-          if (hits && hits !== 'no memory matches') recall = `Known context:\n${hits}`;
+        if (
+          memInstall &&
+          (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id) &&
+          rememberEnabled(conv.id)
+        ) {
+          recall = recallContext(conv.project_id, text.trim().slice(0, 200));
         }
       } catch (err) {
         logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
@@ -196,6 +198,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         sse(res, 'token', { delta });
       }
       const id = persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
+      scheduleExtraction(conv.id, conv.project_id);
       sse(res, 'done', { messageId: id });
       return;
     }

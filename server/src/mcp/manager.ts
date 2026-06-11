@@ -152,6 +152,14 @@ export function ensureBundledInstalled(): void {
   const db = getDb();
   // legacy seed rows from Stage 1 fixtures used a different id and status
   db.prepare("DELETE FROM plugin_installs WHERE connector_id = 'atlas-memory'").run();
+  // holistic memory: on for every project by default (stores stay isolated per project)
+  const projectIds = (db.prepare('SELECT id FROM projects').all() as Array<{ id: string }>).map((r) => r.id);
+  const mem = installFor('memory');
+  if (mem) {
+    const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
+    for (const id of projectIds) enabled.add(id);
+    db.prepare('UPDATE plugin_installs SET enabled_projects = ? WHERE id = ?').run(JSON.stringify([...enabled]), mem.id);
+  }
   for (const id of BUNDLED) {
     const row = installFor(id);
     if (!row) {
