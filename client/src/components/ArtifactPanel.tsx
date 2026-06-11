@@ -3,6 +3,7 @@ import { X, Download, Package, ArrowUp, RefreshCw, FileText } from 'lucide-react
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon } from '../theme/tokens';
 import { api, type ProjectionRow } from '../lib/api';
+import { saveFile } from '../lib/download';
 import { StepRow } from './StepRow';
 import { Badge } from './Badge';
 import { ArtifactPreview } from './ArtifactPreview';
@@ -209,15 +210,20 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
                       <RefreshCw size={12} className={busy ? 'animate-spin' : ''} />
                     </button>
                     {row && row.outputRef && kind !== 'prototype_react' && (
-                      <a
-                        href={`/api/artifacts/${a.id}/projections/${row.id}/download`}
-                        download
+                      <button
+                        onClick={() =>
+                          act(async () => {
+                            const base = (row.outputRef ?? '').split('/').pop() ?? `${kind}.out`;
+                            await saveFile(`/api/artifacts/${a.id}/projections/${row.id}/download`, base);
+                            setNotice(`Saved ${base} to your Downloads folder.`);
+                          })
+                        }
                         title="Download"
                         className="p-1 rounded"
                         style={{ color: C.mute }}
                       >
                         <Download size={12} />
-                      </a>
+                      </button>
                     )}
                   </div>
                 );
@@ -226,7 +232,12 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
                 <button
                   disabled={!bundleUnlocked}
                   onClick={() => {
-                    if (bundleUnlocked) window.open(`/api/artifacts/${a.id}/bundle`, '_blank');
+                    if (bundleUnlocked)
+                      act(async () => {
+                        const bundleName = `${a.name.replace(/\.product\.json$/, '')}-bundle-v${a.ver}.zip`;
+                        await saveFile(`/api/artifacts/${a.id}/bundle`, bundleName);
+                        setNotice(`Saved ${bundleName} to your Downloads folder.`);
+                      });
                   }}
                   className="mt-1 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium"
                   style={{
@@ -278,14 +289,20 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
 
       <div className="px-4 py-3" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
         <div className="flex gap-2">
-          <a
-            href={`/api/artifacts/${a.id}/versions/${activeVer}/download`}
-            download={a.name}
+          <button
+            onClick={() =>
+              act(async () => {
+                const downloadName =
+                  a.kind === 'react' || a.kind === 'site' ? `${a.name}-v${activeVer}.zip` : a.name;
+                await saveFile(`/api/artifacts/${a.id}/versions/${activeVer}/download`, downloadName);
+                setNotice(`Saved ${downloadName} to your Downloads folder.`);
+              })
+            }
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
-            style={{ background: C.accent, color: '#fff', fontFamily: sans, textDecoration: 'none' }}
+            style={{ background: C.accent, color: '#fff', fontFamily: sans }}
           >
             <Download size={14} /> Download as {a.kind === 'product' ? 'JSON' : a.kind.toUpperCase()} · v{activeVer}
-          </a>
+          </button>
           {activeVer !== a.ver && (
             <button
               onClick={() => act(() => api.restoreArtifact(a.id, activeVer))}

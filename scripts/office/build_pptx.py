@@ -52,9 +52,15 @@ def build(payload: dict, template: str, out: Path) -> dict:
     for slide_spec in payload["slides"]:
         layout_kind = slide_spec["layout"]
 
-        if exemplars is not None and layout_kind in ("bullets", "two_col", "summary", "chart"):
+        if exemplars is not None and layout_kind in ("title", "section", "closing", "bullets", "two_col", "summary", "chart"):
             heading = slide_spec["heading"]
-            if layout_kind in ("bullets", "summary"):
+            if layout_kind == "title":
+                items = [str(b) for b in (slide_spec.get("bullets") or [])][:1]
+                category = "title"
+            elif layout_kind in ("section", "closing"):
+                items = []
+                category = layout_kind
+            elif layout_kind in ("bullets", "summary"):
                 items = [str(b) for b in (slide_spec.get("bullets") or [])]
                 category = "bullets"
             elif layout_kind == "two_col":
@@ -133,9 +139,25 @@ def build(payload: dict, template: str, out: Path) -> dict:
         if notes:
             slide.notes_slide.notes_text_frame.text = str(notes)
 
+    # brand font: every run renders in Poppins (the DFS standard)
+    for slide in prs.slides:
+        _apply_font(slide.shapes)
+
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
     return {"slides": len(payload["slides"]), "bytes": out.stat().st_size}
+
+
+def _apply_font(shapes):
+    for shape in shapes:
+        if shape.shape_type == 6 and hasattr(shape, "shapes"):
+            _apply_font(shape.shapes)
+            continue
+        if getattr(shape, "has_text_frame", False):
+            for para in shape.text_frame.paragraphs:
+                for run in para.runs:
+                    if not run.font.name or not run.font.name.startswith("Poppins"):
+                        run.font.name = "Poppins"
 
 
 def extract_texts(path: Path) -> list:

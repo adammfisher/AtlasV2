@@ -9,6 +9,8 @@ from pathlib import Path
 
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
+from pptx.dml.color import RGBColor
+from pptx.util import Pt
 
 HERE = Path(__file__).resolve().parents[2] / "skills/pptx/templates"
 
@@ -136,9 +138,21 @@ class ExemplarDeck:
         for shape_id in spec.get("always_delete", []):
             self._delete(slide, shape_id)
 
-        self._set_text(self._by_id(slide, spec["heading"]), heading)
+        heading_shape = self._by_id(slide, spec["heading"])
+        self._set_text(heading_shape, heading)
+        style = spec.get("heading_style")
+        if style and heading_shape is not None and getattr(heading_shape, "has_text_frame", False):
+            for run in heading_shape.text_frame.paragraphs[0].runs:
+                if style.get("size"):
+                    run.font.size = Pt(style["size"])
+                if style.get("bold"):
+                    run.font.bold = True
+                if style.get("color"):
+                    run.font.color.rgb = RGBColor.from_string(style["color"])
         if "subtitle" in spec:
-            self._set_text(self._by_id(slide, spec["subtitle"]), "")
+            subtitle = str(items[0]) if items else ""
+            items = items[1:] if items else items
+            self._set_text(self._by_id(slide, spec["subtitle"]), subtitle)
 
         queue = list(items)
         if "left" in spec:  # two-col: the left frame takes the first half
