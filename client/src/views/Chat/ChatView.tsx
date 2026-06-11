@@ -27,6 +27,7 @@ import {
 import { postSse } from '../../lib/sse';
 import { Badge } from '../../components/Badge';
 import { ModelMenu } from '../../components/ModelMenu';
+import { BedrockModal } from '../../components/BedrockModal';
 import { StepRow } from '../../components/StepRow';
 import { ArtifactCard } from '../../components/ArtifactCard';
 import { ArtifactPreview } from '../../components/ArtifactPreview';
@@ -162,6 +163,7 @@ export function ChatView({
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
+  const [bedrockModal, setBedrockModal] = useState(false);
   const genRef = useRef<{ text: string | null; label: string }>({ text: null, label: '' });
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -420,6 +422,7 @@ export function ChatView({
               </>
             )}
             <div ref={bottomRef} />
+            {bedrockModal ? <BedrockModal onClose={() => setBedrockModal(false)} /> : null}
           </div>
         )}
       </div>
@@ -467,6 +470,7 @@ export function ChatView({
                     });
                   }}
                   onClose={() => setMenu(false)}
+                  onConnectBedrock={() => setBedrockModal(true)}
                 />
               ) : null}
             </span>

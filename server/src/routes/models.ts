@@ -6,6 +6,7 @@ import { getSetting, setSetting } from '../db/db.js';
 import { config } from '../config.js';
 import { execFile } from 'node:child_process';
 import { connectBedrock, disconnectBedrock, bedrockSettings } from '../providers/bedrock.js';
+import { fetchManifest, downloadModel, downloadStates } from '../llama/download.js';
 
 function configCtx(): number {
   return config.llamaServer.ctx;
@@ -30,6 +31,7 @@ function registry() {
       residentTier: llama.status === 'ready' ? residentTier(llama.modelFile) : null,
       aux: auxState(),
     },
+    downloads: downloadStates(),
   };
 }
 
@@ -79,6 +81,27 @@ modelsRouter.post('/bedrock/disconnect', (_req, res) => {
   const sel = getSetting('selectedModel');
   if (sel === 'bedrock') setSetting('selectedModel', 'auto');
   res.json({ ok: true });
+});
+
+modelsRouter.get('/manifest', (req, res) => {
+  fetchManifest((req.query.url as string) || undefined)
+    .then((models) => res.json(models))
+    .catch((err: Error) => res.status(400).json({ error: err.message }));
+});
+
+modelsRouter.post('/download', (req, res) => {
+  const { name, manifestUrl } = req.body as { name?: string; manifestUrl?: string };
+  fetchManifest(manifestUrl)
+    .then((models) => {
+      const model = models.find((m) => m.name === name);
+      if (!model) {
+        res.status(404).json({ error: `model not in manifest: ${name}` });
+        return;
+      }
+      void downloadModel(model); // progress lands in the registry downloads array
+      res.json({ ok: true, name });
+    })
+    .catch((err: Error) => res.status(400).json({ error: err.message }));
 });
 
 /** Reveal the models folder in Finder (the place-a-GGUF flow). */
