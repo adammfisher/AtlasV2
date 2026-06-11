@@ -257,15 +257,16 @@ function projectionDir(projectId: string, artifactId: string, kind: string, vers
 async function runHelperFor(kind: 'docx' | 'pptx', payload: unknown, outFile: string): Promise<void> {
   const tmpFile = path.join(path.dirname(outFile), `payload-${kind}.json`);
   writeFileSync(tmpFile, JSON.stringify(payload));
-  const template =
-    kind === 'docx' ? 'skills/docx/templates/atlas_default.dotx' : 'skills/pptx/templates/atlas_default.potx';
+  const { templatePath } = await import('./skills.js');
+  const template = templatePath(kind) ?? path.join(repoRoot,
+    kind === 'docx' ? 'skills/docx/templates/atlas_default.dotx' : 'skills/pptx/templates/atlas_default.potx');
   const { stdout } = await execFileAsync(
     path.join(repoRoot, 'runtimes/python/venv/bin/python'),
     [
       path.join(repoRoot, `scripts/office/build_${kind}.py`),
       '--payload', tmpFile,
       '--out', outFile,
-      '--template', path.join(repoRoot, template),
+      '--template', template,
     ],
     { cwd: repoRoot, timeout: 180_000 },
   );
@@ -363,6 +364,137 @@ export async function generateProjection(
   return { id, kind, atVersion: current.version, outputRef, generated };
 }
 
+/* ---------- Stage 4 push projections (Amendment A6: confluence_page, jira_epics) ---------- */
+
+export function toConfluencePage(p: Payload): { title: string; space: string; storage: string } {
+  const esc = (v: string): string =>
+    v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const spine = (p.spine ?? {}) as Payload;
+  const caps = arr(p, 'capabilities');
+  const kpis = arr(p, 'kpis');
+  const parts = [
+    `<h1>${esc(str(p, 'name'))}</h1>`,
+    `<p><strong>Spine:</strong> ${esc(str(spine, 'lob'))} / ${esc(str(spine, 'domain'))}</p>`,
+    `<h2>Problem</h2><p>${esc(str(p, 'problem'))}</p>`,
+    `<h2>Value proposition</h2><p>${esc(str(p, 'value_prop'))}</p>`,
+  ];
+  if (caps.length > 0) {
+    parts.push('<h2>Capabilities</h2><ul>');
+    for (const c of caps) parts.push(`<li><strong>${esc(String(c.name ?? ''))}</strong> — ${esc(String(c.description ?? ''))}</li>`);
+    parts.push('</ul>');
+  }
+  if (kpis.length > 0) {
+    parts.push('<h2>KPIs</h2><table><tbody><tr><th>KPI</th><th>Target</th></tr>');
+    for (const k of kpis) parts.push(`<tr><td>${esc(String(k.name ?? ''))}</td><td>${esc(String(k.target ?? ''))}</td></tr>`);
+    parts.push('</tbody></table>');
+  }
+  return { title: `${str(p, 'name')} — product definition`, space: str(spine, 'lob') || 'PRODUCT', storage: parts.join('') };
+}
+
+export function toJiraEpics(p: Payload): {
+  epics: Array<{ summary: string; description: string; stories: Array<{ summary: string }> }>;
+} {
+  const ac = arr(p, 'acceptance_criteria');
+  return {
+    epics: arr(p, 'capabilities').map((c) => ({
+      summary: String(c.name ?? ''),
+      description: String(c.description ?? ''),
+      stories: ac
+        .filter((a) => String(a.capability ?? '') === String(c.name ?? ''))
+        .map((a) => ({ summary: `Given ${String(a.given ?? '')}, when ${String(a.when ?? '')}, then ${String(a.then ?? '')}` })),
+    })),
+  };
+}
+
+/** Find a connected connector for a push target in this project (directory id or custom-*). */
+async function pushConnector(target: 'confluence' | 'jira', projectId: string) {
+  const { installs, callTool } = await import('../mcp/manager.js');
+  for (const row of installs()) {
+    if (row.status !== 'connected') continue;
+    const matches =
+      row.connector_id === target ||
+      (row.connector_id.startsWith('custom-') && row.connector_id.includes(target));
+    if (!matches) continue;
+    const enabled = JSON.parse(row.enabled_projects) as string[];
+    if (!enabled.includes(projectId)) continue;
+    return {
+      connectorId: row.connector_id,
+      call: (tool: string, args: Record<string, unknown>) => callTool(row.connector_id, projectId, tool, args),
+    };
+  }
+  return null;
+}
+
+export async function generatePushProjection(
+  projectId: string,
+  artifactId: string,
+  artifactName: string,
+  kind: 'confluence_page' | 'jira_epics',
+): Promise<ProjectionResult & { status: string; note?: string; targetRef?: string }> {
+  const current = latestPayload(artifactId);
+  if (!current) throw new Error('product has no payload to project');
+  const payload = current.payload as Payload;
+  const dir = projectionDir(projectId, artifactId, kind, current.version);
+  const base = artifactName.replace(/\.product\.json$/, '');
+
+  let outputRef: string;
+  let targetRef: string | undefined;
+  let status: 'local' | 'pushed' | 'error' = 'local';
+  let note: string | undefined;
+
+  if (kind === 'confluence_page') {
+    const page = toConfluencePage(payload);
+    outputRef = path.join(dir, `${base}-confluence.storage.xml`);
+    writeFileSync(outputRef, page.storage);
+    const conn = await pushConnector('confluence', projectId);
+    if (conn) {
+      try {
+        targetRef = (await conn.call('confluence_create_page', page)).slice(0, 200);
+        status = 'pushed';
+      } catch (err) {
+        status = 'error';
+        note = err instanceof Error ? err.message : String(err);
+      }
+    } else {
+      note = 'connect Confluence to push';
+    }
+  } else {
+    const epics = toJiraEpics(payload);
+    outputRef = path.join(dir, `${base}-jira-epics.json`);
+    writeFileSync(outputRef, JSON.stringify(epics, null, 2));
+    const conn = await pushConnector('jira', projectId);
+    if (conn) {
+      try {
+        const refs: string[] = [];
+        for (const epic of epics.epics) {
+          refs.push(await conn.call('jira_create_epic', epic));
+        }
+        targetRef = refs.join('; ').slice(0, 200);
+        status = 'pushed';
+      } catch (err) {
+        status = 'error';
+        note = err instanceof Error ? err.message : String(err);
+      }
+    } else {
+      note = 'connect Jira to push';
+    }
+  }
+
+  const db = getDb();
+  const existing = db
+    .prepare('SELECT id FROM projections WHERE artifact_id = ? AND kind = ?')
+    .get(artifactId, kind) as { id: string } | undefined;
+  const id = existing?.id ?? newId('pj');
+  if (existing) {
+    db.prepare('UPDATE projections SET at_version = ?, output_ref = ?, target_ref = ?, status = ?, created_at = ? WHERE id = ?')
+      .run(current.version, outputRef, targetRef ?? null, status, now(), id);
+  } else {
+    db.prepare('INSERT INTO projections (id, artifact_id, kind, at_version, output_ref, target_ref, status, created_at) VALUES (?,?,?,?,?,?,?,?)')
+      .run(id, artifactId, kind, current.version, outputRef, targetRef ?? null, status, now());
+  }
+  return { id, kind, atVersion: current.version, outputRef, generated: false, status, note, targetRef };
+}
+
 /* ---------- A7 context bundle ---------- */
 
 async function buildBundle(
@@ -444,7 +576,15 @@ async function buildBundle(
       'Consume via your agentic build workflow (EPCC or equivalent).',
     ].join('\n'),
   );
-  // .mcp.json only when Knowledge Core is connected (Stage 4) — omitted otherwise (A7)
+  // A7: .mcp.json included now that Knowledge Core can be connected (Stage 4)
+  const { installFor } = await import('../mcp/manager.js');
+  const kc = installFor('knowledge-core');
+  if (kc && kc.status === 'connected') {
+    writeFileSync(
+      path.join(bundleDir, '.mcp.json'),
+      JSON.stringify({ mcpServers: { 'knowledge-core': { type: 'http', url: 'http://127.0.0.1:7979/mcp' } } }, null, 2),
+    );
+  }
 
   const zipPath = path.join(root, `${base}-bundle-v${version}.zip`);
   await execFileAsync('/usr/bin/zip', ['-r', '-q', zipPath, path.basename(bundleDir)], { cwd: root });

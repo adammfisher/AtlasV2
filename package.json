@@ -10,7 +10,10 @@
     "typecheck": "pnpm -r typecheck",
     "test:isolation": "tsx scripts/test/isolation.test.ts",
     "test:pipeline-validity": "tsx scripts/test/validity.test.ts",
-    "test:stage3-e2e": "tsx scripts/test/stage3-e2e.test.ts"
+    "test:stage3-e2e": "tsx scripts/test/stage3-e2e.test.ts",
+    "test:stage4-gates": "tsx scripts/test/stage4-gates.test.ts",
+    "test:stage4-smoke": "tsx scripts/test/stage4-smoke.ts",
+    "mock:kc": "tsx scripts/test/mock-kc.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -25,5 +28,10 @@
     "prettier": "3.8.4",
     "tsx": "4.22.4",
     "typescript-eslint": "8.61.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "better-sqlite3": "11.10.0",
+    "zod": "3.25.76"
   }
 }

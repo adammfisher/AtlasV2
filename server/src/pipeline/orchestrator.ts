@@ -290,7 +290,7 @@ export async function runCreateDoc(opts: {
       const dir = versionDir(opts.projectId, artifactId, 1);
       const file = path.join(dir, 'definition.json');
       writeFileSync(file, JSON.stringify(payload, null, 2));
-      const checks = productChecks(payload);
+      const checks = await productChecks(payload, 'proposed', ctx.projectId);
       for (const step of checks) pushStep(ctx, step);
       meta = `product master · ${Object.keys(p).length} fields`;
       const ver = addVersion(artifactId, { payload, meta, validation: checks, filePath: file });
@@ -468,7 +468,7 @@ export async function runEditDoc(opts: {
     const dir = versionDir(opts.projectId, opts.artifactId, current.version + 1);
     const file = path.join(dir, 'definition.json');
     writeFileSync(file, JSON.stringify(merged, null, 2));
-    const checks = productChecks(merged);
+    const checks = await productChecks(merged, 'proposed', ctx.projectId);
     for (const step of checks) pushStep(ctx, step);
     const meta = `product master · ${Object.keys(merged).length} fields`;
     const ver = addVersion(opts.artifactId, { payload: merged, meta, validation: checks, filePath: file });

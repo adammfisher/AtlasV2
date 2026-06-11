@@ -15,6 +15,7 @@ import { skillsRouter } from './routes/skills.js';
 import { pluginsRouter } from './routes/plugins.js';
 import { modelsRouter } from './routes/models.js';
 import { artifactsRouter } from './routes/artifacts.js';
+import { ensureBundledInstalled, probeKnowledgeCore } from './mcp/manager.js';
 
 // 1. App data directories (models/ already exists and is never touched)
 for (const dir of ['data', 'artifacts', 'credentials', 'logs']) {
@@ -25,6 +26,8 @@ for (const dir of ['data', 'artifacts', 'credentials', 'logs']) {
 getDb();
 seedIfNeeded();
 backfillSeedArtifactFiles();
+ensureBundledInstalled();
+void probeKnowledgeCore();
 
 // 3. llama-server sidecar (async — /health reports progress)
 void startLlama(getSetting('selectedModel'));

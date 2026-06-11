@@ -1,0 +1,6 @@
+{
+  "name": "@atlas/servers",
+  "private": true,
+  "type": "module",
+  "description": "Atlas built-in MCP servers (spawned by the plugin manager over stdio)"
+}

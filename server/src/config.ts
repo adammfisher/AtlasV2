@@ -26,3 +26,4 @@ export function loadConfig(): AtlasConfig {
 }
 
 export const config = loadConfig();
+export const dataDir = config.dataDir;

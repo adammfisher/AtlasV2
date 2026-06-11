@@ -12,6 +12,7 @@ import {
   FolderKanban,
   AlertCircle,
   Box,
+  Cog,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
@@ -59,6 +60,23 @@ function Msg({ who, children }: { who: 'user' | 'assistant'; children: ReactNode
   return <div className="mb-6 max-w-2xl">{children}</div>;
 }
 
+function ToolChips({ chips }: { chips: Array<{ tool: string; connector: string }> }) {
+  if (!chips.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-2">
+      {chips.map((c, i) => (
+        <span
+          key={`${c.tool}-${i}`}
+          className="inline-flex items-center gap-1 text-xs rounded-md px-2 py-0.5"
+          style={{ background: C.panel, border: `1px solid ${C.borderSoft}`, color: C.mute, fontFamily: sans }}
+        >
+          <Cog size={11} /> {c.tool} · {c.connector}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PipelineCard({ m }: { m: PipelineMessageData }) {
   if (m.edit) {
     return (
@@ -95,6 +113,7 @@ function PipelineCard({ m }: { m: PipelineMessageData }) {
 }
 
 interface LiveExchange {
+  toolChips: Array<{ tool: string; connector: string }>;
   userText: string;
   assistantText: string;
   started: boolean;
@@ -165,7 +184,7 @@ export function ChatView({
     const text = input.trim();
     if (!text || busy || convId === null) return;
     setInput('');
-    setLive({ userText: text, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
+    setLive({ toolChips: [], userText: text, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
     void postSse(`/conversations/${convId}/messages`, { text }, {
       onEvent: (event, data) => {
         if (event === 'token') {
@@ -191,6 +210,9 @@ export function ChatView({
           genRef.current = { text: null, label: genRef.current.label };
           onGenStream(null, genRef.current.label);
           onArtifactReady(ref);
+        } else if (event === 'tool') {
+          const chip = data as { tool: string; connector: string };
+          setLive((l) => (l ? { ...l, toolChips: [...l.toolChips, chip] } : l));
         } else if (event === 'gen') {
           const d = data as { reset?: boolean; delta?: string; label?: string };
           if (d.reset) {
@@ -327,6 +349,7 @@ export function ChatView({
                 </Msg>
               ) : (
                 <Msg key={m.id} who="assistant">
+                  {m.kind === 'text' && m.toolCalls ? <ToolChips chips={m.toolCalls} /> : null}
                   <p
                     className="leading-relaxed whitespace-pre-wrap"
                     style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
@@ -382,13 +405,16 @@ export function ChatView({
                       <Loader2 size={14} className="animate-spin" style={{ color: C.accent }} />
                       Thinking…
                     </div>
-                  ) : live.assistantText ? (
-                    <p
-                      className="leading-relaxed whitespace-pre-wrap"
-                      style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
-                    >
-                      {live.assistantText}
-                    </p>
+                  ) : live.assistantText || live.toolChips.length ? (
+                    <>
+                      <ToolChips chips={live.toolChips} />
+                      <p
+                        className="leading-relaxed whitespace-pre-wrap"
+                        style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
+                      >
+                        {live.assistantText}
+                      </p>
+                    </>
                   ) : null}
                 </Msg>
               </>

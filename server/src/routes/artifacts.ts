@@ -17,6 +17,7 @@ import {
 } from '../pipeline/product.js';
 import {
   generateProjection,
+  generatePushProjection,
   listProjections,
   LOCAL_KINDS,
   type LocalKind,
@@ -350,11 +351,16 @@ artifactsRouter.post('/:id/projections', async (req, res) => {
     res.status(404).json({ error: 'product artifact not found' });
     return;
   }
-  if (!kind || !([...LOCAL_KINDS, 'bundle'] as string[]).includes(kind)) {
-    if (kind === 'confluence_page' || kind === 'jira_epics') {
-      res.status(501).json({ error: `${kind} pushes ship in Stage 4 — connect the connector to push.` });
-      return;
+  if (kind === 'confluence_page' || kind === 'jira_epics') {
+    try {
+      const result = await generatePushProjection(row.project_id, row.id, row.name, kind);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
+    return;
+  }
+  if (!kind || !([...LOCAL_KINDS, 'bundle'] as string[]).includes(kind)) {
     res.status(400).json({ error: `unknown projection kind: ${kind}` });
     return;
   }
