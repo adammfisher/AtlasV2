@@ -5,13 +5,19 @@ export interface SseHandlers {
 }
 
 /** POST a message and consume the text/event-stream response (named events per PRD §4). */
-export async function postSse(path: string, body: unknown, handlers: SseHandlers): Promise<void> {
+export async function postSse(
+  path: string,
+  body: unknown,
+  handlers: SseHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      signal: signal ?? null,
     });
   } catch (err) {
     handlers.onError(err instanceof Error ? err.message : String(err));
@@ -24,6 +30,7 @@ export async function postSse(path: string, body: unknown, handlers: SseHandlers
   }
 
   const reader = res.body.getReader();
+  signal?.addEventListener('abort', () => void reader.cancel().catch(() => undefined));
   const decoder = new TextDecoder();
   let buffer = '';
   let eventName = 'message';

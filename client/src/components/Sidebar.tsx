@@ -1,9 +1,11 @@
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Lock, Cpu, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Lock, Cpu, Settings2, Trash2, Check } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
 import { Badge } from './Badge';
 import { NavItem } from './NavItem';
 import type { View } from '../lib/store';
-import type { Conversation, ModelsRegistry, Health } from '../lib/api';
+import { api, type Conversation, type ModelsRegistry, type Health } from '../lib/api';
 
 const TIER_LABELS: Array<{ id: string; label: string }> = [
   { id: 'e2b', label: 'E2B router' },
@@ -26,12 +28,15 @@ export function Sidebar({
   setView: (v: View) => void;
   convs: Conversation[];
   activeConv: string | null;
-  openConv: (id: string) => void;
+  openConv: (id: string | null) => void;
   newChat: () => void;
   registry: ModelsRegistry | undefined;
   health: Health | undefined;
   userName: string;
 }) {
+  const [manage, setManage] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
   const initials =
     userName
       .split(/\s+/)
@@ -84,11 +89,50 @@ export function Sidebar({
       </div>
 
       <div
-        className="px-4 mt-5 mb-1.5 text-xs font-medium uppercase tracking-wider"
+        className="px-4 mt-5 mb-1.5 flex items-center text-xs font-medium uppercase tracking-wider"
         style={{ color: C.mute, fontFamily: sans }}
       >
         Recents
+        {convs.length > 0 && (
+          <button
+            onClick={() => {
+              setManage(!manage);
+              setSelected(new Set());
+            }}
+            className="ml-auto normal-case tracking-normal font-normal"
+            style={{ color: manage ? C.accent : C.mute, fontFamily: sans }}
+          >
+            {manage ? 'Done' : 'Edit'}
+          </button>
+        )}
       </div>
+      {manage && (
+        <div className="px-4 pb-1.5 flex items-center gap-3 text-xs" style={{ fontFamily: sans }}>
+          <button
+            onClick={() =>
+              setSelected(selected.size === convs.length ? new Set() : new Set(convs.map((c) => c.id)))
+            }
+            style={{ color: C.sub }}
+          >
+            {selected.size === convs.length ? 'Clear all' : 'Select all'}
+          </button>
+          <button
+            disabled={selected.size === 0}
+            onClick={() => {
+              void api.deleteConversations([...selected]).then(() => {
+                setSelected(new Set());
+                setManage(false);
+                void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+                if (activeConv && selected.has(activeConv)) openConv(null);
+              });
+            }}
+            className="flex items-center gap-1"
+            style={{ color: selected.size ? C.amber : C.mute }}
+          >
+            <Trash2 size={11} /> Delete{selected.size ? ` (${selected.size})` : ''}
+          </button>
+        </div>
+      )}
       <div className="px-2.5 flex-1 overflow-y-auto flex flex-col gap-0.5 pb-2">
         {convs.length === 0 && (
           <span className="px-2.5 py-2 text-xs" style={{ color: C.mute, fontFamily: sans }}>
@@ -97,16 +141,36 @@ export function Sidebar({
         )}
         {convs.map((c) => {
           const active = view === 'chat' && c.id === activeConv;
+          const checked = selected.has(c.id);
           return (
             <button
               key={c.id}
-              onClick={() => openConv(c.id)}
-              className="flex-shrink-0 text-left px-2.5 py-1.5 rounded-lg text-sm truncate transition-colors"
+              onClick={() => {
+                if (manage) {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(c.id)) next.delete(c.id);
+                    else next.add(c.id);
+                    return next;
+                  });
+                } else {
+                  openConv(c.id);
+                }
+              }}
+              className="flex-shrink-0 flex items-center gap-2 text-left px-2.5 py-1.5 rounded-lg text-sm transition-colors"
               style={{ color: active ? C.text : C.sub, background: active ? C.panel : 'transparent', fontFamily: sans }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = active ? C.panel : 'transparent')}
             >
-              {c.title}
+              {manage && (
+                <span
+                  className="flex items-center justify-center rounded flex-shrink-0"
+                  style={{ width: 14, height: 14, border: `1.5px solid ${checked ? C.accent : C.border}`, background: checked ? C.accent : 'transparent' }}
+                >
+                  {checked && <Check size={10} color="#fff" strokeWidth={3} />}
+                </span>
+              )}
+              <span className="truncate">{c.title}</span>
             </button>
           );
         })}

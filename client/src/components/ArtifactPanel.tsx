@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Download, Package, ArrowUp, RefreshCw, FileText } from 'lucide-react';
+import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon } from '../theme/tokens';
 import { api, type ProjectionRow } from '../lib/api';
@@ -302,6 +302,18 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
             style={{ background: C.accent, color: '#fff', fontFamily: sans }}
           >
             <Download size={14} /> Download as {a.kind === 'product' ? 'JSON' : a.kind.toUpperCase()} · v{activeVer}
+          </button>
+          <button
+            onClick={() =>
+              act(async () => {
+                await api.revealArtifact(a.id, activeVer);
+              })
+            }
+            title="Reveal the file in Finder"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium"
+            style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
+          >
+            <FolderOpen size={14} />
           </button>
           {activeVer !== a.ver && (
             <button

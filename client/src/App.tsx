@@ -64,9 +64,10 @@ export default function App() {
     });
   };
 
-  const openConv = (id: string) => {
+  const openConv = (id: string | null) => {
     setActiveConv(id);
     setView('chat');
+    if (id === null) return;
     const conv = conversations?.find((c) => c.id === id);
     if (conv && conv.projectId !== activeProjectId) setActiveProject(conv.projectId);
   };

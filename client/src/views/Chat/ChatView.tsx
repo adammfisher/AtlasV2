@@ -14,6 +14,7 @@ import {
   Box,
   Cog,
   Cloud,
+  Square,
   FileText,
   X,
 } from 'lucide-react';
@@ -194,6 +195,7 @@ export function ChatView({
     }
   };
   const genRef = useRef<{ text: string | null; label: string }>({ text: null, label: '' });
+  const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -211,6 +213,11 @@ export function ChatView({
 
   const busy = live !== null;
 
+  const stop = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  };
+
   const send = () => {
     const text = input.trim();
     if (!text || busy || convId === null) return;
@@ -218,6 +225,7 @@ export function ChatView({
     const sendAtts = attachments.map(({ id, name, kind }) => ({ id, name, kind }));
     setInput('');
     setAttachments([]);
+    abortRef.current = new AbortController();
     setLive({ toolChips: [], userText: text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
     void postSse(`/conversations/${convId}/messages`, { text, attachments: sendAtts }, {
       onEvent: (event, data) => {
@@ -582,13 +590,13 @@ export function ChatView({
               <Mic size={16} />
             </button>
             <button
-              onClick={send}
-              disabled={busy}
+              onClick={busy ? stop : send}
+              title={busy ? 'Stop generating' : 'Send'}
               className="flex items-center justify-center rounded-lg"
-              style={{ width: 30, height: 30, background: C.accent, opacity: busy ? 0.5 : 1 }}
+              style={{ width: 30, height: 30, background: busy ? C.raised : C.accent, border: busy ? `1px solid ${C.border}` : 'none' }}
             >
               {busy ? (
-                <Loader2 size={15} color="#fff" className="animate-spin" />
+                <Square size={12} color={C.text} fill={C.text} />
               ) : (
                 <ArrowUp size={16} color="#fff" strokeWidth={2.4} />
               )}

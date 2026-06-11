@@ -412,3 +412,20 @@ artifactsRouter.get('/:id/projections/:pid/download', (req, res) => {
   }
   res.download(projection.output_ref, path.basename(projection.output_ref));
 });
+
+/** Reveal the artifact file in Finder — the always-works path for local files. */
+artifactsRouter.post('/:id/versions/:v/reveal', (req, res) => {
+  const row = getArtifact(req.params.id);
+  const version = row
+    ? (getDb()
+        .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
+        .get(row.id, Number(req.params.v)) as { file_path: string | null } | undefined)
+    : undefined;
+  if (!version?.file_path) {
+    res.status(404).json({ error: 'no file for this version' });
+    return;
+  }
+  execFile('/usr/bin/open', ['-R', version.file_path], (err) =>
+    err ? res.status(500).json({ error: err.message }) : res.json({ ok: true }),
+  );
+});

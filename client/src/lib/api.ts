@@ -208,6 +208,11 @@ export const api = {
   createConversation: () =>
     request<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({}) }),
   conversation: (id: string) => request<ConversationDetail>(`/conversations/${id}`),
+  deleteConversations: (ids: string[]) =>
+    request<{ ok: boolean; deleted: number }>('/conversations/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
   skills: () => request<Skill[]>('/skills'),
   toggleSkill: (id: string, enabled: boolean) =>
     request<{ ok: boolean }>(`/skills/${id}`, { method: 'PATCH', body: JSON.stringify({ enabled }) }),
@@ -244,6 +249,8 @@ export const api = {
       `/plugins/installs/${installId}/tools?projectId=${encodeURIComponent(projectId)}`,
     ),
   artifact: (id: string) => request<ArtifactDetailData>(`/artifacts/${id}`),
+  revealArtifact: (id: string, version: number) =>
+    request<{ ok: boolean }>(`/artifacts/${id}/versions/${version}/reveal`, { method: 'POST' }),
   restoreArtifact: (id: string, version: number) =>
     request<{ ok: boolean; ver: number }>(`/artifacts/${id}/restore`, {
       method: 'POST',

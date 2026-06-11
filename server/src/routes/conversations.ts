@@ -64,3 +64,31 @@ conversationsRouter.get('/:id', (req, res) => {
   }));
   res.json({ ...conv, projectId: conv.project_id, messages });
 });
+
+conversationsRouter.delete('/:id', (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM messages WHERE conversation_id = ?').run(req.params.id);
+  const out = db.prepare('DELETE FROM conversations WHERE id = ?').run(req.params.id);
+  res.json({ ok: true, deleted: out.changes });
+});
+
+/** Bulk delete (sidebar select-all flow). Artifacts are kept — they live in the gallery. */
+conversationsRouter.post('/delete', (req, res) => {
+  const { ids } = req.body as { ids?: string[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: 'ids[] is required' });
+    return;
+  }
+  const db = getDb();
+  const delMsgs = db.prepare('DELETE FROM messages WHERE conversation_id = ?');
+  const delConv = db.prepare('DELETE FROM conversations WHERE id = ?');
+  let deleted = 0;
+  const run = db.transaction((list: string[]) => {
+    for (const id of list) {
+      delMsgs.run(id);
+      deleted += delConv.run(id).changes;
+    }
+  });
+  run(ids);
+  res.json({ ok: true, deleted });
+});
