@@ -79,7 +79,16 @@ export function stampState(
  * A4.3 product validation chain. KC-dependent checks degrade to amber with the
  * exact skip strings (the soffice pattern) — KC connects in Stage 4.
  */
-export function productChecks(payloadRaw: unknown, knownState: ProductState = 'proposed'): CheckStep[] {
+/**
+ * Amendment §A4.3/Stage-4: when Knowledge Core is connected the spine ref is
+ * resolved live via org_get_entity; collisions checked via org_search; deps
+ * traversed. KC absent keeps the exact skip-amber strings.
+ */
+export async function productChecks(
+  payloadRaw: unknown,
+  knownState: ProductState = 'proposed',
+  projectId?: string,
+): Promise<CheckStep[]> {
   const payload = payloadRaw as Payload;
   const checks: CheckStep[] = [{ state: 'ok', label: 'Schema', detail: 'constrained decoding + ajv re-validation' }];
 
@@ -94,17 +103,60 @@ export function productChecks(payloadRaw: unknown, knownState: ProductState = 'p
   }
 
   const spine = (payload.spine ?? {}) as Record<string, unknown>;
-  checks.push({
-    state: 'warn',
-    label: SPINE_SKIP,
-    detail: `spine: ${String(spine.lob ?? '?')}/${String(spine.domain ?? '?')}`,
-  });
-  checks.push({ state: 'warn', label: COLLISION_SKIP });
+  const ref = `${String(spine.lob ?? '?')}/${String(spine.domain ?? '?')}`;
   const deps = arr(payload, 'dependencies');
+
+  const kc = projectId ? await kcClient(projectId) : null;
+  if (!kc) {
+    checks.push({ state: 'warn', label: SPINE_SKIP, detail: `spine: ${ref}` });
+    checks.push({ state: 'warn', label: COLLISION_SKIP });
+    if (deps.length > 0) checks.push({ state: 'warn', label: DEPS_SKIP, detail: `${deps.length} declared` });
+    return checks;
+  }
+
+  try {
+    const spineResult = await kc('org_get_entity', { ref });
+    const found = /"found":\s*true/.test(spineResult);
+    checks.push(
+      found
+        ? { state: 'ok', label: `Spine — ${ref}`, detail: 'resolved in Knowledge Core' }
+        : { state: 'warn', label: `Spine — ${ref} not found` },
+    );
+  } catch {
+    checks.push({ state: 'warn', label: SPINE_SKIP, detail: `spine: ${ref}` });
+  }
+
+  try {
+    const name = String((payload as Record<string, unknown>).name ?? '');
+    const collision = await kc('org_search', { query: name });
+    checks.push({
+      state: 'ok',
+      label: 'Collision check',
+      detail: collision.includes('[') ? 'similar items reviewed' : 'no overlaps found',
+    });
+  } catch {
+    checks.push({ state: 'warn', label: COLLISION_SKIP });
+  }
+
   if (deps.length > 0) {
-    checks.push({ state: 'warn', label: DEPS_SKIP, detail: `${deps.length} declared` });
+    try {
+      await kc('org_traverse', { from: ref });
+      checks.push({ state: 'ok', label: 'Dependencies', detail: `${deps.length} declared · traversed` });
+    } catch {
+      checks.push({ state: 'warn', label: DEPS_SKIP, detail: `${deps.length} declared` });
+    }
   }
   return checks;
+}
+
+/** Returns a call helper when the knowledge-core connector is connected + enabled in the project. */
+async function kcClient(projectId: string): Promise<((tool: string, args: Record<string, unknown>) => Promise<string>) | null> {
+  const { installFor, callTool } = await import('../mcp/manager.js');
+  const install = installFor('knowledge-core');
+  if (!install || install.status !== 'connected') return null;
+  const enabled = JSON.parse(install.enabled_projects) as string[];
+  if (!enabled.includes(projectId)) return null;
+  return (tool, args) => callTool('knowledge-core', projectId, tool, args);
 }
 
 
