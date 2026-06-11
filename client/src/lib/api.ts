@@ -189,7 +189,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `${res.status} ${res.statusText}`);
+    const message = body.error ?? `${res.status} ${res.statusText}`;
+    window.dispatchEvent(new CustomEvent('atlas-error', { detail: message }));
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }

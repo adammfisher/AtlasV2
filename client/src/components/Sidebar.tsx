@@ -90,6 +90,11 @@ export function Sidebar({
         Recents
       </div>
       <div className="px-2.5 flex-1 overflow-y-auto flex flex-col gap-0.5 pb-2">
+        {convs.length === 0 && (
+          <span className="px-2.5 py-2 text-xs" style={{ color: C.mute, fontFamily: sans }}>
+            No conversations yet — start one with New chat.
+          </span>
+        )}
         {convs.map((c) => {
           const active = view === 'chat' && c.id === activeConv;
           return (

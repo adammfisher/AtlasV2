@@ -153,11 +153,17 @@ export function PluginsView({
         <div className="text-xs font-medium uppercase tracking-wider mb-2.5" style={{ color: C.mute, fontFamily: sans }}>
           Directory
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          {rest.map((p) => (
-            <PluginCard key={p.id} p={p} activeProject={activeProject} onOpen={setOpenId} onInstall={install} />
-          ))}
-        </div>
+        {shown.length === 0 ? (
+          <div className="text-sm py-8 text-center" style={{ color: C.mute, fontFamily: sans }}>
+            No connectors match "{search || filter}" — clear the search or switch filters.
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {rest.map((p) => (
+              <PluginCard key={p.id} p={p} activeProject={activeProject} onOpen={setOpenId} onInstall={install} />
+            ))}
+          </div>
+        )}
       </div>
 
       {open ? (
