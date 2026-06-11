@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar';
 import { ArtifactPanel } from './components/ArtifactPanel';
 import { ArtifactDrawer } from './components/ArtifactDrawer';
 import { LivePanel } from './components/LivePanel';
+import { Toasts } from './components/Toasts';
 import { ChatView } from './views/Chat/ChatView';
 import { PluginsView } from './views/Plugins/PluginsView';
 import { SkillsView } from './views/Skills/SkillsView';
@@ -144,6 +145,7 @@ export default function App() {
           />
         ) : null}
       </div>
+          <Toasts />
     </div>
   );
 }

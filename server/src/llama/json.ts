@@ -6,6 +6,8 @@ export interface JsonCallOptions {
   temperature?: number;
   maxTokens?: number;
   signal?: AbortSignal;
+  /** target llama-server port (defaults to the chat process) */
+  port?: number;
   /** live progress: called with each content delta as the model writes */
   onDelta?: (delta: string) => void;
 }
@@ -15,7 +17,7 @@ async function complete(
   opts: JsonCallOptions,
   label: string,
 ): Promise<string> {
-  const url = `http://127.0.0.1:${config.llamaServer.chatPort}/v1/chat/completions`;
+  const url = `http://127.0.0.1:${opts.port ?? config.llamaServer.chatPort}/v1/chat/completions`;
   if (opts.onDelta) {
     // stream so callers can show the document being written live
     const res = await fetch(url, {

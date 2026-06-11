@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { getDb, newId, now } from '../db/db.js';
+import { getDb, getSetting, newId, now } from '../db/db.js';
 import { llamaState } from '../llama/spawn.js';
 import { scanModels } from '../llama/models.js';
 import { logTo } from '../log.js';
 import { streamChatWithTools } from '../mcp/toolloop.js';
 import { installFor, callTool } from '../mcp/manager.js';
+import { bedrockSettings, bedrockStreamChat } from '../providers/bedrock.js';
+import { attachmentDataUrl, attachmentText } from './uploads.js';
+import { streamChat, type ChatMessage } from '../llama/client.js';
 import { route } from '../pipeline/router.js';
 import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
 import {
@@ -31,7 +34,11 @@ chatRouter.post('/:id/messages', async (req, res) => {
     res.status(404).json({ error: 'conversation not found' });
     return;
   }
-  const { text } = req.body as { text?: string };
+  const { text, attachments } = req.body as {
+    text?: string;
+    attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
+  };
+  const atts = attachments ?? [];
   if (!text?.trim()) {
     res.status(400).json({ error: 'text is required' });
     return;
@@ -59,7 +66,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
   const userMsgId = newId('m');
   db.prepare(
     'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(userMsgId, conv.id, 'user', 'text', JSON.stringify({ text: text.trim() }), t);
+  ).run(
+    userMsgId,
+    conv.id,
+    'user',
+    'text',
+    JSON.stringify(atts.length ? { text: text.trim(), attachments: atts } : { text: text.trim() }),
+    t,
+  );
   if (messageCount === 0) {
     const title = text.trim().length > 42 ? `${text.trim().slice(0, 42)}…` : text.trim();
     db.prepare('UPDATE conversations SET title = ? WHERE id = ?').run(title, conv.id);
@@ -85,6 +99,22 @@ chatRouter.post('/:id/messages', async (req, res) => {
       .get(conv.project_id) as { instructions: string } | undefined;
     const instructions = project?.instructions ?? '';
 
+    // attachments: documents inject extracted text; images become vision parts
+    let attachedDocs = '';
+    const imageParts: Array<{ type: 'image_url'; image_url: { url: string } }> = [];
+    for (const att of atts) {
+      try {
+        if (att.kind === 'image') {
+          imageParts.push({ type: 'image_url', image_url: { url: attachmentDataUrl(att.id) } });
+        } else {
+          const extracted = attachmentText(att.id);
+          attachedDocs += `\n\n--- Attached file: ${att.name} ---\n${(extracted ?? '(content extraction still running — ask the user to retry if needed)').slice(0, 24_000)}`;
+        }
+      } catch (err) {
+        logTo('app', `attachment ${att.id} unusable: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
     const history = (
       db
         .prepare(
@@ -105,7 +135,10 @@ chatRouter.post('/:id/messages', async (req, res) => {
     sse(res, 'step', { state: 'pending', label: `Router · ${routerModel}`, detail: 'classifying the task' });
     const editable = lastPipelineArtifact(conv.id);
     const tRoute = Date.now();
-    const routed = await route(history.slice(0, -1), text.trim(), editable !== null);
+    const routedText = atts.length
+      ? `${text.trim()} [attached: ${atts.map((a) => a.name).join(', ')}]`
+      : text.trim();
+    const routed = await route(history.slice(0, -1), routedText, editable !== null);
     const routerMs = Date.now() - tRoute;
     logTo('pipeline', `route conv=${conv.id} intent=${routed.intent} skill=${routed.skill ?? '-'} ms=${routerMs}`);
 
@@ -139,16 +172,22 @@ chatRouter.post('/:id/messages', async (req, res) => {
         .filter(Boolean)
         .join('\n\n');
 
-      for await (const delta of streamChatWithTools(
-        history,
-        system,
-        conv.project_id,
-        abort.signal,
-        (chip) => {
-          chips.push(chip);
-          sse(res, 'tool', chip);
-        },
-      )) {
+      const chatHistory = history.map((m, i) => {
+        if (i !== history.length - 1 || m.role !== 'user') return m;
+        const fullText = `${m.content}${attachedDocs}`;
+        if (imageParts.length === 0) return { ...m, content: fullText };
+        return { ...m, content: [{ type: 'text' as const, text: fullText }, ...imageParts] };
+      });
+      const useBedrock = getSetting('selectedModel') === 'bedrock' && bedrockSettings().connected;
+      const stream = useBedrock
+        ? bedrockStreamChat(system, history, abort.signal)
+        : imageParts.length > 0 || attachedDocs
+          ? streamChat([{ role: 'system', content: system }, ...(chatHistory as ChatMessage[])], { signal: abort.signal })
+          : streamChatWithTools(history, system, conv.project_id, abort.signal, (chip) => {
+            chips.push(chip);
+            sse(res, 'tool', chip);
+          });
+      for await (const delta of stream) {
         if (tFirst === null) {
           tFirst = Date.now();
           logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms`);
@@ -192,7 +231,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         skillId,
         artifactId: editable.artifactId,
         artifactName: editable.name,
-        text: text.trim(),
+        text: `${text.trim()}${attachedDocs}`,
         projectId: conv.project_id,
         instructions,
         routerMs,
@@ -203,7 +242,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
     } else {
       payload = await runCreateDoc({
         skillId,
-        text: text.trim(),
+        text: `${text.trim()}${attachedDocs}`,
         projectId: conv.project_id,
         instructions,
         routerMs,

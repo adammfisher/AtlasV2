@@ -1,7 +1,7 @@
 import express from 'express';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
-import { config } from './config.js';
+import { config, repoRoot } from './config.js';
 import { log } from './log.js';
 import { getDb, getSetting } from './db/db.js';
 import { seedIfNeeded, backfillSeedArtifactFiles } from './db/seed.js';
@@ -16,9 +16,10 @@ import { pluginsRouter } from './routes/plugins.js';
 import { modelsRouter } from './routes/models.js';
 import { artifactsRouter } from './routes/artifacts.js';
 import { ensureBundledInstalled, probeKnowledgeCore } from './mcp/manager.js';
+import { uploadsRouter } from './routes/uploads.js';
 
 // 1. App data directories (models/ already exists and is never touched)
-for (const dir of ['data', 'artifacts', 'credentials', 'logs']) {
+for (const dir of ['data', 'artifacts', 'credentials', 'logs', 'uploads']) {
   mkdirSync(path.join(config.dataDir, dir), { recursive: true });
 }
 
@@ -35,6 +36,12 @@ void startLlama(getSetting('selectedModel'));
 // 4. HTTP API
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// portable folder: serve the built client when it exists (dev uses Vite instead)
+const clientDist = path.join(repoRoot, 'client', 'dist');
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+}
 
 app.get('/api/health', (_req, res) => {
   const llama = llamaState();
@@ -61,7 +68,12 @@ app.use('/api/conversations', conversationsRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/plugins', pluginsRouter);
 app.use('/api/models', modelsRouter);
+app.use('/api/uploads', uploadsRouter);
 app.use('/api/artifacts', artifactsRouter);
+
+if (existsSync(clientDist)) {
+  app.get(/^\/(?!api).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+}
 
 const server = app.listen(config.server.port, '127.0.0.1', () => {
   log(`Atlas server listening on http://127.0.0.1:${config.server.port}`);

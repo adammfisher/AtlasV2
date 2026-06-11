@@ -1,7 +1,7 @@
 import { Check, KeyRound, Info } from 'lucide-react';
 import { C, sans } from '../theme/tokens';
 import { Badge } from './Badge';
-import type { ModelsRegistry } from '../lib/api';
+import { api, type ModelsRegistry } from '../lib/api';
 
 interface MenuRow {
   id: string;
@@ -28,13 +28,14 @@ function buildRows(registry: ModelsRegistry): MenuRow[] {
       selectable: m.selectable,
     });
   }
+  const b = registry.bedrock as { connected: boolean; region?: string };
   rows.push({
     id: 'bedrock',
     name: 'Claude · Bedrock',
-    detail: 'Quality upgrade for office + code',
-    badge: 'Add model',
-    locked: true,
-    selectable: false,
+    detail: b.connected ? `Connected · ${b.region} · structured output` : 'Quality upgrade for office + code',
+    badge: b.connected ? 'Connected' : 'Add model',
+    locked: !b.connected,
+    selectable: b.connected,
   });
   return rows;
 }
@@ -43,10 +44,12 @@ export function ModelMenu({
   registry,
   onSelect,
   onClose,
+  onConnectBedrock,
 }: {
   registry: ModelsRegistry;
   onSelect: (id: string) => void;
   onClose: () => void;
+  onConnectBedrock: () => void;
 }) {
   return (
     <div
@@ -57,9 +60,16 @@ export function ModelMenu({
         <button
           key={m.id}
           onClick={() => {
+            if (m.id === 'bedrock' && m.locked) {
+              onConnectBedrock();
+              onClose();
+              return;
+            }
             if (m.selectable) {
               onSelect(m.id);
               onClose();
+            } else if (m.detail.startsWith('Place a')) {
+              void api.revealModelsFolder();
             }
           }}
           className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
@@ -94,7 +104,10 @@ export function ModelMenu({
         className="px-3 pt-1.5 mt-1 text-xs flex items-center gap-1.5"
         style={{ borderTop: `1px solid ${C.borderSoft}`, color: C.mute, fontFamily: sans }}
       >
-        <Info size={12} /> Bedrock unlocks after AWS credentials are added in Settings.
+        <Info size={12} />{' '}
+        {(registry.bedrock as { connected: boolean }).connected
+          ? 'Bedrock connected — select it to route chat + office through Claude.'
+          : 'Click the Bedrock row to connect AWS credentials. Absent local rows reveal the models folder.'}
       </div>
     </div>
   );

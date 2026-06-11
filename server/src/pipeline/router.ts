@@ -1,4 +1,5 @@
 import { completeJson } from '../llama/json.js';
+import { portForTask } from '../llama/spawn.js';
 import { logTo } from '../log.js';
 import { isSkillId, type SkillId } from './skills.js';
 
@@ -70,6 +71,7 @@ export async function route(
       const raw = await completeJson(messages, ROUTER_SCHEMA as unknown as Record<string, unknown>, {
         temperature: 0.2,
         maxTokens: 192,
+    port: portForTask('router'),
       });
       const parsed = parseRoute(raw);
       if (parsed) {

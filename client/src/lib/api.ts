@@ -40,6 +40,7 @@ export interface TextMessage {
   kind: 'text';
   text: string;
   toolCalls?: Array<{ tool: string; connector: string }>;
+  attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
 }
 
 export interface PipelineMessageData {
@@ -155,7 +156,7 @@ export interface ModelEntry {
 export interface ModelsRegistry {
   models: ModelEntry[];
   selected: string;
-  bedrock: { connected: boolean };
+  bedrock: { connected: boolean; region?: string; profile?: string; modelId?: string };
   hardware: {
     ramGB: number;
     rssGB: number;
@@ -188,7 +189,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `${res.status} ${res.statusText}`);
+    const message = body.error ?? `${res.status} ${res.statusText}`;
+    window.dispatchEvent(new CustomEvent('atlas-error', { detail: message }));
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
@@ -259,4 +262,17 @@ export const api = {
   models: () => request<ModelsRegistry>('/models'),
   selectModel: (id: string) =>
     request<{ ok: boolean }>('/models/select', { method: 'POST', body: JSON.stringify({ id }) }),
+  uploadAttachment: (name: string, dataBase64: string) =>
+    request<{ id: string; name: string; kind: 'image' | 'document'; size: number }>('/uploads', {
+      method: 'POST',
+      body: JSON.stringify({ name, dataBase64 }),
+    }),
+  revealModelsFolder: () => request<{ ok: boolean }>('/models/reveal', { method: 'POST' }),
+  refreshModels: () => request<ModelsRegistry>('/models/refresh', { method: 'POST' }),
+  connectBedrock: (region: string, profile: string) =>
+    request<{ ok: boolean; models: number; region: string; modelId: string }>('/models/bedrock/connect', {
+      method: 'POST',
+      body: JSON.stringify({ region, profile }),
+    }),
+  disconnectBedrock: () => request<{ ok: boolean }>('/models/bedrock/disconnect', { method: 'POST' }),
 };
