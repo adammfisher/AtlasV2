@@ -8,6 +8,13 @@ import { logTo } from '../log.js';
 import { completeJson, completeText } from '../llama/json.js';
 import { streamChat } from '../llama/client.js';
 import { scanModels } from '../llama/models.js';
+import { auxState, portForTask, llamaState } from '../llama/spawn.js';
+import { getSetting } from '../db/db.js';
+import * as bedrock from '../providers/bedrock.js';
+
+function bedrockModule(): typeof bedrock {
+  return bedrock;
+}
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
 import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences } from './validate.js';
 import {
@@ -56,12 +63,22 @@ function pushStep(ctx: Ctx, step: CheckStep): void {
   ctx.send('step', step);
 }
 
-/** §8 task routing — office_json runs on the best available tier; honest naming. */
-export function officeModel(): { name: string; tier: string; escalated: boolean } {
-  const models = scanModels();
-  const twelveB = models.find((m) => m.id === '12b' && m.present);
-  if (twelveB) return { name: 'Gemma 4 12B', tier: '12b', escalated: true };
-  return { name: 'Gemma 4 E4B', tier: 'e4b', escalated: false };
+/** §8 task routing — office_json runs on the best SERVABLE tier; honest naming.
+ * Escalated only when the office call actually runs on a higher tier than the
+ * user's selected chat model (the chip rule). */
+export function officeModel(): { name: string; tier: string; escalated: boolean; port: number } {
+  const { bedrockSettings } = bedrockModule();
+  if (getSetting('selectedModel') === 'bedrock' && bedrockSettings().connected) {
+    return { name: 'Claude · Bedrock', tier: 'bedrock', escalated: false, port: 0 };
+  }
+  const a = auxState();
+  if (a.status === 'ready' && a.tier === '12b') {
+    const resident = llamaState().modelFile?.toLowerCase() ?? '';
+    return { name: 'Gemma 4 12B', tier: '12b', escalated: !resident.includes('12b'), port: portForTask('office') };
+  }
+  const resident = llamaState().modelFile?.toLowerCase() ?? '';
+  if (resident.includes('12b')) return { name: 'Gemma 4 12B', tier: '12b', escalated: false, port: portForTask('chat') };
+  return { name: 'Gemma 4 E4B', tier: 'e4b', escalated: false, port: portForTask('chat') };
 }
 
 function slug(value: string): string {
@@ -119,12 +136,17 @@ async function generateJson(
             },
           ];
     ctx.send('gen', { reset: true, label: ctx.skill.id });
-    const raw = await completeJson(messages, schema, {
-      maxTokens,
-      signal: ctx.signal,
-      temperature: 0.2,
-      onDelta: (delta) => ctx.send('gen', { delta }),
-    });
+    const model = officeModel();
+    const raw =
+      model.tier === 'bedrock'
+        ? await bedrock.bedrockJson(systemPrompt, ctx.text, schema, { maxTokens, signal: ctx.signal })
+        : await completeJson(messages, schema, {
+            maxTokens,
+            signal: ctx.signal,
+            temperature: 0.2,
+            port: portForTask('office'),
+            onDelta: (delta) => ctx.send('gen', { delta }),
+          });
     const result = validateJson(ctx.skill.id, schema, raw);
     if (result.ok) {
       const extra = extraValidate?.(result.value);
@@ -139,15 +161,28 @@ async function generateJson(
     lastError = result.error;
     logTo('pipeline', `${ctx.skill.id} repair attempt=${attempt + 1}: ${lastError}`);
   }
-  // §4.3.3 second failure → escalate one tier if available (none on E4B-only box)
+  // §4.3.3 second failure → escalate: Bedrock when connected, else honest failure
+  if (bedrock.bedrockSettings().connected && officeModel().tier !== 'bedrock') {
+    try {
+      const raw = await bedrock.bedrockJson(systemPrompt, ctx.text, schema, { maxTokens, signal: ctx.signal });
+      const result = validateJson(ctx.skill.id, schema, raw);
+      if (result.ok) {
+        logTo('pipeline', `${ctx.skill.id} escalated to Bedrock after local repair exhausted`);
+        return { payload: result.value, firstPass: false };
+      }
+      lastError = result.error;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
   const models = scanModels();
   const canEscalate = models.some((m) => m.id === '12b' && m.present);
   if (!canEscalate) {
     throw new PipelineError(
-      `Generation failed schema validation twice on E4B (${lastError}) and no higher tier is available to escalate to.`,
+      `Generation failed schema validation twice (${lastError}) and no higher tier is available to escalate to.`,
     );
   }
-  throw new PipelineError(`Escalation path not yet wired for this machine: ${lastError}`);
+  throw new PipelineError(`Escalation exhausted local tiers: ${lastError}`);
 }
 
 interface HelperResult {
@@ -258,6 +293,9 @@ export async function runCreateDoc(opts: {
 
   const unit = UNITS[skill.id] ?? 'items';
   const genLabel = `${model.name} · ${unit} JSON`;
+  if (model.escalated) {
+    pushStep(ctx, { state: 'ok', label: 'Escalated to 12B — office JSON', detail: 'higher tier than the selected chat model' });
+  }
 
   let artifactId: string;
   let name: string;

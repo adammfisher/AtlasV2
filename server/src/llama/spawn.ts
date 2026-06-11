@@ -1,4 +1,5 @@
 import { spawn, spawnSync, execFileSync, type ChildProcess } from 'node:child_process';
+import os from 'node:os';
 import { config } from '../config.js';
 import { log, logTo } from '../log.js';
 import { scanModels, modelPath, type ModelEntry } from './models.js';
@@ -26,6 +27,99 @@ const state: LlamaState = {
 let child: ChildProcess | null = null;
 let restartCount = 0;
 let stopping = false;
+
+/* ---------- §8 second-process topology ----------
+ * E2B + larger model present → router pinned to its own process.
+ * 12B present while a smaller chat model is selected → office runs on a 12B
+ * process (the drop-a-12B gate: office routes to it, chat stays selected).
+ * One aux process in v1; 12B-office wins when both would apply. */
+export const AUX_PORT = 8082;
+
+interface AuxState {
+  status: 'stopped' | 'starting' | 'ready' | 'error';
+  tier: 'e2b' | '12b' | null;
+  pid: number | null;
+}
+
+const aux: AuxState = { status: 'stopped', tier: null, pid: null };
+let auxChild: ChildProcess | null = null;
+
+function pickAuxModel(selectedTier: string): ModelEntry | null {
+  if (Math.round(os.totalmem() / 1024 ** 3) < 16) return null;
+  const models = scanModels();
+  const tierRank: Record<string, number> = { e2b: 0, e4b: 1, '12b': 2 };
+  const twelve = models.find((m) => m.id === '12b' && m.present);
+  if (twelve && (tierRank[selectedTier] ?? 1) < 2) return twelve;
+  const e2b = models.find((m) => m.id === 'e2b' && m.present);
+  if (e2b && selectedTier !== 'e2b') return e2b;
+  return null;
+}
+
+async function startAux(selectedTier: string): Promise<void> {
+  const entry = pickAuxModel(selectedTier);
+  if (!entry) return;
+  const file = modelPath(entry);
+  if (!file) return;
+  const binary = resolveBinary();
+  aux.status = 'starting';
+  aux.tier = entry.id as 'e2b' | '12b';
+  const args = [
+    '-m', file,
+    '--host', '127.0.0.1',
+    '--port', String(AUX_PORT),
+    '-c', String(config.llamaServer.ctx),
+    '-np', '1',
+    ...config.llamaServer.extraFlags,
+  ];
+  log(`spawning aux llama-server (${entry.file}, ${aux.tier}) on :${AUX_PORT}`);
+  auxChild = spawn(binary, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  aux.pid = auxChild.pid ?? null;
+  auxChild.stdout?.on('data', (d: Buffer) => logTo('llama', `[aux] ${d.toString().trimEnd()}`));
+  auxChild.stderr?.on('data', (d: Buffer) => logTo('llama', `[aux] ${d.toString().trimEnd()}`));
+  auxChild.on('exit', (code) => {
+    aux.pid = null;
+    if (!stopping) log(`aux llama-server exited (code=${code}) — aux features fall back to the chat process`);
+    aux.status = 'stopped';
+    aux.tier = null;
+  });
+  try {
+    const deadline = Date.now() + 180_000;
+    for (;;) {
+      if (Date.now() > deadline) throw new Error('aux llama-server health timeout');
+      try {
+        const res = await fetch(`http://127.0.0.1:${AUX_PORT}/health`);
+        if (res.ok) break;
+      } catch {
+        // not up yet
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    aux.status = 'ready';
+    log(`aux llama-server ready (${entry.file})`);
+  } catch (err) {
+    aux.status = 'error';
+    log(`aux llama-server failed: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+/** Re-evaluate the aux topology (called by /models/refresh after a drop-in). */
+export function ensureAux(): void {
+  if (aux.status !== 'stopped' || state.status !== 'ready') return;
+  const resident = state.modelFile?.toLowerCase() ?? '';
+  const tier = resident.includes('12b') ? '12b' : resident.includes('e2b') ? 'e2b' : 'e4b';
+  void startAux(tier);
+}
+
+export function auxState(): AuxState {
+  return { ...aux };
+}
+
+/** Port for a task class — aux process when it serves that tier, else the chat process. */
+export function portForTask(task: 'router' | 'office' | 'chat'): number {
+  if (task === 'router' && aux.status === 'ready' && aux.tier === 'e2b') return AUX_PORT;
+  if (task === 'office' && aux.status === 'ready' && aux.tier === '12b') return AUX_PORT;
+  return config.llamaServer.chatPort;
+}
 
 function resolveBinary(): string {
   if (config.llamaServer.binary !== 'auto') return config.llamaServer.binary;
@@ -171,6 +265,7 @@ export async function startLlama(selectedModel: string | null): Promise<void> {
     await warmup();
     state.status = 'ready';
     log(`llama-server ready (${entry.file})`);
+    if (aux.status === 'stopped') void startAux(entry.id);
   } catch (err) {
     if (state.status !== 'restarting') {
       state.status = 'error';
@@ -183,6 +278,7 @@ export async function startLlama(selectedModel: string | null): Promise<void> {
 export function stopLlama(): void {
   stopping = true;
   child?.kill();
+  auxChild?.kill();
 }
 
 export function llamaState(): Readonly<LlamaState> {

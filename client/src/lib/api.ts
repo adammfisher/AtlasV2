@@ -155,7 +155,7 @@ export interface ModelEntry {
 export interface ModelsRegistry {
   models: ModelEntry[];
   selected: string;
-  bedrock: { connected: boolean };
+  bedrock: { connected: boolean; region?: string; profile?: string; modelId?: string };
   hardware: {
     ramGB: number;
     rssGB: number;
@@ -259,4 +259,12 @@ export const api = {
   models: () => request<ModelsRegistry>('/models'),
   selectModel: (id: string) =>
     request<{ ok: boolean }>('/models/select', { method: 'POST', body: JSON.stringify({ id }) }),
+  revealModelsFolder: () => request<{ ok: boolean }>('/models/reveal', { method: 'POST' }),
+  refreshModels: () => request<ModelsRegistry>('/models/refresh', { method: 'POST' }),
+  connectBedrock: (region: string, profile: string) =>
+    request<{ ok: boolean; models: number; region: string; modelId: string }>('/models/bedrock/connect', {
+      method: 'POST',
+      body: JSON.stringify({ region, profile }),
+    }),
+  disconnectBedrock: () => request<{ ok: boolean }>('/models/bedrock/disconnect', { method: 'POST' }),
 };

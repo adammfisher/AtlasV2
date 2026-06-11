@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { getDb, newId, now } from '../db/db.js';
+import { getDb, getSetting, newId, now } from '../db/db.js';
 import { llamaState } from '../llama/spawn.js';
 import { scanModels } from '../llama/models.js';
 import { logTo } from '../log.js';
 import { streamChatWithTools } from '../mcp/toolloop.js';
 import { installFor, callTool } from '../mcp/manager.js';
+import { bedrockSettings, bedrockStreamChat } from '../providers/bedrock.js';
 import { route } from '../pipeline/router.js';
 import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
 import {
@@ -139,16 +140,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
         .filter(Boolean)
         .join('\n\n');
 
-      for await (const delta of streamChatWithTools(
-        history,
-        system,
-        conv.project_id,
-        abort.signal,
-        (chip) => {
-          chips.push(chip);
-          sse(res, 'tool', chip);
-        },
-      )) {
+      const useBedrock = getSetting('selectedModel') === 'bedrock' && bedrockSettings().connected;
+      const stream = useBedrock
+        ? bedrockStreamChat(system, history, abort.signal)
+        : streamChatWithTools(history, system, conv.project_id, abort.signal, (chip) => {
+            chips.push(chip);
+            sse(res, 'tool', chip);
+          });
+      for await (const delta of stream) {
         if (tFirst === null) {
           tFirst = Date.now();
           logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms`);
