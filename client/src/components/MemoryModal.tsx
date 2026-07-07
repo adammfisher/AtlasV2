@@ -84,6 +84,38 @@ export function MemoryModal({
               : 'Captured automatically when conversations go idle, plus anything you ask Atlas to remember. Facts are recalled in every chat in this project — and only this project.'}
           </p>
 
+          {data?.profile ? (
+            <div
+              className="rounded-lg px-3 py-2.5 mt-3"
+              style={{ background: C.accentDim ?? C.panel, border: `1px solid ${C.border}` }}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: C.accent, fontFamily: sans }}>
+                  {scope === 'user' ? 'What Atlas knows about you' : 'Project summary'}
+                </span>
+                <button
+                  onClick={() => void api.consolidateMemory(scopeId).then(refresh)}
+                  className="ml-auto text-xs"
+                  style={{ color: C.mute, fontFamily: sans }}
+                  title="Re-synthesize from current facts"
+                >
+                  Refresh
+                </button>
+              </div>
+              <p className="text-sm" style={{ color: C.sub, fontFamily: sans }}>
+                {data.profile.text}
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={() => void api.consolidateMemory(scopeId).then(refresh)}
+              className="mt-3 text-xs underline"
+              style={{ color: C.mute, fontFamily: sans }}
+            >
+              Generate a summary of everything remembered
+            </button>
+          )}
+
           {section(<KeyRound size={13} style={{ color: C.accent }} />, 'Facts', data?.kv.length ?? 0)}
           {(data?.kv ?? []).map((row) => (
             <div

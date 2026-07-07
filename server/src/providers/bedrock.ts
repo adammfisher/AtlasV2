@@ -342,6 +342,97 @@ export async function bedrockCompleteJson(
   return content;
 }
 
+export interface BedrockTool {
+  name: string;
+  description: string;
+  schema: Record<string, unknown>;
+}
+
+/** Streaming chat with a Converse tool loop (restores in-chat tool use post
+ * llama retirement). Text deltas stream through as they arrive; on
+ * stopReason=tool_use the tools are executed, results appended, and the
+ * conversation continues — capped at 3 iterations. */
+export async function* bedrockStreamWithTools(
+  messages: ChatMessage[],
+  tools: BedrockTool[],
+  execute: (name: string, input: Record<string, unknown>) => Promise<string>,
+  onTool: (name: string) => void,
+  opts: { temperature?: number; maxTokens?: number; signal?: AbortSignal } = {},
+): AsyncGenerator<string> {
+  if (!bedrockActive()) throw new Error('Bedrock is not connected');
+  const client = runtime(bedrockSettings());
+  const { system, messages: msgs } = toConverse(messages);
+  const toolConfig = {
+    tools: tools.map((t) => ({
+      toolSpec: { name: t.name, description: t.description, inputSchema: { json: t.schema as never } },
+    })),
+  };
+
+  const convo: Message[] = [...msgs];
+  for (let iteration = 0; iteration < 3; iteration++) {
+    const out = await client.send(
+      new ConverseStreamCommand({
+        modelId: activeModelId(),
+        system,
+        messages: convo,
+        toolConfig,
+        inferenceConfig: { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 1.0 },
+      }),
+      { abortSignal: opts.signal },
+    );
+
+    let text = '';
+    let stopReason = '';
+    const toolUses = new Map<number, { toolUseId: string; name: string; inputJson: string }>();
+    for await (const event of out.stream ?? []) {
+      const start = event.contentBlockStart;
+      if (start?.start?.toolUse && start.contentBlockIndex !== undefined) {
+        toolUses.set(start.contentBlockIndex, {
+          toolUseId: start.start.toolUse.toolUseId ?? '',
+          name: start.start.toolUse.name ?? '',
+          inputJson: '',
+        });
+      }
+      const delta = event.contentBlockDelta;
+      if (delta?.delta?.text) {
+        text += delta.delta.text;
+        yield delta.delta.text;
+      }
+      if (delta?.delta?.toolUse?.input !== undefined && delta.contentBlockIndex !== undefined) {
+        const tu = toolUses.get(delta.contentBlockIndex);
+        if (tu) tu.inputJson += delta.delta.toolUse.input;
+      }
+      if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
+    }
+
+    if (stopReason !== 'tool_use' || toolUses.size === 0) return;
+
+    // execute the requested tools, append the exchange, and continue
+    const assistantBlocks: ContentBlock[] = [];
+    if (text) assistantBlocks.push({ text });
+    const resultBlocks: ContentBlock[] = [];
+    for (const tu of toolUses.values()) {
+      let input: Record<string, unknown> = {};
+      try {
+        input = tu.inputJson ? (JSON.parse(tu.inputJson) as Record<string, unknown>) : {};
+      } catch {
+        // malformed args — pass empty input; the tool reports its own error
+      }
+      assistantBlocks.push({ toolUse: { toolUseId: tu.toolUseId, name: tu.name, input: input as never } });
+      onTool(tu.name);
+      let result: string;
+      try {
+        result = await execute(tu.name, input);
+      } catch (err) {
+        result = `tool error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      resultBlocks.push({ toolResult: { toolUseId: tu.toolUseId, content: [{ text: result }] } });
+    }
+    convo.push({ role: 'assistant', content: assistantBlocks });
+    convo.push({ role: 'user', content: resultBlocks });
+  }
+}
+
 /** Streaming chat over Converse from a ChatMessage array (text + images). */
 export async function* bedrockStreamMessages(
   messages: ChatMessage[],

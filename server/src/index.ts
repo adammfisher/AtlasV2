@@ -7,6 +7,7 @@ import { getDb } from './db/db.js';
 import { seedIfNeeded, backfillSeedArtifactFiles } from './db/seed.js';
 import { stopLlama, llamaState } from './llama/spawn.js';
 import { ensureBedrockConnected } from './providers/bedrock.js';
+import { scheduleConsolidation } from './memory/engine.js';
 import { scanModels } from './llama/models.js';
 import { projectsRouter } from './routes/projects.js';
 import { settingsRouter } from './routes/settings.js';
@@ -34,6 +35,9 @@ void probeKnowledgeCore();
 // 3. Bedrock is the inference backend — auto-connect (non-fatal on failure).
 // The local llama sidecar is retired; nothing is spawned here anymore.
 void ensureBedrockConnected();
+
+// 3b. memory consolidation sweep (profile summaries refresh when >24h stale)
+scheduleConsolidation();
 
 // 4. HTTP API
 const app = express();

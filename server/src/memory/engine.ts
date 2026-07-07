@@ -13,7 +13,7 @@
  * never blocks chat.
  */
 import { getDb, getSetting, setSetting } from '../db/db.js';
-import { completeJson } from '../llama/json.js';
+import { completeJson, completeText } from '../llama/json.js';
 import { logTo } from '../log.js';
 import {
   putKv,
@@ -28,7 +28,11 @@ import {
   edgesFor,
   deleteEdge,
   searchVectors,
+  getProfile,
+  putProfile,
+  bumpRecalled,
   type Scope,
+  type Profile,
 } from './store.js';
 
 export const USER_CATEGORIES = ['user_preference', 'user_fact'] as const;
@@ -116,9 +120,34 @@ function rank(h: { score: number; created_at?: number; mention_count?: number })
 export async function recallContext(projectId: string, query: string): Promise<string> {
   const parts: string[] = [];
   try {
-    const [userKv, projKv] = await Promise.all([listKv('user'), listKv(projectId)]);
+    const [userKv, projKv, userProfile, projProfile] = await Promise.all([
+      listKv('user'),
+      listKv(projectId),
+      getProfile('user').catch(() => null),
+      getProfile(projectId).catch(() => null),
+    ]);
     let budget = KV_BUDGET;
-    const push = (label: string, rows: Array<{ key: string; value: string }>): void => {
+    const push = (
+      label: string,
+      rows: Array<{ key: string; value: string; updated_at?: number }>,
+      profile: Profile | null,
+    ): void => {
+      // synthesized profile covers everything up to its generation time; only
+      // facts written AFTER it are injected raw (the delta) — compact + fresh
+      if (profile) {
+        const summary = profile.text.slice(0, 700);
+        budget -= summary.length;
+        const delta = rows.filter((r) => (r.updated_at ?? 0) > profile.generated_at);
+        const lines: string[] = [];
+        for (const row of delta) {
+          const line = `${row.key}: ${row.value}`;
+          if (budget - line.length < 0) break;
+          budget -= line.length;
+          lines.push(line);
+        }
+        parts.push(`${label} ${summary}${lines.length ? `\nRecent additions:\n${lines.join('\n')}` : ''}`);
+        return;
+      }
       const lines: string[] = [];
       for (const row of rows) {
         const line = `${row.key}: ${row.value}`;
@@ -128,8 +157,8 @@ export async function recallContext(projectId: string, query: string): Promise<s
       }
       if (lines.length) parts.push(`${label}\n${lines.join('\n')}`);
     };
-    push('About the user:', userKv);
-    push('Project memory:', projKv);
+    push('About the user:', userKv, userProfile);
+    push('Project memory:', projKv, projProfile);
 
     if (query.trim()) {
       const [userHits, projHits] = await Promise.all([
@@ -137,17 +166,25 @@ export async function recallContext(projectId: string, query: string): Promise<s
         searchVectors(projectId, query, 5).catch(() => []),
       ]);
       const seen = new Set(parts.join('\n').split('\n')); // don't repeat injected KV lines
-      const hits = [...userHits, ...projHits]
+      const hits = [
+        ...userHits.map((h) => ({ ...h, scope: 'user' as Scope })),
+        ...projHits.map((h) => ({ ...h, scope: projectId as Scope })),
+      ]
         .filter((h) => h.score >= MIN_SIMILARITY && h.content && !seen.has(h.content))
         .sort((a, b) => rank(b) - rank(a));
-      const lines: string[] = [];
+      const chosen: typeof hits = [];
       let semBudget = SEMANTIC_BUDGET;
       for (const h of hits) {
-        if (lines.length >= 4 || semBudget - h.content.length < 0) break;
+        if (chosen.length >= 4 || semBudget - h.content.length < 0) break;
         semBudget -= h.content.length;
-        lines.push(h.content);
+        chosen.push(h);
       }
-      if (lines.length) parts.push(`Relevant memories:\n${lines.join('\n')}`);
+      if (chosen.length) {
+        parts.push(`Relevant memories:\n${chosen.map((h) => h.content).join('\n')}`);
+        // recalled notes shouldn't decay — extend their ttl (fire-and-forget)
+        bumpRecalled('user', chosen.filter((h) => h.scope === 'user').map((h) => h.key));
+        bumpRecalled(projectId, chosen.filter((h) => h.scope !== 'user').map((h) => h.key));
+      }
     }
 
     // graph expansion: entities named in the message get their 1-hop
@@ -251,17 +288,74 @@ async function extract(convId: string, projectId: string): Promise<void> {
   if (wrote > 0) logTo('memory', `extracted ${wrote} memories from ${convId} → user + project ${projectId}`);
 }
 
+/* ---------- consolidation (claude.ai-style refreshed profile) ---------- */
+
+const CONSOLIDATE_STALE_MS = 24 * 3_600_000;
+const CONSOLIDATE_SWEEP_MS = 6 * 3_600_000;
+
+/** Compress a scope's memory into a synthesized profile summary. Returns the
+ * new profile text, or null when the scope has nothing to summarize. */
+export async function consolidate(scope: Scope): Promise<string | null> {
+  const [kv, notes] = await Promise.all([listKv(scope), listNotes(scope)]);
+  if (kv.length + notes.length === 0) return null;
+  const who = scope === 'user' ? 'the user' : 'this project';
+  const facts = [...kv.map((r) => `${r.key}: ${r.value}`), ...notes.map((n) => n.content)].join('\n');
+  const text = (
+    await completeText(
+      [
+        {
+          role: 'system',
+          content: `You compress a memory store into a profile summary of ${who}. Write compact plain prose (under 120 words, no markdown, no preamble) capturing the durable facts and preferences. Never invent anything. Omit sensitive attributes (health, politics, religion, sexuality, precise location, financial account details).`,
+        },
+        { role: 'user', content: facts.slice(0, 8000) },
+      ],
+      { maxTokens: 300, temperature: 0.2 },
+    )
+  ).trim();
+  if (!text) return null;
+  await putProfile(scope, text, kv.length + notes.length);
+  logTo('memory', `consolidated ${scope}: profile refreshed over ${kv.length + notes.length} facts`);
+  return text;
+}
+
+/** Refresh any scope whose profile is missing or >24h old. In-server timer for
+ * now; moves to EventBridge Scheduler + Lambda with the Phase 4 migration. */
+export async function consolidateStaleScopes(): Promise<void> {
+  const projects = getDb().prepare('SELECT id FROM projects').all() as Array<{ id: string }>;
+  for (const scope of ['user', ...projects.map((p) => p.id)] as Scope[]) {
+    try {
+      const profile = await getProfile(scope);
+      if (!profile || Date.now() - profile.generated_at > CONSOLIDATE_STALE_MS) {
+        await consolidate(scope);
+      }
+    } catch (err) {
+      logTo('memory', `consolidation sweep failed for ${scope}: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+}
+
+export function scheduleConsolidation(): void {
+  setTimeout(() => void consolidateStaleScopes(), 90_000); // after boot settles
+  setInterval(() => void consolidateStaleScopes(), CONSOLIDATE_SWEEP_MS);
+}
+
 /* ---------- browse/edit (the memory panel) ---------- */
 
 export interface MemorySnapshot {
   kv: Array<{ key: string; value: string }>;
   notes: Array<{ id: string; content: string; created_at: number }>;
   facts: Array<{ src: string; rel: string; dst: string }>;
+  profile: Profile | null;
 }
 
 export async function memorySnapshot(scope: Scope): Promise<MemorySnapshot> {
-  const [kv, notes, facts] = await Promise.all([listKv(scope), listNotes(scope), listEdges(scope)]);
-  return { kv, notes, facts };
+  const [kv, notes, facts, profile] = await Promise.all([
+    listKv(scope),
+    listNotes(scope),
+    listEdges(scope),
+    getProfile(scope).catch(() => null),
+  ]);
+  return { kv, notes, facts, profile };
 }
 
 export async function upsertKv(scope: Scope, key: string, value: string): Promise<void> {
@@ -270,6 +364,28 @@ export async function upsertKv(scope: Scope, key: string, value: string): Promis
 
 export async function addNote(scope: Scope, content: string): Promise<string> {
   return putNote(scope, content, 'note');
+}
+
+/* ---------- explicit chat tools (remember / forget) ---------- */
+
+export async function rememberFact(scope: Scope, fact: string, source: string): Promise<string> {
+  await putNote(scope, fact.slice(0, 500), 'explicit', source);
+  return `Stored ${scope === 'user' ? 'about the user (all projects)' : 'in project memory'}: "${fact.slice(0, 140)}"`;
+}
+
+export async function forgetFact(scope: Scope, query: string): Promise<string> {
+  // Delete EVERY sufficiently-matching memory, not just the best hit — the
+  // idle extractor can hold the same fact as both a KV and a note, and a
+  // "forget" that leaves siblings behind isn't a forget.
+  const hits = (await searchVectors(scope, query, 5)).filter((h) => h.score >= 0.5);
+  if (hits.length === 0) return 'No matching memory found.';
+  const forgotten: string[] = [];
+  for (const h of hits) {
+    if (h.type === 'kv' && h.kvkey) await deleteKv(scope, h.kvkey);
+    else await deleteNote(scope, h.key);
+    forgotten.push(h.content.slice(0, 100));
+  }
+  return `Forgot ${forgotten.length} memor${forgotten.length === 1 ? 'y' : 'ies'}: ${forgotten.join(' | ')}`;
 }
 
 export async function deleteMemory(

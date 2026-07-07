@@ -3,9 +3,39 @@ import type { Response } from 'express';
 import { getDb, newId, now } from '../db/db.js';
 import { logTo } from '../log.js';
 import { installFor } from '../mcp/manager.js';
-import { bedrockSettings, activeModel } from '../providers/bedrock.js';
+import { bedrockSettings, activeModel, bedrockStreamWithTools, type BedrockTool } from '../providers/bedrock.js';
 import { attachmentDataUrl, attachmentText } from './uploads.js';
-import { recallContext, scheduleExtraction, rememberEnabled } from '../memory/engine.js';
+import { recallContext, scheduleExtraction, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
+
+const MEMORY_TOOLS: BedrockTool[] = [
+  {
+    name: 'remember',
+    description:
+      'Store a durable fact in long-term memory when the user explicitly asks to remember something. scope "user" = a fact about the user themselves (persists across ALL projects); "project" = a fact about this project.',
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['fact'],
+      properties: {
+        fact: { type: 'string', description: 'the fact to remember, one sentence' },
+        scope: { type: 'string', enum: ['user', 'project'] },
+      },
+    },
+  },
+  {
+    name: 'forget',
+    description: 'Delete a remembered fact when the user asks to forget something.',
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['query'],
+      properties: {
+        query: { type: 'string', description: 'what to forget, in the user’s words' },
+        scope: { type: 'string', enum: ['user', 'project'] },
+      },
+    },
+  },
+];
 import { streamChat, type ChatMessage } from '../llama/client.js';
 import { route } from '../pipeline/router.js';
 import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
@@ -147,25 +177,39 @@ chatRouter.post('/:id/messages', async (req, res) => {
 
       // holistic recall: USER KV + PROJECT KV (capped) + semantic hits from
       // S3 Vectors — AWS-native (MEMORY_DESIGN.md); per-conversation toggle honored
-      let recall = '';
-      try {
-        const memInstall = installFor('memory');
-        if (
-          memInstall &&
-          (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id) &&
-          rememberEnabled(conv.id)
-        ) {
-          recall = await recallContext(conv.project_id, text.trim().slice(0, 200));
+      const memEnabled = (() => {
+        try {
+          const memInstall = installFor('memory');
+          return (
+            !!memInstall &&
+            (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id) &&
+            rememberEnabled(conv.id)
+          );
+        } catch {
+          return false;
         }
-      } catch (err) {
-        logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
+      })();
+      let recall = '';
+      if (memEnabled) {
+        try {
+          recall = await recallContext(conv.project_id, text.trim().slice(0, 200));
+        } catch (err) {
+          logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
+        }
       }
 
       const PERSONA =
         `You are Atlas, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
         'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
         'Be direct, concise, and concrete.';
-      const system = [PERSONA, instructions ? `Project instructions: ${instructions}` : '', recall]
+      const system = [
+        PERSONA,
+        memEnabled
+          ? 'When the user asks you to remember or forget something, use the remember/forget tools — do not just acknowledge.'
+          : '',
+        instructions ? `Project instructions: ${instructions}` : '',
+        recall,
+      ]
         .filter(Boolean)
         .join('\n\n');
 
@@ -175,12 +219,28 @@ chatRouter.post('/:id/messages', async (req, res) => {
         if (imageParts.length === 0) return { ...m, content: fullText };
         return { ...m, content: [{ type: 'text' as const, text: fullText }, ...imageParts] };
       });
-      // All inference runs on Bedrock (Claude). streamChat routes there and
-      // handles text + vision; the local MCP tool-loop is retired.
-      const stream = streamChat(
-        [{ role: 'system', content: system }, ...(chatHistory as ChatMessage[])],
-        { signal: abort.signal },
-      );
+      // All inference runs on Bedrock (Claude). With memory enabled, the
+      // Converse tool loop exposes remember/forget so "remember that…" works
+      // explicitly; chips surface each execution in the UI.
+      const fullMessages = [{ role: 'system' as const, content: system }, ...(chatHistory as ChatMessage[])];
+      const stream = memEnabled
+        ? bedrockStreamWithTools(
+            fullMessages,
+            MEMORY_TOOLS,
+            (name, input) => {
+              const scope = input.scope === 'user' ? 'user' : conv.project_id;
+              if (name === 'remember') return rememberFact(scope, String(input.fact ?? ''), conv.id);
+              if (name === 'forget') return forgetFact(scope, String(input.query ?? ''));
+              return Promise.resolve(`unknown tool: ${name}`);
+            },
+            (tool) => {
+              const chip = { tool, connector: 'memory' };
+              chips.push(chip);
+              sse(res, 'tool', chip);
+            },
+            { signal: abort.signal },
+          )
+        : streamChat(fullMessages, { signal: abort.signal });
       for await (const delta of stream) {
         if (tFirst === null) {
           tFirst = Date.now();

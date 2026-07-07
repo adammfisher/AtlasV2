@@ -253,15 +253,32 @@ export async function putKv(scope: Scope, key: string, value: string, source?: s
     );
     const best = candidates[0];
     if (best?.kvkey) {
+      // ALWAYS adjudicate — contradictions embed at ≥0.9 similarity ("prefers
+      // A over B" vs "prefers B over A" measured 0.94), so a score-only
+      // auto-merge would silently miss the supersede/tombstone case.
       const verdict =
-        best.score >= AUTO_MERGE
-          ? 'same'
-          : categoryOf(best.kvkey) === categoryOf(key)
-            ? await adjudicate(best.content, `${key}: ${value}`)
-            : 'different';
+        best.score >= AUTO_MERGE || categoryOf(best.kvkey) === categoryOf(key)
+          ? await adjudicate(best.content, `${key}: ${value}`)
+          : 'different';
       if (verdict === 'same' || verdict === 'contradicts') {
         targetKey = best.kvkey;
         embedding = undefined; // content changes with the merged key — re-embed below
+        if (verdict === 'contradicts') {
+          // supersede audit trail: keep what was believed before the flip
+          await ddb().send(
+            new PutCommand({
+              TableName: TABLE,
+              Item: {
+                pk: scopePk(scope),
+                sk: `TOMB#${now}#${targetKey}`,
+                old_value: best.content,
+                new_value: `${key}: ${value}`,
+                superseded_at: now,
+                source: source ?? 'manual',
+              },
+            }),
+          );
+        }
         logTo(
           'memory',
           `kv dedup(${verdict}): "${key}" → existing "${targetKey}" (score ${best.score.toFixed(2)})`,
@@ -378,7 +395,19 @@ export async function putNote(scope: Scope, content: string, category: string, s
   await ddb().send(
     new PutCommand({
       TableName: TABLE,
-      Item: { pk: scopePk(scope), sk: `NOTE#${id}`, content, category, source: source ?? 'manual', created_at: now, updated_at: now, mention_count: 1 },
+      // ttl (epoch SECONDS): notes decay after 90d unless recalled — recall
+      // hits extend it (bumpRecalled). KV profile facts never decay.
+      Item: {
+        pk: scopePk(scope),
+        sk: `NOTE#${id}`,
+        content,
+        category,
+        source: source ?? 'manual',
+        created_at: now,
+        updated_at: now,
+        mention_count: 1,
+        ttl: Math.floor(now / 1000) + 90 * 86_400,
+      },
     }),
   );
   try {
@@ -405,6 +434,57 @@ export async function listNotes(scope: Scope): Promise<Array<{ id: string; conte
 export async function deleteNote(scope: Scope, id: string): Promise<void> {
   await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: scopePk(scope), sk: `NOTE#${id}` } }));
   await deleteVectors(scope, [id]);
+}
+
+/** Recall-reinforcement: a note that keeps getting recalled shouldn't decay.
+ * Fire-and-forget from the recall path — extends ttl another 90d. */
+export function bumpRecalled(scope: Scope, noteIds: string[]): void {
+  const now = Date.now();
+  for (const id of noteIds) {
+    if (!id.startsWith('fact_')) continue; // only notes decay
+    void ddb()
+      .send(
+        new UpdateCommand({
+          TableName: TABLE,
+          Key: { pk: scopePk(scope), sk: `NOTE#${id}` },
+          UpdateExpression: 'SET last_recalled_at = :t, #ttl = :ttl',
+          ConditionExpression: 'attribute_exists(pk)',
+          ExpressionAttributeNames: { '#ttl': 'ttl' },
+          ExpressionAttributeValues: { ':t': now, ':ttl': Math.floor(now / 1000) + 90 * 86_400 },
+        }),
+      )
+      .catch(() => undefined);
+  }
+}
+
+/* ---------- synthesized profile (claude.ai "what Atlas knows about you") ---------- */
+
+export interface Profile {
+  text: string;
+  generated_at: number;
+  fact_count: number;
+}
+
+export async function getProfile(scope: Scope): Promise<Profile | null> {
+  const out = await ddb().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'pk = :pk AND sk = :sk',
+      ExpressionAttributeValues: { ':pk': scopePk(scope), ':sk': 'PROFILE#current' },
+    }),
+  );
+  const item = out.Items?.[0];
+  if (!item) return null;
+  return { text: item.text as string, generated_at: item.generated_at as number, fact_count: (item.fact_count as number) ?? 0 };
+}
+
+export async function putProfile(scope: Scope, text: string, factCount: number): Promise<void> {
+  await ddb().send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: { pk: scopePk(scope), sk: 'PROFILE#current', text, generated_at: Date.now(), fact_count: factCount },
+    }),
+  );
 }
 
 /* ---------- entity graph (adjacency + gsi1 reverse → two-way) ---------- */

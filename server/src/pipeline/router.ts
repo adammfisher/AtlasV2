@@ -17,7 +17,8 @@ product: define a new product/concept, or evolve an existing product definition
 site: static HTML/CSS pages and landing pages. react: interactive components/apps/widgets.
 mermaid: ALL diagrams — architecture, AWS/cloud/network, flowcharts, sequence, ERD, org charts. svg: only single icons, illustrations, logos — never diagrams.
 When the conversation already contains a generated artifact and the message asks to add, change, fix, or log something on it, the intent is edit_doc.
-If intent is edit_doc, skill is the skill of the artifact being edited.`;
+If intent is edit_doc, skill is the skill of the artifact being edited.
+Messages asking to remember, memorize, note, or forget information (preferences, facts, context) are ALWAYS intent chat — never create_doc.`;
 
 const ROUTER_SCHEMA = {
   type: 'object',

@@ -281,7 +281,12 @@ export const api = {
       kv: Array<{ key: string; value: string }>;
       notes: Array<{ id: string; content: string; created_at: number }>;
       facts: Array<{ src: string; rel: string; dst: string }>;
+      profile: { text: string; generated_at: number; fact_count: number } | null;
     }>(`/projects/${projectId}/memory`),
+  consolidateMemory: (scopeId: string) =>
+    request<{ ok: boolean; profile: string | null }>(`/projects/${scopeId}/memory/consolidate`, {
+      method: 'POST',
+    }),
   upsertProjectMemory: (projectId: string, key: string, value: string) =>
     request<{ ok: boolean }>(`/projects/${projectId}/memory/kv`, {
       method: 'PUT',

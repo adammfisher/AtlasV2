@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getDb, newId, now } from '../db/db.js';
-import { memorySnapshot, upsertKv, deleteMemory } from '../memory/engine.js';
+import { memorySnapshot, upsertKv, deleteMemory, consolidate } from '../memory/engine.js';
 
 export interface ProjectRow {
   id: string;
@@ -114,6 +114,12 @@ projectsRouter.put('/:id/memory/kv', (req, res) => {
   }
   upsertKv(req.params.id, key, value)
     .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+projectsRouter.post('/:id/memory/consolidate', (req, res) => {
+  consolidate(req.params.id)
+    .then((text) => res.json({ ok: true, profile: text }))
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
