@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono } from '../theme/tokens';
 import { api } from '../lib/api';
 
-/** Project memory browser: everything Atlas remembers for this project —
- * viewable, editable, deletable. Stores are hard-isolated per project. */
+/** Memory browser: everything Atlas remembers — viewable, editable, deletable.
+ * Two scopes: this project (hard-isolated) and the user (spans all projects). */
 export function MemoryModal({
   projectId,
   projectName,
@@ -16,17 +16,19 @@ export function MemoryModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [scope, setScope] = useState<'project' | 'user'>('project');
+  const scopeId = scope === 'user' ? 'user' : projectId;
   const { data } = useQuery({
-    queryKey: ['memory', projectId],
-    queryFn: () => api.projectMemory(projectId),
+    queryKey: ['memory', scopeId],
+    queryFn: () => api.projectMemory(scopeId),
   });
   const [newKey, setNewKey] = useState('');
   const [newValue, setNewValue] = useState('');
 
-  const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ['memory', projectId] });
+  const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ['memory', scopeId] });
 
   const remove = (kind: 'kv' | 'note' | 'fact', ref: Record<string, string>): void => {
-    void api.deleteProjectMemory(projectId, kind, ref).then(refresh);
+    void api.deleteProjectMemory(scopeId, kind, ref).then(refresh);
   };
 
   const section = (icon: JSX.Element, label: string, count: number): JSX.Element => (
@@ -52,8 +54,24 @@ export function MemoryModal({
         <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
           <Brain size={17} style={{ color: C.accent }} />
           <span className="text-base font-medium" style={{ color: C.text, fontFamily: sans }}>
-            Memory — {projectName}
+            Memory — {scope === 'user' ? 'About you' : projectName}
           </span>
+          <div className="ml-3 flex rounded-lg overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
+            {(['project', 'user'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setScope(s)}
+                className="px-2.5 py-1 text-xs font-medium"
+                style={{
+                  background: scope === s ? C.raised : 'transparent',
+                  color: scope === s ? C.text : C.mute,
+                  fontFamily: sans,
+                }}
+              >
+                {s === 'project' ? 'This project' : 'You'}
+              </button>
+            ))}
+          </div>
           <button onClick={onClose} className="ml-auto p-1.5 rounded-lg" style={{ color: C.mute }}>
             <X size={16} />
           </button>
@@ -61,8 +79,9 @@ export function MemoryModal({
 
         <div className="px-5 pb-4 overflow-y-auto flex-1">
           <p className="text-xs mt-3" style={{ color: C.mute, fontFamily: sans }}>
-            Captured automatically when conversations go idle, plus anything you ask Atlas to
-            remember. Facts are recalled in every chat in this project — and only this project.
+            {scope === 'user'
+              ? 'Facts about you that persist across every project — preferences, role, working style. Recalled in all chats.'
+              : 'Captured automatically when conversations go idle, plus anything you ask Atlas to remember. Facts are recalled in every chat in this project — and only this project.'}
           </p>
 
           {section(<KeyRound size={13} style={{ color: C.accent }} />, 'Facts', data?.kv.length ?? 0)}
@@ -101,7 +120,7 @@ export function MemoryModal({
             <button
               disabled={!newKey || !newValue}
               onClick={() =>
-                void api.upsertProjectMemory(projectId, newKey, newValue).then(() => {
+                void api.upsertProjectMemory(scopeId, newKey, newValue).then(() => {
                   setNewKey('');
                   setNewValue('');
                   refresh();

@@ -97,10 +97,13 @@ projectsRouter.patch('/:id', (req, res) => {
   res.json(withStats(row));
 });
 
-/* ---------- holistic project memory (browse/edit) ---------- */
+/* ---------- holistic memory (browse/edit) ----------
+ * :id is a projectId or the literal 'user' for the cross-project user scope. */
 
 projectsRouter.get('/:id/memory', (req, res) => {
-  res.json(memorySnapshot(req.params.id));
+  memorySnapshot(req.params.id)
+    .then((snap) => res.json(snap))
+    .catch((err: Error) => res.status(502).json({ error: `memory unavailable: ${err.message}` }));
 });
 
 projectsRouter.put('/:id/memory/kv', (req, res) => {
@@ -109,8 +112,9 @@ projectsRouter.put('/:id/memory/kv', (req, res) => {
     res.status(400).json({ error: 'key and value are required' });
     return;
   }
-  upsertKv(req.params.id, key, value);
-  res.json({ ok: true });
+  upsertKv(req.params.id, key, value)
+    .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 projectsRouter.post('/:id/memory/delete', (req, res) => {
@@ -119,6 +123,7 @@ projectsRouter.post('/:id/memory/delete', (req, res) => {
     res.status(400).json({ error: 'kind and ref are required' });
     return;
   }
-  deleteMemory(req.params.id, kind, ref);
-  res.json({ ok: true });
+  deleteMemory(req.params.id, kind, ref)
+    .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
 });

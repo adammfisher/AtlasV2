@@ -111,8 +111,6 @@ export default function App() {
           <ChatView
             convId={effectiveConv}
             registry={registry}
-            llamaStatus={health?.llama.status ?? 'starting'}
-            llamaError={health?.llama.error ?? null}
             userName={userName}
             activeProjectName={convProject?.name ?? activeProject?.name ?? ''}
             onOpenArtifact={onOpenArtifact}

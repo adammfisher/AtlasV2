@@ -1,22 +1,37 @@
 /**
- * Holistic project memory (LibreChat-evaluation outcome, Adam-directed):
- * memory is on for every project, hard-scoped per project, captured
- * automatically after a conversation goes idle, and recalled on every chat.
+ * Holistic memory engine — Phase 1 AWS-native (Documentation/MEMORY_DESIGN.md).
  *
- * Capture: a debounced extraction pass (E4B, constrained JSON, category
- * whitelist) runs ~75s after the last exchange — never on the chat path, so
- * recall costs nothing in latency. Writes go through the same mem_* tables the
- * MCP memory server owns.
+ * Two scopes: 'user' (cross-project facts about Adam) and per-project. Storage
+ * is DynamoDB + S3 Vectors via store.ts; SQLite mem_* tables are retired.
  *
- * Recall: ALL key/value facts for the project (token-capped — they are small,
- * like LibreChat's) plus top-3 FTS note hits for the current message.
+ * Capture: debounced idle extraction (~75s after the last exchange, never on
+ * the chat path). Claude emits user_facts / project_facts / graph_facts via
+ * constrained JSON with a sensitive-category denylist.
+ *
+ * Recall: USER KV + PROJECT KV (always, budget-capped) + top semantic hits for
+ * the current message across both scopes. Failures degrade to '' — memory
+ * never blocks chat.
  */
-import { randomUUID } from 'node:crypto';
 import { getDb, getSetting, setSetting } from '../db/db.js';
 import { completeJson } from '../llama/json.js';
 import { logTo } from '../log.js';
+import {
+  putKv,
+  listKv,
+  deleteKv,
+  putNote,
+  listNotes,
+  deleteNote,
+  putEdge,
+  listEdges,
+  deleteEdge,
+  searchVectors,
+  type Scope,
+} from './store.js';
 
-export const VALID_KEYS = ['user_preferences', 'learned_facts', 'project_context', 'decisions'] as const;
+export const USER_CATEGORIES = ['user_preference', 'user_fact'] as const;
+export const PROJECT_CATEGORIES = ['project_context', 'decision', 'learned_fact'] as const;
+const ALL_CATEGORIES = [...USER_CATEGORIES, ...PROJECT_CATEGORIES];
 
 const EXTRACT_SCHEMA = {
   type: 'object',
@@ -25,13 +40,13 @@ const EXTRACT_SCHEMA = {
   properties: {
     memories: {
       type: 'array',
-      maxItems: 5,
+      maxItems: 6,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['category', 'key', 'value'],
         properties: {
-          category: { type: 'string', enum: [...VALID_KEYS] },
+          category: { type: 'string', enum: ALL_CATEGORIES },
           key: { type: 'string' },
           value: { type: 'string' },
         },
@@ -55,12 +70,19 @@ const EXTRACT_SCHEMA = {
 };
 
 const EXTRACT_SYSTEM = `You maintain long-term memory for an assistant. From the conversation excerpt,
-extract ONLY durable facts worth remembering across future conversations:
-stable user preferences, decisions made, project facts, important entities and
-relationships. NOT conversational ephemera, NOT things true only today, NOT
-restatements of the assistant's own output. Empty arrays are the right answer
-for small talk. Values must be one short sentence each. Use the graph_facts
-array for entity relationships (X depends-on Y, A owns B).`;
+extract ONLY durable facts worth remembering across future conversations.
+
+Categories:
+- user_preference / user_fact: stable facts about the USER themselves (role, preferences,
+  working style) — these persist across ALL projects.
+- project_context / decision / learned_fact: facts about THIS project's work.
+
+Use graph_facts for entity relationships (X depends-on Y, A owns B).
+
+Do NOT extract: conversational ephemera, things true only today, restatements of the
+assistant's own output, or sensitive attributes (health, politics, religion, sexuality,
+precise location, financial account details). Empty arrays are the right answer for small
+talk. Values must be one short sentence each.`;
 
 /** Per-conversation opt-out ("don't remember this chat"). */
 export function rememberEnabled(convId: string): boolean {
@@ -73,33 +95,42 @@ export function setRemember(convId: string, enabled: boolean): void {
 
 /* ---------- recall ---------- */
 
-export function recallContext(projectId: string, query: string): string {
-  const db = getDb();
+const MIN_SIMILARITY = 0.35;
+
+export async function recallContext(projectId: string, query: string): Promise<string> {
   const parts: string[] = [];
+  try {
+    const [userKv, projKv] = await Promise.all([listKv('user'), listKv(projectId)]);
+    let budget = 1800; // chars — KV facts are compact
+    const push = (label: string, rows: Array<{ key: string; value: string }>): void => {
+      const lines: string[] = [];
+      for (const row of rows) {
+        const line = `${row.key}: ${row.value}`;
+        if (budget - line.length < 0) break;
+        budget -= line.length;
+        lines.push(line);
+      }
+      if (lines.length) parts.push(`${label}\n${lines.join('\n')}`);
+    };
+    push('About the user:', userKv);
+    push('Project memory:', projKv);
 
-  const kv = db
-    .prepare('SELECT key, value FROM mem_kv WHERE project_id = ? ORDER BY key LIMIT 40')
-    .all(projectId) as Array<{ key: string; value: string }>;
-  let budget = 1400; // chars — KV facts are compact; cap like LibreChat's tokenLimit
-  for (const row of kv) {
-    const line = `${row.key}: ${row.value}`;
-    if (budget - line.length < 0) break;
-    budget -= line.length;
-    parts.push(line);
-  }
-
-  const safe = query.replace(/['"*^]/g, ' ').trim();
-  if (safe) {
-    try {
-      const hits = db
-        .prepare('SELECT content FROM mem_chunks_fts WHERE mem_chunks_fts MATCH ? AND project_id = ? LIMIT 3')
-        .all(safe.split(/\s+/).filter(Boolean).map((w) => `"${w}"`).join(' OR '), projectId) as Array<{ content: string }>;
-      parts.push(...hits.map((h) => h.content));
-    } catch {
-      // FTS table may not exist until the memory server first runs — fine
+    if (query.trim()) {
+      const [userHits, projHits] = await Promise.all([
+        searchVectors('user', query, 3).catch(() => []),
+        searchVectors(projectId, query, 3).catch(() => []),
+      ]);
+      const seen = new Set(parts.join('\n').split('\n')); // don't repeat injected KV lines
+      const hits = [...userHits, ...projHits]
+        .filter((h) => h.score >= MIN_SIMILARITY && h.content && !seen.has(h.content))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+      if (hits.length) parts.push(`Relevant memories:\n${hits.map((h) => h.content).join('\n')}`);
     }
+  } catch (err) {
+    logTo('memory', `recall degraded: ${err instanceof Error ? err.message : err}`);
   }
-  return parts.length ? `Known context (project memory):\n${parts.join('\n')}` : '';
+  return parts.length ? `Known context (memory):\n${parts.join('\n\n')}` : '';
 }
 
 /* ---------- automatic capture ---------- */
@@ -149,7 +180,10 @@ async function extract(convId: string, projectId: string): Promise<void> {
     EXTRACT_SCHEMA,
     { maxTokens: 512, temperature: 0.1 },
   );
-  let parsed: { memories?: Array<{ category: string; key: string; value: string }>; graph_facts?: Array<{ subject: string; relation: string; object: string }> };
+  let parsed: {
+    memories?: Array<{ category: string; key: string; value: string }>;
+    graph_facts?: Array<{ subject: string; relation: string; object: string }>;
+  };
   try {
     parsed = JSON.parse(raw) as typeof parsed;
   } catch {
@@ -159,40 +193,19 @@ async function extract(convId: string, projectId: string): Promise<void> {
 
   let wrote = 0;
   for (const m of parsed.memories ?? []) {
-    if (!(VALID_KEYS as readonly string[]).includes(m.category) || !m.key || !m.value) continue;
+    if (!ALL_CATEGORIES.includes(m.category as (typeof ALL_CATEGORIES)[number]) || !m.key || !m.value) continue;
+    const scope: Scope = (USER_CATEGORIES as readonly string[]).includes(m.category) ? 'user' : projectId;
     const key = `${m.category}.${m.key.toLowerCase().replace(/[^a-z0-9_]+/g, '_').slice(0, 48)}`;
-    db.prepare(
-      'INSERT INTO mem_kv (project_id, key, value) VALUES (?,?,?) ON CONFLICT(project_id, key) DO UPDATE SET value=excluded.value',
-    ).run(projectId, key, m.value.slice(0, 280));
+    await putKv(scope, key, m.value.slice(0, 280), convId);
     wrote++;
   }
   for (const f of parsed.graph_facts ?? []) {
     if (!f.subject || !f.relation || !f.object) continue;
-    const nodeId = (name: string): string => {
-      const hit = db
-        .prepare('SELECT id FROM mem_graph_nodes WHERE project_id = ? AND name = ?')
-        .get(projectId, name) as { id: string } | undefined;
-      if (hit) return hit.id;
-      const id = randomUUID();
-      db.prepare("INSERT INTO mem_graph_nodes (id, project_id, kind, name, props) VALUES (?,?,?,?,'{}')").run(
-        id, projectId, 'entity', name,
-      );
-      return id;
-    };
-    const src = nodeId(f.subject.slice(0, 80));
-    const dst = nodeId(f.object.slice(0, 80));
-    const exists = db
-      .prepare('SELECT 1 FROM mem_graph_edges WHERE project_id = ? AND src = ? AND dst = ? AND rel = ?')
-      .get(projectId, src, dst, f.relation) as unknown;
-    if (!exists) {
-      db.prepare("INSERT INTO mem_graph_edges (src, dst, project_id, rel, props) VALUES (?,?,?,?,'{}')").run(
-        src, dst, projectId, f.relation.slice(0, 60),
-      );
-      wrote++;
-    }
+    await putEdge(projectId, f.subject.slice(0, 80), f.relation.slice(0, 60), f.object.slice(0, 80), convId);
+    wrote++;
   }
   setSetting(`memext:${convId}`, rows[rows.length - 1]?.id ?? newest.id);
-  if (wrote > 0) logTo('memory', `extracted ${wrote} memories from ${convId} → project ${projectId}`);
+  if (wrote > 0) logTo('memory', `extracted ${wrote} memories from ${convId} → user + project ${projectId}`);
 }
 
 /* ---------- browse/edit (the memory panel) ---------- */
@@ -203,45 +216,25 @@ export interface MemorySnapshot {
   facts: Array<{ src: string; rel: string; dst: string }>;
 }
 
-export function memorySnapshot(projectId: string): MemorySnapshot {
-  const db = getDb();
-  return {
-    kv: db.prepare('SELECT key, value FROM mem_kv WHERE project_id = ? ORDER BY key').all(projectId) as MemorySnapshot['kv'],
-    notes: db
-      .prepare('SELECT id, content, created_at FROM mem_chunks WHERE project_id = ? ORDER BY created_at DESC LIMIT 100')
-      .all(projectId) as MemorySnapshot['notes'],
-    facts: db
-      .prepare(
-        `SELECT a.name AS src, e.rel, b.name AS dst FROM mem_graph_edges e
-         JOIN mem_graph_nodes a ON a.id = e.src JOIN mem_graph_nodes b ON b.id = e.dst
-         WHERE e.project_id = ? LIMIT 200`,
-      )
-      .all(projectId) as MemorySnapshot['facts'],
-  };
+export async function memorySnapshot(scope: Scope): Promise<MemorySnapshot> {
+  const [kv, notes, facts] = await Promise.all([listKv(scope), listNotes(scope), listEdges(scope)]);
+  return { kv, notes, facts };
 }
 
-export function upsertKv(projectId: string, key: string, value: string): void {
-  getDb()
-    .prepare('INSERT INTO mem_kv (project_id, key, value) VALUES (?,?,?) ON CONFLICT(project_id, key) DO UPDATE SET value=excluded.value')
-    .run(projectId, key, value);
+export async function upsertKv(scope: Scope, key: string, value: string): Promise<void> {
+  await putKv(scope, key, value);
 }
 
-export function deleteMemory(projectId: string, kind: 'kv' | 'note' | 'fact', ref: { key?: string; id?: string; src?: string; rel?: string; dst?: string }): void {
-  const db = getDb();
-  if (kind === 'kv' && ref.key) {
-    db.prepare('DELETE FROM mem_kv WHERE project_id = ? AND key = ?').run(projectId, ref.key);
-  } else if (kind === 'note' && ref.id) {
-    db.prepare('DELETE FROM mem_chunks WHERE project_id = ? AND id = ?').run(projectId, ref.id);
-    try {
-      db.prepare('DELETE FROM mem_chunks_fts WHERE id = ?').run(ref.id);
-    } catch {
-      // fts table absent until first memory-server write
-    }
-  } else if (kind === 'fact' && ref.src && ref.rel && ref.dst) {
-    db.prepare(
-      `DELETE FROM mem_graph_edges WHERE project_id = ? AND rel = ?
-       AND src = (SELECT id FROM mem_graph_nodes WHERE project_id = ? AND name = ?)
-       AND dst = (SELECT id FROM mem_graph_nodes WHERE project_id = ? AND name = ?)`,
-    ).run(projectId, ref.rel, projectId, ref.src, projectId, ref.dst);
-  }
+export async function addNote(scope: Scope, content: string): Promise<string> {
+  return putNote(scope, content, 'note');
+}
+
+export async function deleteMemory(
+  scope: Scope,
+  kind: 'kv' | 'note' | 'fact',
+  ref: { key?: string; id?: string; src?: string; rel?: string; dst?: string },
+): Promise<void> {
+  if (kind === 'kv' && ref.key) await deleteKv(scope, ref.key);
+  else if (kind === 'note' && ref.id) await deleteNote(scope, ref.id);
+  else if (kind === 'fact' && ref.src && ref.rel && ref.dst) await deleteEdge(scope, ref.src, ref.rel, ref.dst);
 }

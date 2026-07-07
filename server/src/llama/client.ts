@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { bedrockActive, bedrockStreamMessages } from '../providers/bedrock.js';
 
 export type ChatContentPart =
   | { type: 'text'; text: string }
@@ -21,11 +22,20 @@ export interface ChatOptions {
   thinking?: boolean;
 }
 
-/** Stream a chat completion from the local llama-server, yielding content deltas. */
+/** Stream a chat completion, yielding content deltas. Routes to Bedrock
+ * (Claude) when connected; falls back to the local llama-server otherwise. */
 export async function* streamChat(
   messages: ChatMessage[],
   opts: ChatOptions = {},
 ): AsyncGenerator<string> {
+  if (bedrockActive()) {
+    yield* bedrockStreamMessages(messages, {
+      temperature: opts.temperature,
+      maxTokens: opts.maxTokens,
+      signal: opts.signal,
+    });
+    return;
+  }
   const res = await fetch(`http://127.0.0.1:${config.llamaServer.chatPort}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

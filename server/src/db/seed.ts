@@ -156,7 +156,7 @@ export function seedIfNeeded(): void {
     insPlugin.run('pi_github', 'github', 'directory', JSON.stringify([]), t);
 
     setSetting('activeProjectId', 'p1');
-    setSetting('selectedModel', 'auto');
+    setSetting('selectedModel', 'haiku');
     setSetting('userName', config.userName);
     setSetting('seeded', '2');
   });

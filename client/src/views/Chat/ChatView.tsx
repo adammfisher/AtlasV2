@@ -146,8 +146,6 @@ function upsertStep(steps: PipelineStep[], step: PipelineStep): PipelineStep[] {
 export function ChatView({
   convId,
   registry,
-  llamaStatus,
-  llamaError,
   userName,
   activeProjectName,
   onOpenArtifact,
@@ -157,8 +155,6 @@ export function ChatView({
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
-  llamaStatus: string;
-  llamaError: string | null;
   userName: string;
   activeProjectName: string;
   onOpenArtifact: (a: ArtifactRef) => void;
@@ -225,16 +221,28 @@ export function ChatView({
     abortRef.current = null;
   };
 
-  const send = () => {
+  const send = async () => {
     const text = input.trim();
-    if (!text || busy || convId === null) return;
+    if (!text || busy) return;
     if (attachments.some((a) => a.uploading)) return; // wait for uploads
+    // no conversation yet (fresh install, or all chats deleted) — create one so
+    // the composer always works instead of silently dropping the message
+    let target = convId;
+    if (target === null) {
+      try {
+        const conv = await api.createConversation();
+        target = conv.id;
+        void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      } catch {
+        return;
+      }
+    }
     const sendAtts = attachments.map(({ id, name, kind }) => ({ id, name, kind }));
     setInput('');
     setAttachments([]);
     abortRef.current = new AbortController();
     setLive({ toolChips: [], userText: text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
-    void postSse(`/conversations/${convId}/messages`, { text, attachments: sendAtts }, {
+    void postSse(`/conversations/${target}/messages`, { text, attachments: sendAtts }, {
       onEvent: (event, data) => {
         if (event === 'token') {
           const delta = typeof data.delta === 'string' ? data.delta : '';
@@ -279,9 +287,12 @@ export function ChatView({
       },
       onClose: () => {
         onGenStream(null, genRef.current.label);
-        void queryClient.invalidateQueries({ queryKey: ['conversation', convId] }).then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['conversation', target] }).then(() => {
           void queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          setLive((l) => (l?.error ? l : null));
+          // Always clear the live exchange: the server persists an honest error
+          // message, so retaining the error here duplicated it AND left `busy`
+          // stuck true — permanently dead composer after one failure.
+          setLive(null);
         });
       },
       onError: (message) => {
@@ -291,11 +302,9 @@ export function ChatView({
   };
 
   const selectedRow =
-    registry?.selected === 'auto'
-      ? { name: 'Auto' }
-      : registry?.models.find((m) => m.id === registry.selected) ?? { name: 'Auto' };
+    registry?.bedrockModels.find((m) => m.id === registry.selected) ?? { name: 'Claude Haiku 4.5' };
   const empty = messages.length === 0 && live === null;
-  const offline = llamaStatus !== 'ready';
+  const offline = registry ? !registry.bedrock.connected : false;
   const artifactCount = conversationArtifacts(messages).length + (live?.artifact?.artifactId && !messages.some((m) => m.kind === 'pipeline' && m.artifact?.artifactId === live.artifact?.artifactId) ? 1 : 0);
 
   return (
@@ -348,13 +357,13 @@ export function ChatView({
             </span>
           )}
         </button>
-        {registry?.selected === 'bedrock' ? (
+        {registry?.bedrock.connected ? (
           <Badge color={C.blue} dim={C.blueDim} icon={Cloud}>
-            Bedrock connected · office + chat via Claude
+            {selectedRow.name} · Amazon Bedrock
           </Badge>
         ) : (
-          <Badge color={C.green} dim={C.greenDim} icon={Lock}>
-            On-device · no data leaves this machine
+          <Badge color={C.amber} dim={C.amberDim} icon={Cloud}>
+            Not connected
           </Badge>
         )}
       </div>
@@ -364,12 +373,8 @@ export function ChatView({
           className="flex items-center gap-2 px-5 py-2 text-xs"
           style={{ background: C.amberDim, color: C.amber, borderBottom: `1px solid ${C.borderSoft}`, fontFamily: sans }}
         >
-          {llamaStatus === 'error' ? <AlertCircle size={13} /> : <Loader2 size={13} className="animate-spin" />}
-          {llamaStatus === 'error'
-            ? `Local model offline — ${llamaError ?? 'llama-server crashed'}`
-            : llamaStatus === 'restarting'
-              ? 'Local model crashed — restarting llama-server…'
-              : 'Local model starting — loading weights…'}
+          <AlertCircle size={13} />
+          No model connected — open the model menu below and connect Amazon Bedrock.
         </div>
       )}
 
@@ -380,7 +385,7 @@ export function ChatView({
               What are we building, {userName}?
             </div>
             <div className="text-sm mb-6" style={{ color: C.mute, fontFamily: sans }}>
-              Documents, decks, models, diagrams, and prototypes — all on this machine.
+              Documents, decks, models, diagrams, and prototypes — powered by Claude on Amazon Bedrock.
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-xl">
               {SUGGESTIONS.map((s) => (
@@ -531,7 +536,7 @@ export function ChatView({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                send();
+                void send();
               }
             }}
             placeholder="Message Atlas…"
@@ -615,7 +620,7 @@ export function ChatView({
               <Mic size={16} />
             </button>
             <button
-              onClick={busy ? stop : send}
+              onClick={busy ? stop : () => void send()}
               title={busy ? 'Stop generating' : 'Send'}
               className="flex items-center justify-center rounded-lg"
               style={{ width: 30, height: 30, background: busy ? C.raised : C.accent, border: busy ? `1px solid ${C.border}` : 'none' }}
@@ -629,7 +634,9 @@ export function ChatView({
           </div>
         </div>
         <p className="text-center text-xs mt-2.5" style={{ color: C.mute, fontFamily: sans }}>
-          Atlas runs on this machine. Models: Gemma 4 E2B · E4B · 12B — Bedrock optional.
+          {registry?.bedrock.connected
+            ? `Powered by Claude on Amazon Bedrock · ${selectedRow.name}.`
+            : 'Connect Amazon Bedrock in the model menu to start.'}
         </p>
       </div>
     </div>

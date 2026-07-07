@@ -1,12 +1,9 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { getDb, getSetting, newId, now } from '../db/db.js';
-import { llamaState } from '../llama/spawn.js';
-import { scanModels } from '../llama/models.js';
+import { getDb, newId, now } from '../db/db.js';
 import { logTo } from '../log.js';
-import { streamChatWithTools } from '../mcp/toolloop.js';
 import { installFor } from '../mcp/manager.js';
-import { bedrockSettings, bedrockStreamChat } from '../providers/bedrock.js';
+import { bedrockSettings, activeModel } from '../providers/bedrock.js';
 import { attachmentDataUrl, attachmentText } from './uploads.js';
 import { recallContext, scheduleExtraction, rememberEnabled } from '../memory/engine.js';
 import { streamChat, type ChatMessage } from '../llama/client.js';
@@ -91,8 +88,8 @@ chatRouter.post('/:id/messages', async (req, res) => {
   };
 
   try {
-    if (llamaState().status !== 'ready') {
-      throw new Error('Local model is offline — llama-server is not ready');
+    if (!bedrockSettings().connected) {
+      throw new Error('No model connected — open the model menu and connect Amazon Bedrock');
     }
 
     const project = db
@@ -130,9 +127,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         return { role: m.role, content: payload.text ?? '' };
       });
 
-    const routerModel = scanModels().some((m) => m.id === 'e2b' && m.present)
-      ? 'Gemma 4 E2B'
-      : 'Gemma 4 E4B';
+    const routerModel = activeModel().name;
     sse(res, 'step', { state: 'pending', label: `Router · ${routerModel}`, detail: 'classifying the task' });
     const editable = lastPipelineArtifact(conv.id);
     const tRoute = Date.now();
@@ -150,8 +145,8 @@ chatRouter.post('/:id/messages', async (req, res) => {
       let tFirst: number | null = null;
       const chips: Array<{ tool: string; connector: string }> = [];
 
-      // holistic recall: all project KV facts (capped) + top-3 note hits —
-      // direct table read, zero tool-call latency; per-conversation toggle honored
+      // holistic recall: USER KV + PROJECT KV (capped) + semantic hits from
+      // S3 Vectors — AWS-native (MEMORY_DESIGN.md); per-conversation toggle honored
       let recall = '';
       try {
         const memInstall = installFor('memory');
@@ -160,14 +155,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
           (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id) &&
           rememberEnabled(conv.id)
         ) {
-          recall = recallContext(conv.project_id, text.trim().slice(0, 200));
+          recall = await recallContext(conv.project_id, text.trim().slice(0, 200));
         }
       } catch (err) {
         logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
       }
 
       const PERSONA =
-        'You are Atlas, a fully on-device AI assistant. You run entirely on this machine — nothing the user shares ever leaves it. ' +
+        `You are Atlas, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
         'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
         'Be direct, concise, and concrete.';
       const system = [PERSONA, instructions ? `Project instructions: ${instructions}` : '', recall]
@@ -180,15 +175,12 @@ chatRouter.post('/:id/messages', async (req, res) => {
         if (imageParts.length === 0) return { ...m, content: fullText };
         return { ...m, content: [{ type: 'text' as const, text: fullText }, ...imageParts] };
       });
-      const useBedrock = getSetting('selectedModel') === 'bedrock' && bedrockSettings().connected;
-      const stream = useBedrock
-        ? bedrockStreamChat(system, history, abort.signal)
-        : imageParts.length > 0 || attachedDocs
-          ? streamChat([{ role: 'system', content: system }, ...(chatHistory as ChatMessage[])], { signal: abort.signal })
-          : streamChatWithTools(history, system, conv.project_id, abort.signal, (chip) => {
-            chips.push(chip);
-            sse(res, 'tool', chip);
-          });
+      // All inference runs on Bedrock (Claude). streamChat routes there and
+      // handles text + vision; the local MCP tool-loop is retired.
+      const stream = streamChat(
+        [{ role: 'system', content: system }, ...(chatHistory as ChatMessage[])],
+        { signal: abort.signal },
+      );
       for await (const delta of stream) {
         if (tFirst === null) {
           tFirst = Date.now();

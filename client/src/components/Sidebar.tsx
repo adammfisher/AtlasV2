@@ -1,17 +1,11 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Lock, Cpu, Settings2, Trash2, Check } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
 import { Badge } from './Badge';
 import { NavItem } from './NavItem';
 import type { View } from '../lib/store';
 import { api, type Conversation, type ModelsRegistry, type Health } from '../lib/api';
-
-const TIER_LABELS: Array<{ id: string; label: string }> = [
-  { id: 'e2b', label: 'E2B router' },
-  { id: '12b', label: '12B drafting' },
-  { id: 'e4b', label: 'E4B' },
-];
 
 export function Sidebar({
   view,
@@ -44,10 +38,8 @@ export function Sidebar({
       .join('')
       .slice(0, 2)
       .toUpperCase() || 'A';
-  const rssGB = registry?.hardware.rssGB ?? 0;
-  const ramGB = registry?.hardware.ramGB ?? 0;
-  const residentTier = registry?.hardware.residentTier ?? null;
-  const llamaReady = health?.llama.status === 'ready';
+  const bedrockConnected = registry?.bedrock.connected ?? false;
+  const bedrockRegion = registry?.bedrock.region ?? 'us-east-1';
 
   return (
     <div
@@ -58,8 +50,8 @@ export function Sidebar({
         <span style={{ fontFamily: serif, fontSize: 21, color: C.text, letterSpacing: '-0.01em' }}>
           Atlas
         </span>
-        <Badge color={C.green} dim={C.greenDim} icon={Lock}>
-          Local
+        <Badge color={C.blue} dim={C.blueDim} icon={Cloud}>
+          Bedrock
         </Badge>
       </div>
 
@@ -179,31 +171,26 @@ export function Sidebar({
       <div className="px-3 pb-3 pt-2" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
         <div className="rounded-xl px-3 py-2.5" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
           <div className="flex items-center gap-2 mb-2">
-            <Cpu size={13} style={{ color: llamaReady ? C.green : C.amber }} />
+            <Cloud size={13} style={{ color: bedrockConnected ? C.green : C.amber }} />
             <span className="text-xs font-medium" style={{ color: C.text, fontFamily: sans }}>
-              llama-server
+              Amazon Bedrock
             </span>
             <span className="text-xs ml-auto" style={{ color: C.mute, fontFamily: sans }}>
-              {rssGB ? `${rssGB.toFixed(1)} / ${ramGB} GB` : `— / ${ramGB} GB`}
+              {bedrockConnected ? bedrockRegion : 'not connected'}
             </span>
           </div>
-          {TIER_LABELS.map((tier) => {
-            const model = registry?.models.find((m) => m.id === tier.id);
-            const resident = llamaReady && residentTier === tier.id;
-            const width = resident && ramGB > 0 ? `${Math.min(100, Math.round((rssGB / ramGB) * 100))}%` : '0%';
-            const present = model?.present ?? false;
+          {(registry?.bedrockModels ?? []).map((m) => {
+            const active = bedrockConnected && registry?.selected === m.id;
             return (
-              <div key={tier.id} className="flex items-center gap-2 py-0.5">
+              <div key={m.id} className="flex items-center gap-2 py-0.5">
                 <span
-                  className="text-xs w-20 truncate"
-                  style={{ color: resident ? C.sub : C.mute, fontFamily: sans }}
-                  title={present ? model?.file ?? '' : 'not in models folder'}
+                  className="text-xs flex-1 truncate"
+                  style={{ color: active ? C.sub : C.mute, fontFamily: sans }}
+                  title={m.sub}
                 >
-                  {tier.label}
+                  {m.name}
                 </span>
-                <div className="flex-1 rounded-full" style={{ height: 4, background: C.raised }}>
-                  <div className="rounded-full" style={{ height: 4, width, background: resident ? C.green : C.border }} />
-                </div>
+                {active && <Check size={12} style={{ color: C.green }} />}
               </div>
             );
           })}

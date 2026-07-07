@@ -3,9 +3,10 @@ import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { config, repoRoot } from './config.js';
 import { log } from './log.js';
-import { getDb, getSetting } from './db/db.js';
+import { getDb } from './db/db.js';
 import { seedIfNeeded, backfillSeedArtifactFiles } from './db/seed.js';
-import { startLlama, stopLlama, llamaState } from './llama/spawn.js';
+import { stopLlama, llamaState } from './llama/spawn.js';
+import { ensureBedrockConnected } from './providers/bedrock.js';
 import { scanModels } from './llama/models.js';
 import { projectsRouter } from './routes/projects.js';
 import { settingsRouter } from './routes/settings.js';
@@ -30,8 +31,9 @@ backfillSeedArtifactFiles();
 ensureBundledInstalled();
 void probeKnowledgeCore();
 
-// 3. llama-server sidecar (async — /health reports progress)
-void startLlama(getSetting('selectedModel'));
+// 3. Bedrock is the inference backend — auto-connect (non-fatal on failure).
+// The local llama sidecar is retired; nothing is spawned here anymore.
+void ensureBedrockConnected();
 
 // 4. HTTP API
 const app = express();

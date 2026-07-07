@@ -9,7 +9,6 @@ import { completeJson, completeText } from '../llama/json.js';
 import { streamChat } from '../llama/client.js';
 import { scanModels } from '../llama/models.js';
 import { auxState, portForTask, llamaState } from '../llama/spawn.js';
-import { getSetting } from '../db/db.js';
 import * as bedrock from '../providers/bedrock.js';
 
 function bedrockModule(): typeof bedrock {
@@ -67,9 +66,9 @@ function pushStep(ctx: Ctx, step: CheckStep): void {
  * Escalated only when the office call actually runs on a higher tier than the
  * user's selected chat model (the chip rule). */
 export function officeModel(): { name: string; tier: string; escalated: boolean; port: number } {
-  const { bedrockSettings } = bedrockModule();
-  if (getSetting('selectedModel') === 'bedrock' && bedrockSettings().connected) {
-    return { name: 'Claude · Bedrock', tier: 'bedrock', escalated: false, port: 0 };
+  const { bedrockActive, activeModel } = bedrockModule();
+  if (bedrockActive()) {
+    return { name: activeModel().name, tier: 'bedrock', escalated: false, port: 0 };
   }
   const a = auxState();
   if (a.status === 'ready' && a.tier === '12b') {
@@ -136,17 +135,15 @@ async function generateJson(
             },
           ];
     ctx.send('gen', { reset: true, label: ctx.skill.id });
-    const model = officeModel();
-    const raw =
-      model.tier === 'bedrock'
-        ? await bedrock.bedrockJson(systemPrompt, ctx.text, schema, { maxTokens, signal: ctx.signal })
-        : await completeJson(messages, schema, {
-            maxTokens,
-            signal: ctx.signal,
-            temperature: 0.2,
-            port: portForTask('office'),
-            onDelta: (delta) => ctx.send('gen', { delta }),
-          });
+    // completeJson routes to Bedrock (Claude) when connected; the local port is
+    // ignored there. onDelta drives the live-write indicator.
+    const raw = await completeJson(messages, schema, {
+      maxTokens,
+      signal: ctx.signal,
+      temperature: 0.2,
+      port: portForTask('office'),
+      onDelta: (delta) => ctx.send('gen', { delta }),
+    });
     const result = validateJson(ctx.skill.id, schema, raw);
     if (result.ok) {
       const extra = extraValidate?.(result.value);

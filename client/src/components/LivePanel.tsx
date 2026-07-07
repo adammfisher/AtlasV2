@@ -49,7 +49,7 @@ export function LivePanel({
         style={{ borderTop: `1px solid ${C.borderSoft}`, color: C.mute, fontFamily: sans }}
       >
         <ChevronDown size={13} className="animate-bounce" style={{ color: C.accent }} />
-        streaming from the local model — the preview opens here when it finishes
+        streaming from Claude — the preview opens here when it finishes
       </div>
     </div>
   );

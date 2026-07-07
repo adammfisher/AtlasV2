@@ -2,10 +2,18 @@ import { Router } from 'express';
 import os from 'node:os';
 import { scanModels } from '../llama/models.js';
 import { llamaState, llamaRssGB, auxState, ensureAux } from '../llama/spawn.js';
-import { getSetting, setSetting } from '../db/db.js';
+import { setSetting } from '../db/db.js';
 import { config } from '../config.js';
 import { execFile } from 'node:child_process';
-import { connectBedrock, disconnectBedrock, bedrockSettings } from '../providers/bedrock.js';
+import {
+  connectBedrock,
+  disconnectBedrock,
+  bedrockSettings,
+  modelCatalog,
+  probeSonnet,
+  activeModelKey,
+  MODEL_KEYS,
+} from '../providers/bedrock.js';
 import { fetchManifest, downloadModel, downloadStates } from '../llama/download.js';
 
 function configCtx(): number {
@@ -16,13 +24,16 @@ export const modelsRouter = Router();
 
 function registry() {
   const llama = llamaState();
+  const b = bedrockSettings();
   return {
+    // The two Claude models Atlas exposes — the only selectable inference backends.
+    bedrockModels: MODEL_KEYS.map((key) => {
+      const m = modelCatalog()[key]!;
+      return { id: key, name: m.name, sub: m.sub };
+    }),
     models: scanModels(),
-    selected: getSetting('selectedModel') ?? 'auto',
-    bedrock: (() => {
-      const b = bedrockSettings();
-      return { connected: b.connected, region: b.region, profile: b.profile, modelId: b.modelId };
-    })(),
+    selected: activeModelKey(),
+    bedrock: { connected: b.connected, region: b.region, profile: b.profile, modelId: b.modelId },
     hardware: {
       ramGB: Math.round(os.totalmem() / 1024 ** 3),
       rssGB: llamaRssGB(),
@@ -48,24 +59,21 @@ modelsRouter.get('/', (_req, res) => res.json(registry()));
 
 modelsRouter.post('/refresh', (_req, res) => {
   ensureAux(); // a freshly dropped 12B/E2B GGUF brings the aux process up live
+  void probeSonnet(); // re-check Sonnet 5 activation; registry reflects it next poll
   res.json(registry());
 });
 
 modelsRouter.post('/select', (req, res) => {
   const { id } = req.body as { id?: string };
-  if (id === 'bedrock') {
-    if (!bedrockSettings().connected) {
-      res.status(400).json({ error: 'Bedrock is not connected — add credentials first' });
-      return;
-    }
-  } else if (id !== 'auto') {
-    const entry = scanModels().find((m) => m.id === id);
-    if (!entry || !entry.selectable) {
-      res.status(400).json({ error: 'model not selectable' });
-      return;
-    }
+  if (!id || !MODEL_KEYS.includes(id)) {
+    res.status(400).json({ error: 'unknown model — choose Claude Haiku 4.5 or Claude Sonnet 5' });
+    return;
   }
-  setSetting('selectedModel', id as string);
+  if (!bedrockSettings().connected) {
+    res.status(400).json({ error: 'Bedrock is not connected — connect AWS credentials first' });
+    return;
+  }
+  setSetting('selectedModel', id);
   res.json({ ok: true, selected: id });
 });
 
@@ -78,8 +86,7 @@ modelsRouter.post('/bedrock/connect', (req, res) => {
 
 modelsRouter.post('/bedrock/disconnect', (_req, res) => {
   disconnectBedrock();
-  const sel = getSetting('selectedModel');
-  if (sel === 'bedrock') setSetting('selectedModel', 'auto');
+  // selectedModel (haiku|sonnet) is preserved so reconnecting restores the pick.
   res.json({ ok: true });
 });
 

@@ -1,7 +1,7 @@
 import { Check, KeyRound, Info } from 'lucide-react';
 import { C, sans } from '../theme/tokens';
 import { Badge } from './Badge';
-import { api, type ModelsRegistry } from '../lib/api';
+import { type ModelsRegistry } from '../lib/api';
 
 interface MenuRow {
   id: string;
@@ -13,31 +13,15 @@ interface MenuRow {
 }
 
 function buildRows(registry: ModelsRegistry): MenuRow[] {
-  const rows: MenuRow[] = [
-    { id: 'auto', name: 'Auto', detail: 'Routes by task — E2B classifies, 12B drafts', badge: 'Recommended', selectable: true },
-  ];
-  for (const m of registry.models) {
-    if (m.id === 'embedding') continue;
-    rows.push({
-      id: m.id,
-      name: m.name,
-      detail: m.present
-        ? `${m.sub}${m.sizeGB !== null ? ` · ${m.sizeGB.toFixed(1)} GB` : ''}`
-        : `Place a ${m.id.toUpperCase()} GGUF in the models folder`,
-      badge: 'On-device',
-      selectable: m.selectable,
-    });
-  }
-  const b = registry.bedrock as { connected: boolean; region?: string };
-  rows.push({
-    id: 'bedrock',
-    name: 'Claude · Bedrock',
-    detail: b.connected ? `Connected · ${b.region} · structured output` : 'Quality upgrade for office + code',
-    badge: b.connected ? 'Connected' : 'Add model',
-    locked: !b.connected,
-    selectable: b.connected,
-  });
-  return rows;
+  const connected = registry.bedrock.connected;
+  return registry.bedrockModels.map((m) => ({
+    id: m.id,
+    name: m.name,
+    detail: connected ? m.sub : 'Connect Amazon Bedrock to enable',
+    badge: connected ? 'Bedrock' : 'Connect',
+    locked: !connected,
+    selectable: connected,
+  }));
 }
 
 export function ModelMenu({
@@ -60,17 +44,13 @@ export function ModelMenu({
         <button
           key={m.id}
           onClick={() => {
-            if (m.id === 'bedrock' && m.locked) {
+            if (m.locked) {
               onConnectBedrock();
               onClose();
               return;
             }
-            if (m.selectable) {
-              onSelect(m.id);
-              onClose();
-            } else if (m.detail.startsWith('Place a')) {
-              void api.revealModelsFolder();
-            }
+            onSelect(m.id);
+            onClose();
           }}
           className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
           style={{ opacity: m.locked || !m.selectable ? 0.55 : 1 }}
@@ -82,10 +62,7 @@ export function ModelMenu({
               <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>
                 {m.name}
               </span>
-              <Badge
-                color={m.id === 'bedrock' ? C.blue : C.green}
-                dim={m.id === 'bedrock' ? C.blueDim : C.greenDim}
-              >
+              <Badge color={C.blue} dim={C.blueDim}>
                 {m.badge}
               </Badge>
             </span>
@@ -105,9 +82,9 @@ export function ModelMenu({
         style={{ borderTop: `1px solid ${C.borderSoft}`, color: C.mute, fontFamily: sans }}
       >
         <Info size={12} />{' '}
-        {(registry.bedrock as { connected: boolean }).connected
-          ? 'Bedrock connected — select it to route chat + office through Claude.'
-          : 'Click the Bedrock row to connect AWS credentials. Absent local rows reveal the models folder.'}
+        {registry.bedrock.connected
+          ? 'Your selection runs everything — routing, chat, and document generation.'
+          : 'Pick a model to connect AWS credentials (Amazon Bedrock).'}
       </div>
     </div>
   );
