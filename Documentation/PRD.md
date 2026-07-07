@@ -1,5 +1,10 @@
 # Atlas Local v2 — Product Requirements Document
 
+> **SUPERSEDED (2026-07-07):** the product has migrated to AWS Bedrock inference,
+> AWS-native memory, and claude.ai feature parity. The authoritative current-state
+> PRD/BRD is **`PRD-V2.md`**. This file remains as the original build contract
+> (stage gates, local-model era) that code comments reference (PRD §…).
+
 **Audience:** Claude Code (executing agent) · **Owner:** Adam Fisher
 **Visual contract:** `Documentation/reference/atlas-ui.jsx` — the interactive mockup. Every element and interaction in that file ships for real. Appendix A maps each one to a stage.
 **Companion:** `Documentation/CLAUDE-CODE-PROMPT.md` — operating instructions for the executing agent. Read it first.
