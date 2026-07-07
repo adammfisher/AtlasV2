@@ -17,6 +17,7 @@ import {
   Cloud,
   Square,
   FileText,
+  Download,
   X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,30 @@ const SUGGESTIONS = [
   'Landing page prototype for Atlas',
   'Define a product — auto loan payment calculator',
 ];
+
+/** Uploaded-file chip: hover reveals a download action that pulls the original
+ * back from S3 (local fallback server-side). */
+function AttachmentChip({ a }: { a: { id: string; name: string } }) {
+  return (
+    <span
+      className="group inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs"
+      style={{ background: 'rgba(255,255,255,0.08)', fontFamily: sans }}
+    >
+      <FileText size={11} /> {a.name}
+      <a
+        href={`/api/uploads/${a.id}/download`}
+        download={a.name}
+        title={`Download ${a.name}`}
+        aria-label={`Download ${a.name}`}
+        className="opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ color: C.accent, display: 'inline-flex' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Download size={11} />
+      </a>
+    </span>
+  );
+}
 
 /** kinds whose preview renders inline in the chat thread (A18/A19) */
 const INLINE_PREVIEW_KINDS = ['mermaid', 'react', 'site', 'svg', 'md'];
@@ -240,7 +265,8 @@ export function ChatView({
     const sendAtts = attachments.map(({ id, name, kind }) => ({ id, name, kind }));
     setInput('');
     setAttachments([]);
-    abortRef.current = new AbortController();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLive({ toolChips: [], userText: text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
     void postSse(`/conversations/${target}/messages`, { text, attachments: sendAtts }, {
       onEvent: (event, data) => {
@@ -298,7 +324,7 @@ export function ChatView({
       onError: (message) => {
         setLive((l) => (l ? { ...l, error: message } : l));
       },
-    });
+    }, controller.signal); // stop button aborts the SSE fetch → onClose cleans up
   };
 
   const selectedRow =
@@ -408,13 +434,7 @@ export function ChatView({
                   {m.kind === 'text' && m.attachments?.length ? (
                     <span className="flex flex-wrap gap-1.5 mb-1.5">
                       {m.attachments.map((a) => (
-                        <span
-                          key={a.id}
-                          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs"
-                          style={{ background: 'rgba(255,255,255,0.08)', fontFamily: sans }}
-                        >
-                          <FileText size={11} /> {a.name}
-                        </span>
+                        <AttachmentChip key={a.id} a={a} />
                       ))}
                     </span>
                   ) : null}
@@ -456,9 +476,7 @@ export function ChatView({
                   {live.userAttachments?.length ? (
                     <span className="flex flex-wrap gap-1.5 mb-1.5">
                       {live.userAttachments.map((a) => (
-                        <span key={a.id} className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs" style={{ background: 'rgba(255,255,255,0.08)', fontFamily: sans }}>
-                          <FileText size={11} /> {a.name}
-                        </span>
+                        <AttachmentChip key={a.id} a={a} />
                       ))}
                     </span>
                   ) : null}
@@ -574,7 +592,7 @@ export function ChatView({
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx,.pptx,.xlsx,.csv,.md,.txt,.json,.html"
+              accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.rtf,.odt,.epub,.csv,.tsv,.md,.txt,.json,.html,.xml,.yaml,.yml,.log,.ipynb,.py,.js,.ts,.tsx,.jsx,.java,.c,.cpp,.h,.cs,.go,.rb,.rs,.php,.swift,.kt,.sql,.sh,.css"
               className="hidden"
               onChange={(e) => {
                 addFiles(e.target.files);

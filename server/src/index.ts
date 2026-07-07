@@ -43,6 +43,9 @@ scheduleConsolidation();
 
 // 4. HTTP API
 const app = express();
+// uploads carry base64 files (own 40mb parser) — mount BEFORE the global 2mb
+// json limit or any file over ~1.4MB is rejected before reaching the route
+app.use('/api/uploads', uploadsRouter);
 app.use(express.json({ limit: '2mb' }));
 
 // portable folder: serve the built client when it exists (dev uses Vite instead)
@@ -76,7 +79,6 @@ app.use('/api/conversations', conversationsRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/plugins', pluginsRouter);
 app.use('/api/models', modelsRouter);
-app.use('/api/uploads', uploadsRouter);
 app.use('/api/artifacts', artifactsRouter);
 
 if (existsSync(clientDist)) {

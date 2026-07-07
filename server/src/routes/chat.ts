@@ -4,7 +4,7 @@ import { getDb, newId, now } from '../db/db.js';
 import { logTo } from '../log.js';
 import { installFor } from '../mcp/manager.js';
 import { bedrockSettings, activeModel, bedrockStreamWithTools, type BedrockTool } from '../providers/bedrock.js';
-import { attachmentDataUrl, attachmentText } from './uploads.js';
+import { attachmentDataUrl, attachmentTextWait } from './uploads.js';
 import { recallContext, scheduleExtraction, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
 
 const MEMORY_TOOLS: BedrockTool[] = [
@@ -135,7 +135,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         if (att.kind === 'image') {
           imageParts.push({ type: 'image_url', image_url: { url: attachmentDataUrl(att.id) } });
         } else {
-          const extracted = attachmentText(att.id);
+          const extracted = await attachmentTextWait(att.id);
           attachedDocs += `\n\n--- Attached file: ${att.name} ---\n${(extracted ?? '(content extraction still running — ask the user to retry if needed)').slice(0, 24_000)}`;
         }
       } catch (err) {
@@ -241,13 +241,26 @@ chatRouter.post('/:id/messages', async (req, res) => {
             { signal: abort.signal },
           )
         : streamChat(fullMessages, { signal: abort.signal });
-      for await (const delta of stream) {
-        if (tFirst === null) {
-          tFirst = Date.now();
-          logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms`);
+      try {
+        for await (const delta of stream) {
+          if (tFirst === null) {
+            tFirst = Date.now();
+            logTo('app', `chat ${conv.id}: first delta after ${tFirst - tStream}ms`);
+          }
+          full += delta;
+          sse(res, 'token', { delta });
         }
-        full += delta;
-        sse(res, 'token', { delta });
+      } catch (err) {
+        // stop button: keep the partial response (claude.ai parity) instead of
+        // dropping everything the user watched stream in
+        if (abort.signal.aborted) {
+          if (full) {
+            persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
+            scheduleExtraction(conv.id, conv.project_id);
+          }
+          return;
+        }
+        throw err;
       }
       const id = persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
       scheduleExtraction(conv.id, conv.project_id);

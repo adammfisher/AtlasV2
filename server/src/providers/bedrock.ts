@@ -188,7 +188,7 @@ function sanitizeForBedrock(node: unknown): unknown {
   if (node && typeof node === 'object') {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-      if (['maxItems', 'minItems', 'maxLength', 'minLength', 'pattern'].includes(key)) continue;
+      if (['maxItems', 'minItems', 'maxLength', 'minLength', 'pattern', 'maximum', 'minimum'].includes(key)) continue;
       out[key] = sanitizeForBedrock(value);
     }
     return out;
@@ -281,6 +281,20 @@ export async function bedrockCompleteText(
   return out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
 }
 
+/** Bedrock json_schema mode cannot express map types (additionalProperties as
+ * a schema — e.g. a file map keyed by filename); those route to the tool-use
+ * path, which accepts them. */
+function schemaHasMapProps(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(schemaHasMapProps);
+  if (node && typeof node === 'object') {
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      if (key === 'additionalProperties' && typeof value === 'object' && value !== null) return true;
+      if (schemaHasMapProps(value)) return true;
+    }
+  }
+  return false;
+}
+
 /** Constrained JSON over Converse from a ChatMessage array: json_schema for
  * 4.5+, forced tool-use below. Non-streaming (constrained decoding); when
  * onDelta is set the full payload is emitted once so live-write UIs still fill. */
@@ -296,7 +310,7 @@ export async function bedrockCompleteJson(
   const inferenceConfig = { maxTokens: opts.maxTokens ?? 3072, temperature: opts.temperature ?? 0.2 };
 
   let content: string;
-  if (supportsJsonSchema(modelId)) {
+  if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema)) {
     const out = await client.send(
       new ConverseCommand({
         modelId,
@@ -336,7 +350,18 @@ export async function bedrockCompleteJson(
       { abortSignal: opts.signal },
     );
     const toolUse = out.output?.message?.content?.find((c) => c.toolUse)?.toolUse;
-    content = toolUse ? JSON.stringify(toolUse.input ?? {}) : '';
+    let payload = (toolUse?.input ?? {}) as Record<string, unknown>;
+    // tool models sometimes emit a map's ENTRIES at top level, dropping the
+    // single required wrapper key ({"index.html": …} instead of {files: {…}}) —
+    // heal that shape deterministically before validation
+    const required = (schema.required as string[] | undefined) ?? [];
+    if (required.length === 1 && required[0] && !(required[0] in payload)) {
+      const wrapped = (schema.properties as Record<string, { type?: string }> | undefined)?.[required[0]];
+      if (wrapped?.type === 'object' && Object.keys(payload).length > 0) {
+        payload = { [required[0]]: payload };
+      }
+    }
+    content = toolUse ? JSON.stringify(payload) : '';
   }
   if (opts.onDelta && content) opts.onDelta(content);
   return content;
