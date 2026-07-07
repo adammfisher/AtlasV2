@@ -74,6 +74,7 @@ import {
   type PipelinePayload,
 } from '../pipeline/orchestrator.js';
 import { lastPipelineArtifact } from '../pipeline/artifacts.js';
+import { buildContext } from '../pipeline/context.js';
 
 function sse(res: Response, event: string, data: unknown): void {
   if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -175,19 +176,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
       }
     }
 
-    const history = (
-      db
-        .prepare(
-          'SELECT role, kind, payload FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT 12',
-        )
-        .all(conv.id) as Array<{ role: 'user' | 'assistant'; kind: string; payload: string }>
-    )
-      .reverse()
-      .filter((m) => m.kind === 'text')
-      .map((m) => {
-        const payload = JSON.parse(m.payload) as { text?: string };
-        return { role: m.role, content: payload.text ?? '' };
-      });
+    // context management (FR-2.9): recent window + rolling summary of older
+    // turns — long conversations never fall off a cliff
+    const { history, summary: convSummary } = await buildContext(conv.id);
 
     const routerModel = activeModel().name;
     sse(res, 'step', { state: 'pending', label: `Router · ${routerModel}`, detail: 'classifying the task' });
@@ -240,6 +231,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
           ? 'When the user asks you to remember or forget something, use the remember/forget tools — do not just acknowledge.'
           : '',
         instructions ? `Project instructions: ${instructions}` : '',
+        convSummary ? `Earlier in this conversation (running summary):\n${convSummary}` : '',
         recall,
       ]
         .filter(Boolean)

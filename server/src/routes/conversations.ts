@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { setRemember, rememberEnabled } from '../memory/engine.js';
-import { getDb, getSetting, newId, now } from '../db/db.js';
+import { getDb, getSetting, setSetting, newId, now } from '../db/db.js';
 import { scopedConversations, type ConversationRow } from '../db/scoped.js';
 
 interface MessageRow {
@@ -109,9 +109,51 @@ conversationsRouter.get('/:id', (req, res) => {
     id: m.id,
     role: m.role,
     kind: m.kind,
+    feedback: getSetting(`feedback:${m.id}`) ?? null,
     ...(JSON.parse(m.payload) as Record<string, unknown>),
   }));
   res.json({ ...conv, projectId: conv.project_id, messages });
+});
+
+/** Thumbs feedback on an assistant message (up | down | null to clear). */
+conversationsRouter.post('/:id/feedback', (req, res) => {
+  const { messageId, rating } = req.body as { messageId?: string; rating?: 'up' | 'down' | null };
+  if (!messageId || (rating !== 'up' && rating !== 'down' && rating !== null)) {
+    res.status(400).json({ error: 'messageId and rating (up|down|null) are required' });
+    return;
+  }
+  setSetting(`feedback:${messageId}`, rating ?? '');
+  res.json({ ok: true });
+});
+
+/** Export the conversation as markdown (claude.ai export parity). */
+conversationsRouter.get('/:id/export', (req, res) => {
+  const db = getDb();
+  const conv = db.prepare('SELECT * FROM conversations WHERE id = ?').get(req.params.id) as
+    | ConversationRow
+    | undefined;
+  if (!conv) {
+    res.status(404).json({ error: 'conversation not found' });
+    return;
+  }
+  const rows = db
+    .prepare('SELECT role, kind, payload, created_at FROM messages WHERE conversation_id = ? ORDER BY created_at')
+    .all(conv.id) as Array<{ role: string; kind: string; payload: string; created_at: number }>;
+  const lines: string[] = [`# ${conv.title}`, '', `_Exported from Atlas · ${new Date().toISOString()}_`, ''];
+  for (const m of rows) {
+    const p = JSON.parse(m.payload) as { text?: string; artifact?: { name?: string; ver?: number } };
+    const who = m.role === 'user' ? '**Adam**' : '**Atlas**';
+    if (m.kind === 'pipeline') {
+      lines.push(`${who}: _generated artifact ${p.artifact?.name ?? ''} (v${p.artifact?.ver ?? 1})_`, '');
+      if (p.text) lines.push(p.text, '');
+    } else {
+      lines.push(`${who}:`, '', p.text ?? '', '');
+    }
+  }
+  const slug = conv.title.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-').slice(0, 48) || 'chat';
+  res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${slug}.md"`);
+  res.send(lines.join('\n'));
 });
 
 conversationsRouter.delete('/:id', (req, res) => {

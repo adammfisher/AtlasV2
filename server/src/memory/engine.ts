@@ -180,7 +180,17 @@ export async function recallContext(projectId: string, query: string): Promise<s
         chosen.push(h);
       }
       if (chosen.length) {
-        parts.push(`Relevant memories:\n${chosen.map((h) => h.content).join('\n')}`);
+        // knowledge passages carry citations (FR-5.5); plain memories don't
+        const knowledge = chosen.filter((h) => h.type === 'knowledge');
+        const memories = chosen.filter((h) => h.type !== 'knowledge');
+        if (memories.length) parts.push(`Relevant memories:\n${memories.map((h) => h.content).join('\n')}`);
+        if (knowledge.length) {
+          parts.push(
+            `Knowledge passages from project documents — when you use information from one, cite it inline as [source: filename]:\n${knowledge
+              .map((h) => h.content)
+              .join('\n')}`,
+          );
+        }
         // recalled notes shouldn't decay — extend their ttl (fire-and-forget)
         bumpRecalled('user', chosen.filter((h) => h.scope === 'user').map((h) => h.key));
         bumpRecalled(projectId, chosen.filter((h) => h.scope !== 'user').map((h) => h.key));

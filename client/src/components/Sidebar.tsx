@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
 import { Badge } from './Badge';
@@ -17,6 +17,8 @@ export function Sidebar({
   registry,
   health,
   userName,
+  theme,
+  onToggleTheme,
 }: {
   view: View;
   setView: (v: View) => void;
@@ -27,6 +29,8 @@ export function Sidebar({
   registry: ModelsRegistry | undefined;
   health: Health | undefined;
   userName: string;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }) {
   const [manage, setManage] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -259,7 +263,15 @@ export function Sidebar({
           <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
             · Enterprise
           </span>
-          <Settings2 size={15} className="ml-auto cursor-pointer" style={{ color: C.mute }} />
+          <button
+            onClick={onToggleTheme}
+            className="ml-auto p-1 rounded"
+            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            style={{ color: C.mute }}
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+          <Settings2 size={15} className="cursor-pointer" style={{ color: C.mute }} />
         </div>
       </div>
     </div>

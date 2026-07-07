@@ -231,8 +231,9 @@ export interface VectorHit {
   content: string;
   score: number; // 1 - cosine distance
   category?: string;
-  type?: string; // 'kv' | 'note'
+  type?: string; // 'kv' | 'note' | 'knowledge'
   kvkey?: string;
+  file?: string; // knowledge source filename
   created_at?: number;
   mention_count?: number;
 }
@@ -257,6 +258,7 @@ async function queryByEmbedding(scope: Scope, qv: number[], topK: number): Promi
       category: meta.category,
       type: meta.type,
       kvkey: meta.kvkey,
+      file: meta.file,
       created_at: meta.created_at ? Number(meta.created_at) : undefined,
       mention_count: meta.mention_count ? Number(meta.mention_count) : undefined,
     };

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Menu } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C } from './theme/tokens';
+import { C, applyTheme, currentTheme, type ThemeMode } from './theme/tokens';
 import { api, type ArtifactRef } from './lib/api';
 import type { View } from './lib/store';
 import { Sidebar } from './components/Sidebar';
@@ -20,7 +21,18 @@ export default function App() {
     { kind: 'detail'; artifactId: string } | { kind: 'list' } | { kind: 'live' } | null
   >(null);
   const [liveGen, setLiveGen] = useState<{ text: string; label: string } | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>(currentTheme());
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const queryClient = useQueryClient();
+
+  useEffect(() => applyTheme(theme), []); // initial mount only
+  const toggleTheme = () => {
+    // swap the palette BEFORE the re-render — useEffect would run after paint
+    // and leave the tree on the old colors (only body would flip)
+    const next = theme === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    setTheme(next);
+  };
 
   const { data: health } = useQuery({
     queryKey: ['health'],
@@ -95,17 +107,39 @@ export default function App() {
 
   return (
     <div className="flex w-full" style={{ height: '100vh', background: C.bg, overflow: 'hidden' }}>
-      <Sidebar
-        view={view}
-        setView={setView}
-        convs={conversations ?? []}
-        activeConv={effectiveConv}
-        openConv={openConv}
-        newChat={newChat}
-        registry={registry}
-        health={health}
-        userName={userName}
-      />
+      {/* mobile: hamburger + drawer; desktop: static sidebar */}
+      <button
+        onClick={() => setSidebarOpen((o) => !o)}
+        className="md:hidden fixed top-3 left-3 z-50 p-2 rounded-lg"
+        style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}` }}
+        title="Menu"
+      >
+        <Menu size={16} />
+      </button>
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setSidebarOpen(false)} />
+      )}
+      <div className={`${sidebarOpen ? 'max-md:flex' : 'max-md:hidden'} max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 md:flex md:static`}>
+        <Sidebar
+          view={view}
+          setView={(v) => {
+            setView(v);
+            setSidebarOpen(false);
+          }}
+          convs={conversations ?? []}
+          activeConv={effectiveConv}
+          openConv={(id) => {
+            openConv(id);
+            setSidebarOpen(false);
+          }}
+          newChat={newChat}
+          registry={registry}
+          health={health}
+          userName={userName}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
+      </div>
       <div className="flex-1 flex min-w-0">
         {view === 'chat' ? (
           <ChatView

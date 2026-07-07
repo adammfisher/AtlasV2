@@ -47,7 +47,9 @@ verified by Playwright-driven end-to-end tests (`PARITY_REPORT.md`).
 | FR-2.5 | Message ergonomics | Copy button on every assistant message; **Regenerate** on the last assistant message (server-side truncate-after + `retry:true` resend that skips re-persisting the user message); **Edit** pencil on user messages (inclusive truncate, edited text resent; amber "editing" indicator with cancel). | ✅ |
 | FR-2.6 | Persona | System prompt declares the active model + Bedrock honestly; project instructions and memory recall append. | ✅ |
 | FR-2.7 | Suggestion chips | Empty state offers six seeded prompts that fill the composer. | ✅ |
-| FR-2.8 | Attachments in chat | See §7. Document text injects into the last user message (24k cap per doc); images go multimodal. | ✅ |
+| FR-2.8 | Attachments in chat | See §7. Document text injects into the last user message (24k cap per doc); images go multimodal. Multiple files per message supported (verified: image + doc answered in one turn). | ✅ |
+| FR-2.9 | Context management | Long conversations never fall off a cliff: model context = rolling summary of everything older + uncovered stragglers raw + recent window (last 12 text messages, 24k-char budget). Compaction folds ≥6 uncovered older messages into the persisted summary (`convsum:<conv>`, ≤2k chars, coverage watermark — nothing summarized twice or dropped) via one Claude call amortized over ~6 turns; the summary injects into the system prompt. Verified: a fact 20 messages back recalled from the summary. | ✅ |
+| FR-2.10 | Message feedback | Thumbs up/down on assistant messages, persisted (`feedback:<msgId>`), toggleable, returned with the conversation. | ✅ |
 
 ## 3. Tools in chat (Converse tool loop)
 
@@ -87,6 +89,7 @@ never block chat.
 | FR-5.2 | Instructions | Per-project instructions inject into every chat and the document pipeline. | ✅ |
 | FR-5.3 | Creation UI | New-project modal (name + instructions); card grid shows chats/templates/plugins counts, Active badge, isolation badge. | ✅ |
 | FR-5.4 | **Knowledge files** | Documents uploaded to a project persist and inform every chat in it: file → local + S3 (`knowledge/<project>/<id>`) → markitdown/direct extraction → paragraph-aware ~1000-char chunks (≤200/file) → embedded into the project vector index as `KN#` items (no dedup probing; excluded from the notes list). Recall surfaces relevant passages automatically, labeled `[filename]`. Registry in SQLite (status indexing/ready/error, chunk count). Modal: upload, list with live status, download original, delete (removes chunks + vectors + S3 object). Verified: fresh chat answered two facts from an uploaded plan. | ✅ |
+| FR-5.5 | Knowledge citations | Recall separates knowledge passages from memories and instructs citing sources inline as `[source: filename]`; the client renders citations as accent badges (BookOpen chip, hover shows provenance) in live and persisted messages. Verified on a document-only fact. Note: facts already absorbed into project memory answer from memory without a citation — expected precedence. | ✅ |
 
 ## 6. Artifacts & the document pipeline
 
@@ -120,6 +123,14 @@ never block chat.
 | FR-8.3 | Search | Sidebar search box: instant title filter + server-side content search (LIKE over message payloads, 2+ chars, top 30 by recency). | ✅ |
 | FR-8.4 | Bulk delete | Edit mode: select-all/clear, multi-delete. | ✅ |
 | FR-8.5 | Truncate | `POST /:id/truncate {messageId, inclusive}` — the primitive behind edit & regenerate. | ✅ |
+| FR-8.6 | Chat export | `GET /:id/export` → Markdown download (title, speakers, artifact markers); FileDown button in the chat header (direct navigation). | ✅ |
+
+## 8b. Client shell
+
+| ID | Requirement | Detail | Status |
+|---|---|---|---|
+| FR-8b.1 | Light/dark theme | Claude.ai-style warm palettes; toggle in the sidebar footer (Sun/Moon), persisted in localStorage, palette swaps synchronously before re-render (post-paint swap bug fixed and regression-noted). | ✅ |
+| FR-8b.2 | Mobile layout | Under 768px the sidebar becomes a hamburger-toggled drawer with backdrop; navigation closes it. | ✅ |
 
 ## 9. Plugins (MCP)
 
@@ -158,9 +169,12 @@ on everything; no idle cost anywhere.
    Lambda-side extraction/consolidation (EventBridge) — closing the last local dependency.
 2. **Sonnet 5 activation** — agreement is ACTIVE; runtime access pending AWS. Slot
    auto-upgrades (FR-1.3). Escalation path: AWS Sales.
-3. Remaining parity niceties: artifact version-history browser UI, voice dictation
-   (mic is decorative), chat export.
-4. Memory eval in CI + conversation-hygiene teardown for eval runs.
+3. **E2E regression suite** — repo-resident Playwright suite (`pnpm test:e2e`) formalizing
+   the full feature matrix; in progress.
+4. Remaining parity niceties: chat share links, persisted thinking blocks, global
+   artifacts gallery, response Styles presets, voice dictation, artifact version-history
+   browser.
+5. Memory eval in CI + conversation-hygiene teardown for eval runs.
 
 ## 13. Verification log
 

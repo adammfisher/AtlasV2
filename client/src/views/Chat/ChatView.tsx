@@ -21,6 +21,10 @@ import {
   Copy,
   RefreshCw,
   Pencil,
+  BookOpen,
+  ThumbsUp,
+  ThumbsDown,
+  FileDown,
   X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -50,6 +54,32 @@ const SUGGESTIONS = [
   'Landing page prototype for Atlas',
   'Define a product — auto loan payment calculator',
 ];
+
+/** Assistant text with knowledge citations rendered as badges: the model cites
+ * project-document passages inline as [source: filename] (FR-5.5). */
+function RichText({ text }: { text: string }) {
+  const parts = text.split(/(\[source: [^\]]+\])/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        const m = /^\[source: ([^\]]+)\]$/.exec(p);
+        if (m) {
+          return (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 mx-0.5 align-middle"
+              style={{ background: C.accentDim, color: C.accent, fontFamily: sans }}
+              title={`From project knowledge: ${m[1]}`}
+            >
+              <BookOpen size={10} /> {m[1]}
+            </span>
+          );
+        }
+        return <span key={i}>{p}</span>;
+      })}
+    </>
+  );
+}
 
 /** Uploaded-file chip: hover reveals a download action that pulls the original
  * back from S3 (local fallback server-side). */
@@ -348,6 +378,12 @@ export function ChatView({
     }, controller.signal); // stop button aborts the SSE fetch → onClose cleans up
   };
 
+  const rate = async (messageId: string, rating: 'up' | 'down' | null): Promise<void> => {
+    if (convId === null) return;
+    await api.messageFeedback(convId, messageId, rating);
+    await queryClient.invalidateQueries({ queryKey: ['conversation', convId] });
+  };
+
   // regenerate: drop responses after the last user message and re-run it
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user' && m.kind === 'text');
   const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant' && m.kind === 'text')?.id;
@@ -396,6 +432,16 @@ export function ChatView({
               ⃠
             </span>
           )}
+        </button>
+        <button
+          onClick={() => {
+            if (convId) window.location.href = `/api/conversations/${convId}/export`;
+          }}
+          title="Export chat as Markdown"
+          className="p-1.5 rounded-lg"
+          style={{ color: C.mute, opacity: convId ? 1 : 0.4 }}
+        >
+          <FileDown size={16} />
         </button>
         <button
           onClick={onOpenArtifactList}
@@ -510,7 +556,7 @@ export function ChatView({
                     className="leading-relaxed whitespace-pre-wrap"
                     style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
                   >
-                    {m.text}
+                    <RichText text={m.text ?? ''} />
                   </p>
                   <span className="flex items-center gap-2 mt-1.5">
                     <button
@@ -531,6 +577,22 @@ export function ChatView({
                         <RefreshCw size={12} />
                       </button>
                     ) : null}
+                    <button
+                      title="Good response"
+                      className={m.feedback === 'up' ? '' : 'opacity-40 hover:opacity-100 transition-opacity'}
+                      style={{ color: m.feedback === 'up' ? C.green : C.mute }}
+                      onClick={() => void rate(m.id, m.feedback === 'up' ? null : 'up')}
+                    >
+                      <ThumbsUp size={12} />
+                    </button>
+                    <button
+                      title="Bad response"
+                      className={m.feedback === 'down' ? '' : 'opacity-40 hover:opacity-100 transition-opacity'}
+                      style={{ color: m.feedback === 'down' ? C.amber : C.mute }}
+                      onClick={() => void rate(m.id, m.feedback === 'down' ? null : 'down')}
+                    >
+                      <ThumbsDown size={12} />
+                    </button>
                   </span>
                 </Msg>
               ),
@@ -616,7 +678,7 @@ export function ChatView({
                         className="leading-relaxed whitespace-pre-wrap"
                         style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
                       >
-                        {live.assistantText}
+                        <RichText text={live.assistantText} />
                       </p>
                     </>
                   ) : null}

@@ -39,6 +39,7 @@ export interface TextMessage {
   role: 'user' | 'assistant';
   kind: 'text';
   text: string;
+  feedback?: 'up' | 'down' | '' | null;
   toolCalls?: Array<{ tool: string; connector: string }>;
   attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
 }
@@ -296,6 +297,11 @@ export const api = {
     request<{ ok: boolean }>(`/projects/${projectId}/memory/delete`, {
       method: 'POST',
       body: JSON.stringify({ kind, ref }),
+    }),
+  messageFeedback: (convId: string, messageId: string, rating: 'up' | 'down' | null) =>
+    request<{ ok: boolean }>(`/conversations/${convId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ messageId, rating }),
     }),
   renameConversation: (id: string, title: string) =>
     request<{ ok: boolean }>(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) }),

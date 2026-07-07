@@ -17,8 +17,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-/* Atlas palette — modeled on Claude.ai's warm dark theme (reference/atlas-v2-ui.jsx) */
-export const C = {
+/* Atlas palettes — modeled on Claude.ai's warm dark/light themes. C is a
+ * mutable object: applyTheme() swaps its values in place and the App root
+ * re-renders, so every `C.xxx` read at render time picks up the new theme. */
+const DARK = {
   bg: '#262624',
   sidebar: '#1f1e1c',
   panel: '#2f2e2b',
@@ -39,7 +41,45 @@ export const C = {
   purpleDim: 'rgba(169,149,201,0.13)',
   amber: '#d4ad6a',
   amberDim: 'rgba(212,173,106,0.13)',
-} as const;
+};
+
+const LIGHT: typeof DARK = {
+  bg: '#faf9f5',
+  sidebar: '#f0eee6',
+  panel: '#ffffff',
+  panelHover: '#f4f2ec',
+  raised: '#edeae1',
+  border: '#dcd8cc',
+  borderSoft: 'rgba(0,0,0,0.08)',
+  text: '#262624',
+  sub: '#57544b',
+  mute: '#8a867b',
+  accent: '#c65f3d',
+  accentDim: 'rgba(198,95,61,0.12)',
+  green: '#4d8a3b',
+  greenDim: 'rgba(77,138,59,0.12)',
+  blue: '#3f6f9c',
+  blueDim: 'rgba(63,111,156,0.12)',
+  purple: '#7460a0',
+  purpleDim: 'rgba(116,96,160,0.12)',
+  amber: '#a3782c',
+  amberDim: 'rgba(163,120,44,0.13)',
+};
+
+export const C: typeof DARK = { ...DARK };
+
+export type ThemeMode = 'dark' | 'light';
+
+export function currentTheme(): ThemeMode {
+  return (localStorage.getItem('atlas-theme') as ThemeMode) === 'light' ? 'light' : 'dark';
+}
+
+export function applyTheme(mode: ThemeMode): void {
+  Object.assign(C, mode === 'light' ? LIGHT : DARK);
+  localStorage.setItem('atlas-theme', mode);
+  document.body.style.background = C.bg;
+  document.body.style.colorScheme = mode;
+}
 
 export const serif = '"Tiempos Text", Georgia, "Times New Roman", serif';
 export const sans = 'ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif';
