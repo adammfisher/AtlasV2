@@ -156,7 +156,15 @@ on everything; no idle cost anywhere.
 
 - **Logs**: `app/pipeline/memory/mcp` channels under `<dataDir>/logs/`.
 - **Health**: `/api/health` (legacy llama block retained for the dormant local path).
-- **Eval**: `pnpm test:memory-eval` (needs running server). Legacy stage tests retained.
+- **E2E regression suite** (FR-11.1): `pnpm test:e2e` — 21 Playwright tests in `tests/e2e/`
+  (chat core incl. stop/partial/thinking/export, ergonomics incl. regenerate/edit/feedback,
+  shell incl. theme/mobile/rename/search/bulk-delete, memory remember/forget round-trip,
+  knowledge upload→citation→delete, uploads incl. multi-file + S3 chip download, artifacts
+  incl. mermaid create→edit→v2→share-link-fetch + pptx build-chain smoke, web + MCP tool
+  chips). Serial worker against the running dev stack; self-cleaning via the `[e2e]` title
+  marker; artifact/knowledge teardown included. Status: 21/21 green in a single pass.
+- **Memory eval**: `pnpm test:memory-eval` (needs running server) — 14 asserts, deep memory
+  correctness. Legacy stage tests retained.
 - **Config**: `atlas.config.json` (dataDir, ports, retired llama block, bedrock region/profile).
 - **Data root**: `~/Library/Application Support/AtlasLocal/` — `data/` (SQLite: conversations,
   messages, artifacts, plugins, settings, knowledge registry, pending extractions),
@@ -169,12 +177,10 @@ on everything; no idle cost anywhere.
    Lambda-side extraction/consolidation (EventBridge) — closing the last local dependency.
 2. **Sonnet 5 activation** — agreement is ACTIVE; runtime access pending AWS. Slot
    auto-upgrades (FR-1.3). Escalation path: AWS Sales.
-3. **E2E regression suite** — repo-resident Playwright suite (`pnpm test:e2e`) formalizing
-   the full feature matrix; in progress.
-4. Remaining parity niceties: chat share links, persisted thinking blocks, global
+3. Remaining parity niceties: chat share links, persisted thinking blocks, global
    artifacts gallery, response Styles presets, voice dictation, artifact version-history
    browser.
-5. Memory eval in CI + conversation-hygiene teardown for eval runs.
+4. Memory eval in CI + conversation-hygiene teardown for eval runs.
 
 ## 13. Verification log
 

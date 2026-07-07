@@ -14,7 +14,8 @@
     "test:stage4-gates": "tsx scripts/test/stage4-gates.test.ts",
     "test:stage4-smoke": "tsx scripts/test/stage4-smoke.ts",
     "mock:kc": "tsx scripts/test/mock-kc.ts",
-    "test:memory-eval": "tsx scripts/test/memory-eval.ts"
+    "test:memory-eval": "tsx scripts/test/memory-eval.ts",
+    "test:e2e": "playwright test"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -23,6 +24,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "concurrently": "10.0.3",
     "esbuild": "0.28.0",
     "eslint": "10.4.1",

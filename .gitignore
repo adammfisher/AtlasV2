@@ -8,3 +8,6 @@ runtimes/
 .playwright-mcp/
 *.png
 /tmp/
+test-results/
+playwright-report/
+!tests/e2e/fixtures/*.png
