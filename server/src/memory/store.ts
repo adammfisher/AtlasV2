@@ -33,6 +33,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedroc
 import { fromIni } from '@aws-sdk/credential-providers';
 import { randomUUID } from 'node:crypto';
 import { bedrockSettings } from '../providers/bedrock.js';
+import { completeJson } from '../llama/json.js';
 import { logTo } from '../log.js';
 
 const TABLE = 'atlasv2-memory';
@@ -114,9 +115,15 @@ async function ensureIndex(scope: Scope): Promise<void> {
   ensured.add(name);
 }
 
-async function putVector(scope: Scope, key: string, content: string, meta: Record<string, string>): Promise<void> {
+async function putVector(
+  scope: Scope,
+  key: string,
+  content: string,
+  meta: Record<string, string>,
+  embedding?: number[],
+): Promise<void> {
   await ensureIndex(scope);
-  const vector = await embed(content);
+  const vector = embedding ?? (await embed(content));
   await vec().send(
     new PutVectorsCommand({
       vectorBucketName: BUCKET,
@@ -145,11 +152,13 @@ export interface VectorHit {
   content: string;
   score: number; // 1 - cosine distance
   category?: string;
+  type?: string; // 'kv' | 'note'
+  kvkey?: string;
+  created_at?: number;
+  mention_count?: number;
 }
 
-export async function searchVectors(scope: Scope, query: string, topK: number): Promise<VectorHit[]> {
-  await ensureIndex(scope);
-  const qv = await embed(query);
+async function queryByEmbedding(scope: Scope, qv: number[], topK: number): Promise<VectorHit[]> {
   const out = await vec().send(
     new QueryVectorsCommand({
       vectorBucketName: BUCKET,
@@ -167,8 +176,18 @@ export async function searchVectors(scope: Scope, query: string, topK: number): 
       content: meta.content ?? '',
       score: 1 - (v.distance ?? 1),
       category: meta.category,
+      type: meta.type,
+      kvkey: meta.kvkey,
+      created_at: meta.created_at ? Number(meta.created_at) : undefined,
+      mention_count: meta.mention_count ? Number(meta.mention_count) : undefined,
     };
   });
+}
+
+export async function searchVectors(scope: Scope, query: string, topK: number): Promise<VectorHit[]> {
+  await ensureIndex(scope);
+  const qv = await embed(query);
+  return queryByEmbedding(scope, qv, topK);
 }
 
 /* ---------- KV facts (the always-injected profile) ---------- */
@@ -177,22 +196,110 @@ function kvVectorKey(key: string): string {
   return `kv_${key.toLowerCase().replace(/[^a-z0-9_.-]/g, '_').slice(0, 200)}`;
 }
 
+/** Measured on real Titan v2 embeddings (2026-07-07): near-identical
+ * restatements score ≥0.96; true PARAPHRASES of the same fact score 0.69–0.72;
+ * hardest same-category negatives 0.44. So: ≥0.90 auto-merges, and the
+ * 0.60–0.90 band goes to a cheap LLM adjudication (extraction is async — this
+ * never touches chat latency). */
+const AUTO_MERGE = 0.9;
+const ADJUDICATE_FLOOR = 0.6;
+
+const ADJUDICATE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['verdict'],
+  properties: { verdict: { type: 'string', enum: ['same', 'different', 'contradicts'] } },
+};
+
+/** Is the candidate the same durable fact as the existing memory? */
+async function adjudicate(existing: string, candidate: string): Promise<'same' | 'different' | 'contradicts'> {
+  try {
+    const raw = await completeJson(
+      [
+        {
+          role: 'system',
+          content:
+            'You deduplicate a memory store. Compare two remembered facts. verdict "same" = they state the same durable fact (wording may differ); "contradicts" = they state incompatible values for the same fact; "different" = genuinely distinct facts.',
+        },
+        { role: 'user', content: `EXISTING: ${existing}\nCANDIDATE: ${candidate}` },
+      ],
+      ADJUDICATE_SCHEMA,
+      { maxTokens: 32, temperature: 0 },
+    );
+    const verdict = (JSON.parse(raw) as { verdict?: string }).verdict;
+    return verdict === 'same' || verdict === 'contradicts' ? verdict : 'different';
+  } catch (err) {
+    logTo('memory', `adjudication failed (treating as different): ${err instanceof Error ? err.message : err}`);
+    return 'different';
+  }
+}
+
+function categoryOf(key: string): string {
+  return key.split('.')[0] ?? '';
+}
+
 export async function putKv(scope: Scope, key: string, value: string, source?: string): Promise<void> {
   const now = Date.now();
-  await ddb().send(
+  // Dedup-at-write: the extractor invents key names, so the same fact arrives
+  // under new keys ("infra_tool" vs "infrastructure_tool_preference"). ≥0.90
+  // hits auto-merge; the 0.60–0.90 same-category band is LLM-adjudicated.
+  let targetKey = key;
+  let embedding: number[] | undefined;
+  try {
+    await ensureIndex(scope);
+    embedding = await embed(`${key}: ${value}`);
+    const candidates = (await queryByEmbedding(scope, embedding, 3)).filter(
+      (h) => h.type === 'kv' && h.kvkey && h.kvkey !== key && h.score >= ADJUDICATE_FLOOR,
+    );
+    const best = candidates[0];
+    if (best?.kvkey) {
+      const verdict =
+        best.score >= AUTO_MERGE
+          ? 'same'
+          : categoryOf(best.kvkey) === categoryOf(key)
+            ? await adjudicate(best.content, `${key}: ${value}`)
+            : 'different';
+      if (verdict === 'same' || verdict === 'contradicts') {
+        targetKey = best.kvkey;
+        embedding = undefined; // content changes with the merged key — re-embed below
+        logTo(
+          'memory',
+          `kv dedup(${verdict}): "${key}" → existing "${targetKey}" (score ${best.score.toFixed(2)})`,
+        );
+      }
+    }
+  } catch (err) {
+    logTo('memory', `kv dedup probe skipped: ${err instanceof Error ? err.message : err}`);
+  }
+
+  const updated = await ddb().send(
     new UpdateCommand({
       TableName: TABLE,
-      Key: { pk: scopePk(scope), sk: `KV#${key}` },
-      UpdateExpression: 'SET #v = :v, updated_at = :t, created_at = if_not_exists(created_at, :t), #src = :s',
+      Key: { pk: scopePk(scope), sk: `KV#${targetKey}` },
+      UpdateExpression:
+        'SET #v = :v, updated_at = :t, created_at = if_not_exists(created_at, :t), #src = :s ADD mention_count :one',
       ExpressionAttributeNames: { '#v': 'value', '#src': 'source' },
-      ExpressionAttributeValues: { ':v': value, ':t': now, ':s': source ?? 'manual' },
+      ExpressionAttributeValues: { ':v': value, ':t': now, ':s': source ?? 'manual', ':one': 1 },
+      ReturnValues: 'ALL_NEW',
     }),
   );
-  // stable vector key → same fact re-extracted just overwrites its vector
+  // stable vector key → re-extraction of the same fact overwrites its vector
   try {
-    await putVector(scope, kvVectorKey(key), `${key}: ${value}`, { type: 'kv', kvkey: key });
+    const item = updated.Attributes ?? {};
+    await putVector(
+      scope,
+      kvVectorKey(targetKey),
+      `${targetKey}: ${value}`,
+      {
+        type: 'kv',
+        kvkey: targetKey,
+        created_at: String(item.created_at ?? now),
+        mention_count: String(item.mention_count ?? 1),
+      },
+      embedding,
+    );
   } catch (err) {
-    logTo('memory', `kv vector write failed (${key}): ${err instanceof Error ? err.message : err}`);
+    logTo('memory', `kv vector write failed (${targetKey}): ${err instanceof Error ? err.message : err}`);
   }
 }
 
@@ -219,8 +326,55 @@ export async function deleteKv(scope: Scope, key: string): Promise<void> {
 /* ---------- notes (searchable episodic memories) ---------- */
 
 export async function putNote(scope: Scope, content: string, category: string, source?: string): Promise<string> {
-  const id = `fact_${randomUUID().slice(0, 12)}`;
   const now = Date.now();
+  // Dedup-at-write: ≥0.90 auto-merges; the 0.60–0.90 band is LLM-adjudicated
+  // (same measured bands as KV facts). Merge = reinforce: mention_count++,
+  // newer text wins.
+  let embedding: number[] | undefined;
+  try {
+    await ensureIndex(scope);
+    embedding = await embed(content);
+    const near = (await queryByEmbedding(scope, embedding, 1)).find(
+      (h) => h.type === 'note' && h.score >= ADJUDICATE_FLOOR,
+    );
+    const dup =
+      near &&
+      (near.score >= AUTO_MERGE || (await adjudicate(near.content, content)) !== 'different')
+        ? near
+        : undefined;
+    if (dup) {
+      const updated = await ddb().send(
+        new UpdateCommand({
+          TableName: TABLE,
+          Key: { pk: scopePk(scope), sk: `NOTE#${dup.key}` },
+          UpdateExpression:
+            'SET content = :c, updated_at = :t, #src = :s, created_at = if_not_exists(created_at, :t) ADD mention_count :one',
+          ExpressionAttributeNames: { '#src': 'source' },
+          ExpressionAttributeValues: { ':c': content, ':t': now, ':s': source ?? 'manual', ':one': 1 },
+          ReturnValues: 'ALL_NEW',
+        }),
+      );
+      const item = updated.Attributes ?? {};
+      await putVector(
+        scope,
+        dup.key,
+        content,
+        {
+          type: 'note',
+          category,
+          created_at: String(item.created_at ?? now),
+          mention_count: String(item.mention_count ?? 1),
+        },
+        embedding,
+      );
+      logTo('memory', `note dedup: reinforced ${dup.key} (score ${dup.score.toFixed(2)}, mentions ${String(item.mention_count)})`);
+      return dup.key;
+    }
+  } catch (err) {
+    logTo('memory', `note dedup probe skipped: ${err instanceof Error ? err.message : err}`);
+  }
+
+  const id = `fact_${randomUUID().slice(0, 12)}`;
   await ddb().send(
     new PutCommand({
       TableName: TABLE,
@@ -228,7 +382,7 @@ export async function putNote(scope: Scope, content: string, category: string, s
     }),
   );
   try {
-    await putVector(scope, id, content, { type: 'note', category });
+    await putVector(scope, id, content, { type: 'note', category, created_at: String(now), mention_count: '1' }, embedding);
   } catch (err) {
     logTo('memory', `note vector write failed (${id}): ${err instanceof Error ? err.message : err}`);
   }
@@ -287,6 +441,18 @@ export interface EdgeRow {
   src: string;
   rel: string;
   dst: string;
+}
+
+/** Entity names known in a scope (for recall-time mention matching). */
+export async function listEntities(scope: Scope): Promise<string[]> {
+  const out = await ddb().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :e)',
+      ExpressionAttributeValues: { ':pk': scopePk(scope), ':e': 'ENT#' },
+    }),
+  );
+  return (out.Items ?? []).map((i) => (i.sk as string).slice(4));
 }
 
 /** Both directions for one entity: outbound via pk, inbound via gsi1. */

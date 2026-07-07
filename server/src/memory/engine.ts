@@ -24,6 +24,8 @@ import {
   deleteNote,
   putEdge,
   listEdges,
+  listEntities,
+  edgesFor,
   deleteEdge,
   searchVectors,
   type Scope,
@@ -95,13 +97,27 @@ export function setRemember(convId: string, enabled: boolean): void {
 
 /* ---------- recall ---------- */
 
-const MIN_SIMILARITY = 0.35;
+const MIN_SIMILARITY = 0.35; // hard floor — v1's dead-threshold lesson
+const KV_BUDGET = 1800; // chars
+const SEMANTIC_BUDGET = 1500;
+const GRAPH_BUDGET = 600;
+
+/** Composite relevance (MEMORY_DESIGN.md §4.3): similarity dominates, recency
+ * and reinforcement break ties. Confidence lands in Phase 3 — its weight is
+ * redistributed to similarity until then. Old vectors without metadata get
+ * neutral defaults. */
+function rank(h: { score: number; created_at?: number; mention_count?: number }): number {
+  const ageDays = h.created_at ? (Date.now() - h.created_at) / 86_400_000 : 30;
+  const recency = Math.exp(-ageDays / 90);
+  const mentions = Math.min(1, Math.log1p(h.mention_count ?? 1) / Math.log(10));
+  return 0.6 * h.score + 0.25 * recency + 0.15 * mentions;
+}
 
 export async function recallContext(projectId: string, query: string): Promise<string> {
   const parts: string[] = [];
   try {
     const [userKv, projKv] = await Promise.all([listKv('user'), listKv(projectId)]);
-    let budget = 1800; // chars — KV facts are compact
+    let budget = KV_BUDGET;
     const push = (label: string, rows: Array<{ key: string; value: string }>): void => {
       const lines: string[] = [];
       for (const row of rows) {
@@ -117,15 +133,42 @@ export async function recallContext(projectId: string, query: string): Promise<s
 
     if (query.trim()) {
       const [userHits, projHits] = await Promise.all([
-        searchVectors('user', query, 3).catch(() => []),
-        searchVectors(projectId, query, 3).catch(() => []),
+        searchVectors('user', query, 5).catch(() => []),
+        searchVectors(projectId, query, 5).catch(() => []),
       ]);
       const seen = new Set(parts.join('\n').split('\n')); // don't repeat injected KV lines
       const hits = [...userHits, ...projHits]
         .filter((h) => h.score >= MIN_SIMILARITY && h.content && !seen.has(h.content))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3);
-      if (hits.length) parts.push(`Relevant memories:\n${hits.map((h) => h.content).join('\n')}`);
+        .sort((a, b) => rank(b) - rank(a));
+      const lines: string[] = [];
+      let semBudget = SEMANTIC_BUDGET;
+      for (const h of hits) {
+        if (lines.length >= 4 || semBudget - h.content.length < 0) break;
+        semBudget -= h.content.length;
+        lines.push(h.content);
+      }
+      if (lines.length) parts.push(`Relevant memories:\n${lines.join('\n')}`);
+    }
+
+    // graph expansion: entities named in the message get their 1-hop
+    // neighborhood injected — both directions (gsi1 reverse edges)
+    if (query.trim()) {
+      const entities = await listEntities(projectId).catch(() => [] as string[]);
+      const q = query.toLowerCase();
+      const mentioned = entities.filter((e) => q.includes(e.toLowerCase())).slice(0, 3);
+      if (mentioned.length) {
+        const edges = (await Promise.all(mentioned.map((e) => edgesFor(projectId, e).catch(() => [])))).flat();
+        const uniq = [...new Map(edges.map((e) => [`${e.src}|${e.rel}|${e.dst}`, e])).values()];
+        const lines: string[] = [];
+        let gBudget = GRAPH_BUDGET;
+        for (const e of uniq) {
+          const line = `${e.src} —${e.rel}→ ${e.dst}`;
+          if (gBudget - line.length < 0) break;
+          gBudget -= line.length;
+          lines.push(line);
+        }
+        if (lines.length) parts.push(`Entity facts:\n${lines.join('\n')}`);
+      }
     }
   } catch (err) {
     logTo('memory', `recall degraded: ${err instanceof Error ? err.message : err}`);
