@@ -158,6 +158,34 @@ projectsRouter.get('/:id/memory/export', (req, res) => {
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/* ---------- project knowledge (persistent documents, claude.ai parity) ---- */
+
+projectsRouter.get('/:id/knowledge', (req, res) => {
+  import('../memory/knowledge.js')
+    .then(({ listKnowledge }) => res.json(listKnowledge(req.params.id)))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+projectsRouter.post('/:id/knowledge/:kid/delete', (req, res) => {
+  import('../memory/knowledge.js')
+    .then(({ removeKnowledge }) => removeKnowledge(req.params.id, req.params.kid))
+    .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+projectsRouter.get('/:id/knowledge/:kid/download', (req, res) => {
+  import('../memory/knowledge.js')
+    .then(({ knowledgePath }) => {
+      const hit = knowledgePath(req.params.id, req.params.kid);
+      if (!hit) {
+        res.status(404).json({ error: 'knowledge file not found' });
+        return;
+      }
+      res.download(hit.file, hit.name);
+    })
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
 /** Irreversible scope wipe (items + vector index + queued extractions). */
 projectsRouter.post('/:id/memory/wipe', (req, res) => {
   cancelPending(req.params.id);

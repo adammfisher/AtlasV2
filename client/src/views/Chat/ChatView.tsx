@@ -18,6 +18,9 @@ import {
   Square,
   FileText,
   Download,
+  Copy,
+  RefreshCw,
+  Pencil,
   X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -148,6 +151,7 @@ interface LiveExchange {
   userAttachments?: Array<{ id: string; name: string; kind: string }>;
   userText: string;
   assistantText: string;
+  thinkingText?: string;
   started: boolean;
   error: string | null;
   /** live pipeline state — set when the router picks a document skill */
@@ -191,6 +195,8 @@ export function ChatView({
   const [menu, setMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
   const [bedrockModal, setBedrockModal] = useState(false);
+  const [thinking, setThinking] = useState(false); // extended thinking toggle
+  const [editing, setEditing] = useState<string | null>(null); // message id being edited
   const { data: rememberState } = useQuery({
     queryKey: ['remember', convId],
     queryFn: () => api.conversationRemember(convId as string),
@@ -246,8 +252,8 @@ export function ChatView({
     abortRef.current = null;
   };
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (overrideText?: string, retry = false) => {
+    const text = (overrideText ?? input).trim();
     if (!text || busy) return;
     if (attachments.some((a) => a.uploading)) return; // wait for uploads
     // no conversation yet (fresh install, or all chats deleted) — create one so
@@ -262,13 +268,25 @@ export function ChatView({
         return;
       }
     }
-    const sendAtts = attachments.map(({ id, name, kind }) => ({ id, name, kind }));
-    setInput('');
-    setAttachments([]);
+    // edit-message: drop the old message and everything after, then resend
+    if (editing && !retry) {
+      try {
+        await api.truncateConversation(target, editing, true);
+        await queryClient.invalidateQueries({ queryKey: ['conversation', target] });
+      } catch {
+        /* fall through — worst case the edit appends */
+      }
+      setEditing(null);
+    }
+    const sendAtts = retry ? [] : attachments.map(({ id, name, kind }) => ({ id, name, kind }));
+    if (!overrideText) {
+      setInput('');
+      setAttachments([]);
+    }
     const controller = new AbortController();
     abortRef.current = controller;
-    setLive({ toolChips: [], userText: text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
-    void postSse(`/conversations/${target}/messages`, { text, attachments: sendAtts }, {
+    setLive({ toolChips: [], userText: retry ? '' : text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
+    void postSse(`/conversations/${target}/messages`, { text, attachments: sendAtts, retry, thinking }, {
       onEvent: (event, data) => {
         if (event === 'token') {
           const delta = typeof data.delta === 'string' ? data.delta : '';
@@ -304,6 +322,9 @@ export function ChatView({
             genRef.current = { ...genRef.current, text: genRef.current.text + d.delta };
           }
           onGenStream(genRef.current.text, genRef.current.label);
+        } else if (event === 'thinking') {
+          const delta = typeof data.delta === 'string' ? data.delta : '';
+          setLive((l) => (l ? { ...l, thinkingText: (l.thinkingText ?? '') + delta } : l));
         } else if (event === 'assistant_text') {
           setLive((l) => (l ? { ...l, summary: (data as { text?: string }).text ?? '' } : l));
         } else if (event === 'error') {
@@ -325,6 +346,17 @@ export function ChatView({
         setLive((l) => (l ? { ...l, error: message } : l));
       },
     }, controller.signal); // stop button aborts the SSE fetch → onClose cleans up
+  };
+
+  // regenerate: drop responses after the last user message and re-run it
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user' && m.kind === 'text');
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant' && m.kind === 'text')?.id;
+  const retryLast = (): void => {
+    if (!lastUserMsg || convId === null || busy) return;
+    void api
+      .truncateConversation(convId, lastUserMsg.id, false)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['conversation', convId] }))
+      .then(() => send(lastUserMsg.text ?? '', true));
   };
 
   const selectedRow =
@@ -438,7 +470,20 @@ export function ChatView({
                       ))}
                     </span>
                   ) : null}
-                  {m.kind === 'text' ? m.text : ''}
+                  <span className="group/msg inline">
+                    {m.kind === 'text' ? m.text : ''}
+                    <button
+                      title="Edit message (regenerates everything after it)"
+                      className="ml-2 align-middle opacity-0 group-hover/msg:opacity-60 hover:!opacity-100 transition-opacity"
+                      style={{ color: C.mute }}
+                      onClick={() => {
+                        setInput(m.text ?? '');
+                        setEditing(m.id);
+                      }}
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  </span>
                 </Msg>
               ) : m.kind === 'pipeline' ? (
                 <Msg key={m.id} who="assistant">
@@ -467,6 +512,26 @@ export function ChatView({
                   >
                     {m.text}
                   </p>
+                  <span className="flex items-center gap-2 mt-1.5">
+                    <button
+                      title="Copy"
+                      className="opacity-40 hover:opacity-100 transition-opacity"
+                      style={{ color: C.mute }}
+                      onClick={() => void navigator.clipboard.writeText(m.text ?? '')}
+                    >
+                      <Copy size={12} />
+                    </button>
+                    {m.id === lastAssistantId && !busy ? (
+                      <button
+                        title="Regenerate response"
+                        className="opacity-40 hover:opacity-100 transition-opacity"
+                        style={{ color: C.mute }}
+                        onClick={retryLast}
+                      >
+                        <RefreshCw size={12} />
+                      </button>
+                    ) : null}
+                  </span>
                 </Msg>
               ),
             )}
@@ -525,8 +590,27 @@ export function ChatView({
                       <Loader2 size={14} className="animate-spin" style={{ color: C.accent }} />
                       Thinking…
                     </div>
-                  ) : live.assistantText || live.toolChips.length ? (
+                  ) : live.assistantText || live.toolChips.length || live.thinkingText ? (
                     <>
+                      {live.thinkingText ? (
+                        <div
+                          className="rounded-lg px-3 py-2 mb-2 text-xs whitespace-pre-wrap"
+                          style={{
+                            background: C.panel,
+                            color: C.mute,
+                            fontFamily: sans,
+                            maxHeight: 150,
+                            overflowY: 'auto',
+                            border: `1px solid ${C.borderSoft}`,
+                          }}
+                        >
+                          <span className="font-medium" style={{ color: C.sub }}>
+                            Thinking
+                          </span>
+                          {'\n'}
+                          {live.thinkingText}
+                        </div>
+                      ) : null}
                       <ToolChips chips={live.toolChips} />
                       <p
                         className="leading-relaxed whitespace-pre-wrap"
@@ -607,9 +691,30 @@ export function ChatView({
             >
               <Paperclip size={16} />
             </button>
-            <button className="p-1.5 rounded-lg" style={{ color: C.mute }}>
+            <button
+              onClick={() => setThinking((t) => !t)}
+              className="p-1.5 rounded-lg flex items-center gap-1"
+              style={{ color: thinking ? C.accent : C.mute, background: thinking ? C.accentDim : 'transparent' }}
+              title={thinking ? 'Extended thinking ON — Claude reasons before answering' : 'Extended thinking off'}
+            >
               <Sparkles size={16} />
+              {thinking ? (
+                <span className="text-xs font-medium" style={{ fontFamily: sans }}>
+                  Thinking
+                </span>
+              ) : null}
             </button>
+            {editing ? (
+              <span
+                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md"
+                style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
+              >
+                Editing message — sending replaces it and everything after
+                <button onClick={() => { setEditing(null); setInput(''); }} title="Cancel edit">
+                  <X size={11} />
+                </button>
+              </span>
+            ) : null}
             <span className="ml-auto relative">
               <button
                 onClick={() => setMenu(!menu)}

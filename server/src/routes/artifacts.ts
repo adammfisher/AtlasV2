@@ -4,6 +4,10 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { fromIni } from '@aws-sdk/credential-providers';
+import { bedrockSettings } from '../providers/bedrock.js';
 import { getDb } from '../db/db.js';
 import { scopedArtifacts } from '../db/scoped.js';
 import {
@@ -164,6 +168,43 @@ artifactsRouter.get('/:id/versions/:v/download', async (req, res) => {
   const ext = path.extname(target).toLowerCase();
   if (TEXT_TYPES[ext]) res.type(TEXT_TYPES[ext]);
   res.download(target, path.basename(target));
+});
+
+/** Share (claude.ai publish parity): upload the version file to S3 and return
+ * a 7-day presigned link anyone can download. Multi-file kinds share as zip. */
+artifactsRouter.post('/:id/versions/:v/share', async (req, res) => {
+  const row = getArtifact(req.params.id);
+  const version = getDb()
+    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
+    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
+  if (!row || !version?.file_path || !existsSync(version.file_path)) {
+    res.status(404).json({ error: 'no file for this version' });
+    return;
+  }
+  try {
+    let target = version.file_path;
+    let filename = path.basename(target);
+    if (statSync(target).isDirectory()) {
+      const zipPath = path.join(os.tmpdir(), `atlas-share-${row.id}-v${req.params.v}.zip`);
+      await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
+      target = zipPath;
+      filename = `${row.name}-v${req.params.v}.zip`;
+    }
+    const s = bedrockSettings();
+    const s3 = new S3Client({ region: s.region || 'us-east-1', credentials: fromIni({ profile: s.profile || 'default' }) });
+    const bucket = 'atlasv2-uploads-683032473658';
+    const key = `shares/${row.id}-v${req.params.v}/${filename}`;
+    await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: readFileSync(target) }));
+    const url = await getSignedUrl(
+      s3,
+      new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: `attachment; filename="${filename}"` }),
+      { expiresIn: 7 * 86_400 },
+    );
+    logTo('app', `artifact shared: ${row.id} v${req.params.v} → s3 presigned (7d)`);
+    res.json({ url, expiresDays: 7 });
+  } catch (err) {
+    res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 artifactsRouter.post('/:id/restore', (req, res) => {

@@ -137,6 +137,24 @@ uploadsRouter.post('/', json({ limit: '40mb' }), (req, res) => {
   res.json(meta);
 });
 
+/** Project knowledge upload — lives on this router because it carries base64
+ * file bodies and needs the 40mb parser (the global json limit is 2mb). */
+uploadsRouter.post('/knowledge', json({ limit: '40mb' }), (req, res) => {
+  const { projectId, name, dataBase64 } = req.body as { projectId?: string; name?: string; dataBase64?: string };
+  if (!projectId || !name || !dataBase64) {
+    res.status(400).json({ error: 'projectId, name and dataBase64 are required' });
+    return;
+  }
+  const ext = path.extname(name).toLowerCase();
+  if (!DOC_EXTS.has(ext) && !IMAGE_EXTS.has(ext)) {
+    res.status(400).json({ error: `unsupported file type: ${ext || '(none)'}` });
+    return;
+  }
+  import('../memory/knowledge.js')
+    .then(({ addKnowledge }) => res.json(addKnowledge(projectId, name, Buffer.from(dataBase64, 'base64'))))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
 /** Pull an uploaded file back down (the chip's hover-download). S3 is the
  * source of truth; the local copy covers S3 outages and pre-S3 uploads. */
 uploadsRouter.get('/:id/download', (req, res) => {

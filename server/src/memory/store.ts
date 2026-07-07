@@ -668,6 +668,55 @@ export async function deleteEdge(scope: Scope, src: string, rel: string, dst: st
   );
 }
 
+/* ---------- project knowledge chunks (RAG over uploaded documents) ----------
+ * Chunks live beside notes in the same index (type 'knowledge') so recall
+ * surfaces them semantically in every project chat, but under KN# item keys so
+ * they don't flood the memory panel's notes list. No dedup probing — chunks
+ * are unique by construction. */
+
+export async function putKnowledgeChunk(
+  scope: Scope,
+  fileId: string,
+  n: number,
+  content: string,
+  fileName: string,
+): Promise<void> {
+  const key = `kn_${fileId}_${n}`;
+  const now = Date.now();
+  await ddb().send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: { pk: scopePk(scope), sk: `KN#${key}`, content: content.slice(0, 4000), file: fileName, file_id: fileId, created_at: now },
+    }),
+  );
+  await putVector(scope, key, content, {
+    type: 'knowledge',
+    file: fileName.slice(0, 80),
+    file_id: fileId,
+    created_at: String(now),
+    mention_count: '1',
+  });
+}
+
+/** Remove every chunk of one knowledge file (items + vectors). */
+export async function deleteKnowledgeChunks(scope: Scope, fileId: string): Promise<number> {
+  const out = await ddb().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :k)',
+      ExpressionAttributeValues: { ':pk': scopePk(scope), ':k': `KN#kn_${fileId}_` },
+    }),
+  );
+  const keys: string[] = [];
+  for (const i of out.Items ?? []) {
+    await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: i.pk as string, sk: i.sk as string } }));
+    keys.push((i.sk as string).slice(3));
+    evictRecent(scope, (i.sk as string).slice(3));
+  }
+  if (keys.length) await deleteVectors(scope, keys);
+  return keys.length;
+}
+
 /* ---------- audit + lifecycle ops ---------- */
 
 export interface Tombstone {

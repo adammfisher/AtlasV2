@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText } from 'lucide-react';
+import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText, Share2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon } from '../theme/tokens';
 import { api, type ProjectionRow } from '../lib/api';
@@ -314,6 +314,20 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
             style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
           >
             <FolderOpen size={14} />
+          </button>
+          <button
+            onClick={() =>
+              act(async () => {
+                const { url } = await api.shareArtifact(a.id, activeVer);
+                await navigator.clipboard.writeText(url);
+                setNotice('Share link copied — anyone with it can download for 7 days.');
+              })
+            }
+            title="Share: copy a 7-day public download link"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium"
+            style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
+          >
+            <Share2 size={14} />
           </button>
           {activeVer !== a.ver && (
             <button

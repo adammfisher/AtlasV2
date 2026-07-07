@@ -2,7 +2,8 @@ import { Router } from 'express';
 import type { Response } from 'express';
 import { getDb, newId, now } from '../db/db.js';
 import { logTo } from '../log.js';
-import { installFor } from '../mcp/manager.js';
+import { installFor, toolsForProject, callTool, type ChatTool } from '../mcp/manager.js';
+import { webSearch, webFetch } from '../tools/web.js';
 import { bedrockSettings, activeModel, bedrockStreamWithTools, type BedrockTool } from '../providers/bedrock.js';
 import { attachmentDataUrl, attachmentTextWait } from './uploads.js';
 import { recallContext, scheduleExtraction, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
@@ -36,7 +37,34 @@ const MEMORY_TOOLS: BedrockTool[] = [
     },
   },
 ];
-import { streamChat, type ChatMessage } from '../llama/client.js';
+
+const WEB_TOOLS: BedrockTool[] = [
+  {
+    name: 'web_search',
+    description: 'Search the web for current information. Returns titles, URLs and snippets of the top results.',
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['query'],
+      properties: { query: { type: 'string' } },
+    },
+  },
+  {
+    name: 'web_fetch',
+    description: 'Fetch a web page and return its readable text (use after web_search to read a result).',
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['url'],
+      properties: { url: { type: 'string' } },
+    },
+  },
+];
+
+function mangle(t: ChatTool): string {
+  return `${t.connectorId.replace(/-/g, '_')}__${t.name}`.slice(0, 64);
+}
+import { type ChatMessage } from '../llama/client.js';
 import { route } from '../pipeline/router.js';
 import { isSkillId, loadSkill, skillEnabled, type SkillId } from '../pipeline/skills.js';
 import {
@@ -62,9 +90,11 @@ chatRouter.post('/:id/messages', async (req, res) => {
     res.status(404).json({ error: 'conversation not found' });
     return;
   }
-  const { text, attachments } = req.body as {
+  const { text, attachments, retry, thinking } = req.body as {
     text?: string;
     attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
+    retry?: boolean; // regenerate: reuse the text without persisting a new user message
+    thinking?: boolean; // extended thinking (Claude reasoning stream)
   };
   const atts = attachments ?? [];
   if (!text?.trim()) {
@@ -91,20 +121,22 @@ chatRouter.post('/:id/messages', async (req, res) => {
       n: number;
     }
   ).n;
-  const userMsgId = newId('m');
-  db.prepare(
-    'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(
-    userMsgId,
-    conv.id,
-    'user',
-    'text',
-    JSON.stringify(atts.length ? { text: text.trim(), attachments: atts } : { text: text.trim() }),
-    t,
-  );
-  if (messageCount === 0) {
-    const title = text.trim().length > 42 ? `${text.trim().slice(0, 42)}…` : text.trim();
-    db.prepare('UPDATE conversations SET title = ? WHERE id = ?').run(title, conv.id);
+  if (!retry) {
+    const userMsgId = newId('m');
+    db.prepare(
+      'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    ).run(
+      userMsgId,
+      conv.id,
+      'user',
+      'text',
+      JSON.stringify(atts.length ? { text: text.trim(), attachments: atts } : { text: text.trim() }),
+      t,
+    );
+    if (messageCount === 0) {
+      const title = text.trim().length > 42 ? `${text.trim().slice(0, 42)}…` : text.trim();
+      db.prepare('UPDATE conversations SET title = ? WHERE id = ?').run(title, conv.id);
+    }
   }
   db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(t, conv.id);
 
@@ -219,28 +251,55 @@ chatRouter.post('/:id/messages', async (req, res) => {
         if (imageParts.length === 0) return { ...m, content: fullText };
         return { ...m, content: [{ type: 'text' as const, text: fullText }, ...imageParts] };
       });
-      // All inference runs on Bedrock (Claude). With memory enabled, the
-      // Converse tool loop exposes remember/forget so "remember that…" works
-      // explicitly; chips surface each execution in the UI.
+      // All inference runs on Bedrock (Claude). The Converse tool loop carries
+      // memory (remember/forget), web (search/fetch), and every MCP connector
+      // enabled for this project; chips surface each execution in the UI.
+      const connectorTools: BedrockTool[] = [];
+      const byMangled = new Map<string, ChatTool>();
+      try {
+        for (const t of await toolsForProject(conv.project_id)) {
+          const name = mangle(t);
+          byMangled.set(name, t);
+          connectorTools.push({
+            name,
+            description: `${t.description} (${t.connectorName})`,
+            schema: t.inputSchema as Record<string, unknown>,
+          });
+        }
+      } catch (err) {
+        logTo('mcp', `connector tools unavailable: ${err instanceof Error ? err.message : err}`);
+      }
+      const tools: BedrockTool[] = [...(memEnabled ? MEMORY_TOOLS : []), ...WEB_TOOLS, ...connectorTools];
+
       const fullMessages = [{ role: 'system' as const, content: system }, ...(chatHistory as ChatMessage[])];
-      const stream = memEnabled
-        ? bedrockStreamWithTools(
-            fullMessages,
-            MEMORY_TOOLS,
-            (name, input) => {
-              const scope = input.scope === 'user' ? 'user' : conv.project_id;
-              if (name === 'remember') return rememberFact(scope, String(input.fact ?? ''), conv.id);
-              if (name === 'forget') return forgetFact(scope, String(input.query ?? ''));
-              return Promise.resolve(`unknown tool: ${name}`);
-            },
-            (tool) => {
-              const chip = { tool, connector: 'memory' };
-              chips.push(chip);
-              sse(res, 'tool', chip);
-            },
-            { signal: abort.signal },
-          )
-        : streamChat(fullMessages, { signal: abort.signal });
+      const stream = bedrockStreamWithTools(
+        fullMessages,
+        tools,
+        (name, input) => {
+          const scope = input.scope === 'user' ? 'user' : conv.project_id;
+          if (name === 'remember') return rememberFact(scope, String(input.fact ?? ''), conv.id);
+          if (name === 'forget') return forgetFact(scope, String(input.query ?? ''));
+          if (name === 'web_search') return webSearch(String(input.query ?? ''));
+          if (name === 'web_fetch') return webFetch(String(input.url ?? ''));
+          const spec = byMangled.get(name);
+          if (spec) return callTool(spec.connectorId, conv.project_id, spec.name, input);
+          return Promise.resolve(`unknown tool: ${name}`);
+        },
+        (tool) => {
+          const spec = byMangled.get(tool);
+          const chip = {
+            tool: spec?.name ?? tool,
+            connector: spec?.connectorName ?? (tool.startsWith('web_') ? 'web' : 'memory'),
+          };
+          chips.push(chip);
+          sse(res, 'tool', chip);
+        },
+        {
+          signal: abort.signal,
+          thinking: thinking === true,
+          onThinking: (delta) => sse(res, 'thinking', { delta }),
+        },
+      );
       try {
         for await (const delta of stream) {
           if (tFirst === null) {

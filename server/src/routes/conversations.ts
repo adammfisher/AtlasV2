@@ -42,6 +42,54 @@ conversationsRouter.post('/', (req, res) => {
   res.status(201).json({ id, projectId, title: 'New chat', created_at: t, updated_at: t });
 });
 
+/** Rename (claude.ai parity). */
+conversationsRouter.patch('/:id', (req, res) => {
+  const { title } = req.body as { title?: string };
+  if (!title?.trim()) {
+    res.status(400).json({ error: 'title is required' });
+    return;
+  }
+  getDb().prepare('UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?').run(title.trim().slice(0, 120), now(), req.params.id);
+  res.json({ ok: true });
+});
+
+/** Search titles + message content; returns matching conversations. */
+conversationsRouter.get('/search', (req, res) => {
+  const q = String(req.query.q ?? '').trim();
+  if (!q) {
+    res.json([]);
+    return;
+  }
+  const like = `%${q}%`;
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT c.* FROM conversations c
+       LEFT JOIN messages m ON m.conversation_id = c.id
+       WHERE c.title LIKE ? OR m.payload LIKE ?
+       ORDER BY c.updated_at DESC LIMIT 30`,
+    )
+    .all(like, like) as ConversationRow[];
+  res.json(rows.map((r) => ({ ...r, projectId: r.project_id })));
+});
+
+/** Delete a message and everything after it (edit/regenerate support).
+ * inclusive=false keeps the anchor message (retry: drop trailing responses). */
+conversationsRouter.post('/:id/truncate', (req, res) => {
+  const { messageId, inclusive } = req.body as { messageId?: string; inclusive?: boolean };
+  const db = getDb();
+  const anchor = db
+    .prepare('SELECT created_at FROM messages WHERE id = ? AND conversation_id = ?')
+    .get(messageId, req.params.id) as { created_at: number } | undefined;
+  if (!anchor) {
+    res.status(404).json({ error: 'message not found' });
+    return;
+  }
+  const del = inclusive
+    ? db.prepare('DELETE FROM messages WHERE conversation_id = ? AND created_at >= ?').run(req.params.id, anchor.created_at)
+    : db.prepare('DELETE FROM messages WHERE conversation_id = ? AND created_at > ?').run(req.params.id, anchor.created_at);
+  res.json({ ok: true, deleted: del.changes });
+});
+
 conversationsRouter.get('/:id', (req, res) => {
   const db = getDb();
   const conv = db.prepare('SELECT * FROM conversations WHERE id = ?').get(req.params.id) as

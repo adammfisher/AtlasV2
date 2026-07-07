@@ -382,7 +382,13 @@ export async function* bedrockStreamWithTools(
   tools: BedrockTool[],
   execute: (name: string, input: Record<string, unknown>) => Promise<string>,
   onTool: (name: string) => void,
-  opts: { temperature?: number; maxTokens?: number; signal?: AbortSignal } = {},
+  opts: {
+    temperature?: number;
+    maxTokens?: number;
+    signal?: AbortSignal;
+    thinking?: boolean;
+    onThinking?: (delta: string) => void;
+  } = {},
 ): AsyncGenerator<string> {
   if (!bedrockActive()) throw new Error('Bedrock is not connected');
   const client = runtime(bedrockSettings());
@@ -394,6 +400,9 @@ export async function* bedrockStreamWithTools(
   };
 
   const convo: Message[] = [...msgs];
+  // thinking applies to the first pass only — tool continuations would need
+  // the reasoning blocks replayed verbatim, which buys nothing here
+  let think = opts.thinking ?? false;
   for (let iteration = 0; iteration < 3; iteration++) {
     const out = await client.send(
       new ConverseStreamCommand({
@@ -401,10 +410,15 @@ export async function* bedrockStreamWithTools(
         system,
         messages: convo,
         toolConfig,
-        inferenceConfig: { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 1.0 },
+        // extended thinking requires temperature 1 and headroom over the budget
+        inferenceConfig: think
+          ? { maxTokens: Math.max(opts.maxTokens ?? 2048, 6000), temperature: 1 }
+          : { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 1.0 },
+        ...(think ? { additionalModelRequestFields: { thinking: { type: 'enabled', budget_tokens: 4000 } } } : {}),
       }),
       { abortSignal: opts.signal },
     );
+    think = false;
 
     let text = '';
     let stopReason = '';
@@ -423,6 +437,8 @@ export async function* bedrockStreamWithTools(
         text += delta.delta.text;
         yield delta.delta.text;
       }
+      const reasoning = (delta?.delta as { reasoningContent?: { text?: string } } | undefined)?.reasoningContent?.text;
+      if (reasoning && opts.onThinking) opts.onThinking(reasoning);
       if (delta?.delta?.toolUse?.input !== undefined && delta.contentBlockIndex !== undefined) {
         const tu = toolUses.get(delta.contentBlockIndex);
         if (tu) tu.inputJson += delta.delta.toolUse.input;

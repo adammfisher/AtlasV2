@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Plus, Brain, FolderKanban, Lock, Globe } from 'lucide-react';
+import { Plus, Brain, BookOpen, FolderKanban, Lock, Globe } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
 import { api, type Project } from '../../lib/api';
 import { MemoryModal } from '../../components/MemoryModal';
+import { KnowledgeModal } from '../../components/KnowledgeModal';
 import { Badge } from '../../components/Badge';
 import { NewProjectModal } from '../../components/NewProjectModal';
 
@@ -17,6 +18,7 @@ export function ProjectsView({
   setActiveProject: (id: string) => void;
 }) {
   const [memoryFor, setMemoryFor] = useState<{ id: string; name: string } | null>(null);
+  const [knowledgeFor, setKnowledgeFor] = useState<{ id: string; name: string } | null>(null);
   const [showNew, setShowNew] = useState(false);
   const queryClient = useQueryClient();
 
@@ -96,9 +98,20 @@ export function ProjectsView({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setMemoryFor({ id: p.id, name: p.name });
+                    setKnowledgeFor({ id: p.id, name: p.name });
                   }}
                   className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-md"
+                  style={{ color: C.accent, border: `1px solid ${C.borderSoft}`, fontFamily: sans }}
+                  title="Documents that inform every chat in this project"
+                >
+                  <BookOpen size={11} /> Knowledge
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMemoryFor({ id: p.id, name: p.name });
+                  }}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-md"
                   style={{ color: C.accent, border: `1px solid ${C.borderSoft}`, fontFamily: sans }}
                   title="View and edit this project's memory"
                 >
@@ -123,6 +136,9 @@ export function ProjectsView({
       {showNew && <NewProjectModal close={() => setShowNew(false)} create={create} />}
       {memoryFor ? (
         <MemoryModal projectId={memoryFor.id} projectName={memoryFor.name} onClose={() => setMemoryFor(null)} />
+      ) : null}
+      {knowledgeFor ? (
+        <KnowledgeModal projectId={knowledgeFor.id} projectName={knowledgeFor.name} onClose={() => setKnowledgeFor(null)} />
       ) : null}
     </div>
   );

@@ -297,6 +297,28 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ kind, ref }),
     }),
+  renameConversation: (id: string, title: string) =>
+    request<{ ok: boolean }>(`/conversations/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) }),
+  searchConversations: (q: string) =>
+    request<Conversation[]>(`/conversations/search?q=${encodeURIComponent(q)}`),
+  truncateConversation: (id: string, messageId: string, inclusive: boolean) =>
+    request<{ ok: boolean; deleted: number }>(`/conversations/${id}/truncate`, {
+      method: 'POST',
+      body: JSON.stringify({ messageId, inclusive }),
+    }),
+  projectKnowledge: (projectId: string) =>
+    request<Array<{ id: string; name: string; size: number; status: string; chunks: number; error: string | null; created_at: number }>>(
+      `/projects/${projectId}/knowledge`,
+    ),
+  uploadKnowledge: (projectId: string, name: string, dataBase64: string) =>
+    request<{ id: string; status: string }>('/uploads/knowledge', {
+      method: 'POST',
+      body: JSON.stringify({ projectId, name, dataBase64 }),
+    }),
+  deleteKnowledge: (projectId: string, kid: string) =>
+    request<{ ok: boolean }>(`/projects/${projectId}/knowledge/${kid}/delete`, { method: 'POST' }),
+  shareArtifact: (id: string, version: number) =>
+    request<{ url: string; expiresDays: number }>(`/artifacts/${id}/versions/${version}/share`, { method: 'POST' }),
   conversationRemember: (convId: string) =>
     request<{ remember: boolean }>(`/conversations/${convId}/remember`),
   setConversationRemember: (convId: string, enabled: boolean) =>
