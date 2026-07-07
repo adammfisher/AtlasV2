@@ -7,7 +7,7 @@ import { getDb } from './db/db.js';
 import { seedIfNeeded, backfillSeedArtifactFiles } from './db/seed.js';
 import { stopLlama, llamaState } from './llama/spawn.js';
 import { ensureBedrockConnected } from './providers/bedrock.js';
-import { scheduleConsolidation } from './memory/engine.js';
+import { scheduleConsolidation, startExtractionQueue } from './memory/engine.js';
 import { scanModels } from './llama/models.js';
 import { projectsRouter } from './routes/projects.js';
 import { settingsRouter } from './routes/settings.js';
@@ -36,7 +36,9 @@ void probeKnowledgeCore();
 // The local llama sidecar is retired; nothing is spawned here anymore.
 void ensureBedrockConnected();
 
-// 3b. memory consolidation sweep (profile summaries refresh when >24h stale)
+// 3b. memory lifecycle: durable extraction queue (survives restarts) +
+// consolidation sweep (profile summaries refresh when >24h stale)
+startExtractionQueue();
 scheduleConsolidation();
 
 // 4. HTTP API

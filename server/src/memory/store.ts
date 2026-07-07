@@ -94,6 +94,48 @@ export async function embed(text: string): Promise<number[]> {
 
 const ensured = new Set<string>();
 
+/** Last PutVectors per index — a probe that comes up empty right after a write
+ * retries once, covering S3 Vectors' brief indexing lag (observed: a vector
+ * rewritten ~1s earlier was invisible to the next query). */
+const lastVectorWrite = new Map<string, number>();
+const INDEX_SETTLE_MS = 10_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Recent-writes buffer: S3 Vectors overwrites can stay invisible to queries
+ * for many seconds, but dedup MUST see facts written moments ago (same
+ * extraction batch, back-to-back edits). The last 20 vectors per index are
+ * kept in-process and probed with exact cosine — deterministic, zero lag.
+ * The index still covers everything older/cross-restart. */
+interface RecentVec {
+  key: string;
+  content: string;
+  embedding: number[];
+  meta: Record<string, string>;
+}
+const recentWrites = new Map<string, RecentVec[]>();
+const RECENT_CAP = 20;
+
+function dot(a: number[], b: number[]): number {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += (a[i] ?? 0) * (b[i] ?? 0);
+  return s; // Titan vectors are normalized → dot = cosine
+}
+
+function rememberWrite(scope: Scope, entry: RecentVec): void {
+  const name = indexName(scope);
+  const list = recentWrites.get(name) ?? [];
+  const next = [entry, ...list.filter((e) => e.key !== entry.key)].slice(0, RECENT_CAP);
+  recentWrites.set(name, next);
+}
+
+function evictRecent(scope: Scope, key: string): void {
+  const name = indexName(scope);
+  recentWrites.set(name, (recentWrites.get(name) ?? []).filter((e) => e.key !== key));
+}
+
 async function ensureIndex(scope: Scope): Promise<void> {
   const name = indexName(scope);
   if (ensured.has(name)) return;
@@ -137,6 +179,43 @@ async function putVector(
       ],
     }),
   );
+  lastVectorWrite.set(indexName(scope), Date.now());
+  rememberWrite(scope, {
+    key,
+    content: content.slice(0, 1500),
+    embedding: vector,
+    meta: { ...meta, scope: scopePk(scope) },
+  });
+}
+
+/** Dedup probe = exact match over the recent-writes buffer (zero lag) merged
+ * with the index query, plus one settle-retry when the index is fresh. */
+async function probeCandidates(
+  scope: Scope,
+  embedding: number[],
+  accept: (h: VectorHit) => boolean,
+): Promise<VectorHit[]> {
+  const local: VectorHit[] = (recentWrites.get(indexName(scope)) ?? []).map((e) => ({
+    key: e.key,
+    content: e.content,
+    score: dot(embedding, e.embedding),
+    category: e.meta.category,
+    type: e.meta.type,
+    kvkey: e.meta.kvkey,
+    created_at: e.meta.created_at ? Number(e.meta.created_at) : undefined,
+    mention_count: e.meta.mention_count ? Number(e.meta.mention_count) : undefined,
+  }));
+  let remote = (await queryByEmbedding(scope, embedding, 3)).filter(accept);
+  if (remote.length === 0 && local.filter(accept).length === 0 && Date.now() - (lastVectorWrite.get(indexName(scope)) ?? 0) < INDEX_SETTLE_MS) {
+    await sleep(2000);
+    remote = (await queryByEmbedding(scope, embedding, 3)).filter(accept);
+  }
+  const byKey = new Map<string, VectorHit>();
+  for (const h of [...local.filter(accept), ...remote]) {
+    const existing = byKey.get(h.key);
+    if (!existing || h.score > existing.score) byKey.set(h.key, h);
+  }
+  return [...byKey.values()].sort((a, b) => b.score - a.score);
 }
 
 async function deleteVectors(scope: Scope, keys: string[]): Promise<void> {
@@ -197,12 +276,13 @@ function kvVectorKey(key: string): string {
 }
 
 /** Measured on real Titan v2 embeddings (2026-07-07): near-identical
- * restatements score ≥0.96; true PARAPHRASES of the same fact score 0.69–0.72;
- * hardest same-category negatives 0.44. So: ≥0.90 auto-merges, and the
- * 0.60–0.90 band goes to a cheap LLM adjudication (extraction is async — this
- * never touches chat latency). */
+ * restatements ≥0.96; paraphrases of the same fact 0.69–0.72; a contradiction
+ * with reworded value 0.587; hardest same-category negative 0.44. The floor
+ * only gates whether an LLM adjudication call is spent — the verdict guards
+ * against false merges — so it sits at 0.50, above the negatives with margin
+ * and below every observed true-pair. Extraction is async; never chat latency. */
 const AUTO_MERGE = 0.9;
-const ADJUDICATE_FLOOR = 0.6;
+const ADJUDICATE_FLOOR = 0.5;
 
 const ADJUDICATE_SCHEMA = {
   type: 'object',
@@ -219,7 +299,10 @@ async function adjudicate(existing: string, candidate: string): Promise<'same' |
         {
           role: 'system',
           content:
-            'You deduplicate a memory store. Compare two remembered facts. verdict "same" = they state the same durable fact (wording may differ); "contradicts" = they state incompatible values for the same fact; "different" = genuinely distinct facts.',
+            'You deduplicate a memory store. Compare what the two facts CLAIM — ignore their key names. ' +
+            'verdict "same" = the same durable fact, possibly reworded ("prefers Terraform" / "uses Terraform for infra"). ' +
+            'verdict "contradicts" = incompatible values for the same attribute ("deploys run on Fargate" vs "deploys run on EC2"; "prefers X over Y" vs "prefers Y over X"; "cadence is weekly" vs "cadence is monthly"). ' +
+            'verdict "different" = genuinely distinct attributes that can both be true at once.',
         },
         { role: 'user', content: `EXISTING: ${existing}\nCANDIDATE: ${candidate}` },
       ],
@@ -248,8 +331,10 @@ export async function putKv(scope: Scope, key: string, value: string, source?: s
   try {
     await ensureIndex(scope);
     embedding = await embed(`${key}: ${value}`);
-    const candidates = (await queryByEmbedding(scope, embedding, 3)).filter(
-      (h) => h.type === 'kv' && h.kvkey && h.kvkey !== key && h.score >= ADJUDICATE_FLOOR,
+    const candidates = await probeCandidates(
+      scope,
+      embedding,
+      (h) => h.type === 'kv' && !!h.kvkey && h.kvkey !== key && h.score >= ADJUDICATE_FLOOR,
     );
     const best = candidates[0];
     if (best?.kvkey) {
@@ -260,6 +345,9 @@ export async function putKv(scope: Scope, key: string, value: string, source?: s
         best.score >= AUTO_MERGE || categoryOf(best.kvkey) === categoryOf(key)
           ? await adjudicate(best.content, `${key}: ${value}`)
           : 'different';
+      if (verdict === 'different') {
+        logTo('memory', `kv adjudication: different — "${key}" vs "${best.kvkey}" (score ${best.score.toFixed(2)})`);
+      }
       if (verdict === 'same' || verdict === 'contradicts') {
         targetKey = best.kvkey;
         embedding = undefined; // content changes with the merged key — re-embed below
@@ -338,6 +426,7 @@ export async function listKv(scope: Scope): Promise<Array<{ key: string; value: 
 export async function deleteKv(scope: Scope, key: string): Promise<void> {
   await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: scopePk(scope), sk: `KV#${key}` } }));
   await deleteVectors(scope, [kvVectorKey(key)]);
+  evictRecent(scope, kvVectorKey(key));
 }
 
 /* ---------- notes (searchable episodic memories) ---------- */
@@ -351,9 +440,9 @@ export async function putNote(scope: Scope, content: string, category: string, s
   try {
     await ensureIndex(scope);
     embedding = await embed(content);
-    const near = (await queryByEmbedding(scope, embedding, 1)).find(
-      (h) => h.type === 'note' && h.score >= ADJUDICATE_FLOOR,
-    );
+    const near = (
+      await probeCandidates(scope, embedding, (h) => h.type === 'note' && h.score >= ADJUDICATE_FLOOR)
+    )[0];
     const dup =
       near &&
       (near.score >= AUTO_MERGE || (await adjudicate(near.content, content)) !== 'different')
@@ -434,6 +523,7 @@ export async function listNotes(scope: Scope): Promise<Array<{ id: string; conte
 export async function deleteNote(scope: Scope, id: string): Promise<void> {
   await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: scopePk(scope), sk: `NOTE#${id}` } }));
   await deleteVectors(scope, [id]);
+  evictRecent(scope, id);
 }
 
 /** Recall-reinforcement: a note that keeps getting recalled shouldn't decay.
@@ -576,4 +666,71 @@ export async function deleteEdge(scope: Scope, src: string, rel: string, dst: st
   await ddb().send(
     new DeleteCommand({ TableName: TABLE, Key: { pk: `${scopePk(scope)}#E#${src}`, sk: `EDGE#${rel}#${dst}` } }),
   );
+}
+
+/* ---------- audit + lifecycle ops ---------- */
+
+export interface Tombstone {
+  old_value: string;
+  new_value: string;
+  superseded_at: number;
+}
+
+export async function listTombstones(scope: Scope): Promise<Tombstone[]> {
+  const out = await ddb().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'pk = :pk AND begins_with(sk, :t)',
+      ExpressionAttributeValues: { ':pk': scopePk(scope), ':t': 'TOMB#' },
+    }),
+  );
+  return (out.Items ?? []).map((i) => ({
+    old_value: i.old_value as string,
+    new_value: i.new_value as string,
+    superseded_at: (i.superseded_at as number) ?? 0,
+  }));
+}
+
+/** Full scope teardown: every DynamoDB item (facts, notes, entities, edges,
+ * tombstones, profile) plus the vector index. Irreversible. */
+export async function wipeScope(scope: Scope): Promise<{ items: number }> {
+  const base = scopePk(scope);
+  let items = 0;
+  // main partition (KV/NOTE/ENT/TOMB/PROFILE)
+  const main = await ddb().send(
+    new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: 'pk = :pk',
+      ExpressionAttributeValues: { ':pk': base },
+    }),
+  );
+  for (const i of main.Items ?? []) {
+    await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: i.pk as string, sk: i.sk as string } }));
+    items++;
+  }
+  // edge partitions (pk = S#…#E#<src>) — found via the scope attribute
+  const edges = await ddb().send(
+    new ScanCommand({
+      TableName: TABLE,
+      FilterExpression: '#s = :scope',
+      ExpressionAttributeNames: { '#s': 'scope' },
+      ExpressionAttributeValues: { ':scope': base },
+    }),
+  );
+  for (const i of edges.Items ?? []) {
+    await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: i.pk as string, sk: i.sk as string } }));
+    items++;
+  }
+  // vector index — drop wholesale; it lazily recreates on next write
+  try {
+    const { DeleteIndexCommand } = await import('@aws-sdk/client-s3vectors');
+    await vec().send(new DeleteIndexCommand({ vectorBucketName: BUCKET, indexName: indexName(scope) }));
+    ensured.delete(indexName(scope));
+  } catch (err) {
+    logTo('memory', `vector index delete skipped: ${err instanceof Error ? err.message : err}`);
+  }
+  recentWrites.delete(indexName(scope));
+  lastVectorWrite.delete(indexName(scope));
+  logTo('memory', `wiped scope ${scope}: ${items} items + vector index`);
+  return { items };
 }

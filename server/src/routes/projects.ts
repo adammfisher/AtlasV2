@@ -1,6 +1,15 @@
 import { Router } from 'express';
 import { getDb, newId, now } from '../db/db.js';
-import { memorySnapshot, upsertKv, deleteMemory, consolidate } from '../memory/engine.js';
+import {
+  memorySnapshot,
+  upsertKv,
+  deleteMemory,
+  consolidate,
+  extract,
+  recallDebug,
+  cancelPending,
+} from '../memory/engine.js';
+import { wipeScope, listTombstones } from '../memory/store.js';
 
 export interface ProjectRow {
   id: string;
@@ -120,6 +129,40 @@ projectsRouter.put('/:id/memory/kv', (req, res) => {
 projectsRouter.post('/:id/memory/consolidate', (req, res) => {
   consolidate(req.params.id)
     .then((text) => res.json({ ok: true, profile: text }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Run a conversation's extraction immediately (eval harness / debugging). */
+projectsRouter.post('/:id/memory/extract-now', (req, res) => {
+  const { convId } = req.body as { convId?: string };
+  if (!convId) {
+    res.status(400).json({ error: 'convId is required' });
+    return;
+  }
+  extract(convId, req.params.id)
+    .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Observability: the exact block a query would inject, with per-hit scores. */
+projectsRouter.get('/:id/memory/recall-preview', (req, res) => {
+  recallDebug(req.params.id, String(req.query.q ?? ''))
+    .then((debug) => res.json(debug))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Full JSON export of a scope, tombstone audit included. */
+projectsRouter.get('/:id/memory/export', (req, res) => {
+  Promise.all([memorySnapshot(req.params.id), listTombstones(req.params.id)])
+    .then(([snap, tombstones]) => res.json({ ...snap, tombstones }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Irreversible scope wipe (items + vector index + queued extractions). */
+projectsRouter.post('/:id/memory/wipe', (req, res) => {
+  cancelPending(req.params.id);
+  wipeScope(req.params.id)
+    .then((r) => res.json({ ok: true, ...r }))
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

@@ -213,28 +213,81 @@ export async function recallContext(projectId: string, query: string): Promise<s
   return parts.length ? `Known context (memory):\n${parts.join('\n\n')}` : '';
 }
 
-/* ---------- automatic capture ---------- */
+/* ---------- automatic capture (durable queue) ----------
+ * Pending extractions live in SQLite, not in-process timers — a server
+ * restart used to silently drop them (observed twice during Phase 2 testing;
+ * also v1's fire-and-forget lesson). A 15s sweeper runs due rows with
+ * bounded retries; boot recovery is free because the rows persist. */
 
-const timers = new Map<string, NodeJS.Timeout>();
 const IDLE_MS = 75_000;
+const SWEEP_MS = 15_000;
+const MAX_ATTEMPTS = 3;
+
+function pendingTable(): void {
+  getDb().exec(
+    'CREATE TABLE IF NOT EXISTS mem_pending (conv_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, due_at INTEGER NOT NULL, attempts INTEGER DEFAULT 0)',
+  );
+}
 
 /** Debounced: call after every completed exchange; extraction fires on idle. */
 export function scheduleExtraction(convId: string, projectId: string): void {
   if (!rememberEnabled(convId)) return;
-  const existing = timers.get(convId);
-  if (existing) clearTimeout(existing);
-  timers.set(
-    convId,
-    setTimeout(() => {
-      timers.delete(convId);
-      void extract(convId, projectId).catch((err: Error) =>
-        logTo('memory', `extraction failed for ${convId}: ${err.message}`),
-      );
-    }, IDLE_MS),
-  );
+  pendingTable();
+  getDb()
+    .prepare(
+      'INSERT INTO mem_pending (conv_id, project_id, due_at, attempts) VALUES (?,?,?,0) ON CONFLICT(conv_id) DO UPDATE SET due_at = excluded.due_at, project_id = excluded.project_id, attempts = 0',
+    )
+    .run(convId, projectId, Date.now() + IDLE_MS);
 }
 
-async function extract(convId: string, projectId: string): Promise<void> {
+let sweeping = false;
+
+async function sweepPending(): Promise<void> {
+  if (sweeping) return;
+  sweeping = true;
+  try {
+    pendingTable();
+    const db = getDb();
+    const due = db
+      .prepare('SELECT conv_id, project_id, attempts FROM mem_pending WHERE due_at <= ?')
+      .all(Date.now()) as Array<{ conv_id: string; project_id: string; attempts: number }>;
+    for (const row of due) {
+      try {
+        await extract(row.conv_id, row.project_id);
+        db.prepare('DELETE FROM mem_pending WHERE conv_id = ?').run(row.conv_id);
+      } catch (err) {
+        const attempts = row.attempts + 1;
+        if (attempts >= MAX_ATTEMPTS) {
+          db.prepare('DELETE FROM mem_pending WHERE conv_id = ?').run(row.conv_id);
+          logTo('memory', `extraction abandoned for ${row.conv_id} after ${attempts} attempts: ${err instanceof Error ? err.message : err}`);
+        } else {
+          db.prepare('UPDATE mem_pending SET attempts = ?, due_at = ? WHERE conv_id = ?').run(
+            attempts,
+            Date.now() + attempts * 60_000, // backoff
+            row.conv_id,
+          );
+          logTo('memory', `extraction retry ${attempts}/${MAX_ATTEMPTS} scheduled for ${row.conv_id}`);
+        }
+      }
+    }
+  } finally {
+    sweeping = false;
+  }
+}
+
+export function startExtractionQueue(): void {
+  pendingTable();
+  setInterval(() => void sweepPending(), SWEEP_MS);
+}
+
+/** Wiping a scope's memory also cancels its queued learning — otherwise a
+ * pending extraction resurrects facts minutes after the wipe. */
+export function cancelPending(projectId: string): void {
+  pendingTable();
+  getDb().prepare('DELETE FROM mem_pending WHERE project_id = ?').run(projectId);
+}
+
+export async function extract(convId: string, projectId: string): Promise<void> {
   if (!rememberEnabled(convId)) return;
   const db = getDb();
   const lastSeen = getSetting(`memext:${convId}`);
@@ -286,6 +339,33 @@ async function extract(convId: string, projectId: string): Promise<void> {
   }
   setSetting(`memext:${convId}`, rows[rows.length - 1]?.id ?? newest.id);
   if (wrote > 0) logTo('memory', `extracted ${wrote} memories from ${convId} → user + project ${projectId}`);
+}
+
+/* ---------- observability ---------- */
+
+export interface RecallDebug {
+  injected: string;
+  hits: Array<{ content: string; score: number; rank: number; scope: string; key: string }>;
+  entitiesMatched: string[];
+}
+
+/** What would this query recall, and why — the exact injected block plus every
+ * vector hit with its raw similarity and composite rank. */
+export async function recallDebug(projectId: string, query: string): Promise<RecallDebug> {
+  const injected = await recallContext(projectId, query);
+  const [userHits, projHits] = await Promise.all([
+    searchVectors('user', query, 5).catch(() => []),
+    searchVectors(projectId, query, 5).catch(() => []),
+  ]);
+  const hits = [
+    ...userHits.map((h) => ({ ...h, scope: 'user' })),
+    ...projHits.map((h) => ({ ...h, scope: projectId })),
+  ]
+    .map((h) => ({ content: h.content, score: h.score, rank: rank(h), scope: h.scope, key: h.key }))
+    .sort((a, b) => b.rank - a.rank);
+  const entities = await listEntities(projectId).catch(() => [] as string[]);
+  const q = query.toLowerCase();
+  return { injected, hits, entitiesMatched: entities.filter((e) => q.includes(e.toLowerCase())) };
 }
 
 /* ---------- consolidation (claude.ai-style refreshed profile) ---------- */
