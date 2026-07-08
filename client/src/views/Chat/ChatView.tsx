@@ -5,6 +5,11 @@ import {
   Lock,
   Loader2,
   Paperclip,
+  Plus,
+  Globe,
+  GitBranch,
+  Check,
+  ImageIcon,
   Sparkles,
   Mic,
   ArrowUp,
@@ -229,6 +234,7 @@ export function ChatView({
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
+  const [plusMenu, setPlusMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
   const [bedrockModal, setBedrockModal] = useState(false);
   const [thinking, setThinking] = useState(false); // extended thinking toggle
@@ -239,6 +245,13 @@ export function ChatView({
     enabled: convId !== null,
   });
   const remember = rememberState?.remember ?? true;
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
+  const webSearch = settings?.webSearchEnabled !== '0'; // on by default
+  const toggleWebSearch = () => {
+    void api.patchSettings({ webSearchEnabled: webSearch ? '0' : '1' }).then(() =>
+      queryClient.invalidateQueries({ queryKey: ['settings'] }),
+    );
+  };
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean }>
   >([]);
@@ -823,14 +836,60 @@ export function ChatView({
                 e.target.value = '';
               }}
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="p-1.5 rounded-lg"
-              style={{ color: C.mute }}
-              title="Attach images, office files, PDFs, markdown"
-            >
-              <Paperclip size={16} />
-            </button>
+            <span className="relative">
+              <button
+                onClick={() => setPlusMenu((v) => !v)}
+                className="p-1.5 rounded-lg"
+                style={{ color: plusMenu ? C.accent : C.mute, background: plusMenu ? C.accentDim : 'transparent' }}
+                title="Add files, connectors, and tools"
+              >
+                <Plus size={17} />
+              </button>
+              {plusMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setPlusMenu(false)} />
+                  <div
+                    className="absolute bottom-full mb-2 left-0 z-50 rounded-xl py-1.5 min-w-[240px]"
+                    style={{ background: C.raised, border: `1px solid ${C.border}`, boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}
+                  >
+                    <button
+                      onClick={() => { setPlusMenu(false); fileInputRef.current?.click(); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
+                      style={{ color: C.text, fontFamily: sans }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <ImageIcon size={15} style={{ color: C.mute }} /> Add files or photos
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPlusMenu(false);
+                        window.dispatchEvent(new CustomEvent('atlas-error', { detail: 'GitLab connector — coming soon.' }));
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
+                      style={{ color: C.text, fontFamily: sans }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <GitBranch size={15} style={{ color: C.mute }} /> Add from GitLab
+                      <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded" style={{ background: C.borderSoft, color: C.mute }}>Soon</span>
+                    </button>
+                    <div className="my-1 mx-2" style={{ borderTop: `1px solid ${C.borderSoft}` }} />
+                    <button
+                      onClick={() => { toggleWebSearch(); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
+                      style={{ color: C.text, fontFamily: sans }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      title="When on, Atlas searches the web whenever a question needs current information"
+                    >
+                      <Globe size={15} style={{ color: webSearch ? C.accent : C.mute }} /> Web search
+                      {webSearch ? <Check size={15} style={{ color: C.accent, marginLeft: 'auto' }} /> : <span className="ml-auto text-xs" style={{ color: C.mute }}>Off</span>}
+                    </button>
+                  </div>
+                </>
+              )}
+            </span>
             <button
               onClick={() => setThinking((t) => !t)}
               className="p-1.5 rounded-lg flex items-center gap-1"

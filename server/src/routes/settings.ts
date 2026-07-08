@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getSetting, setSetting } from '../db/db.js';
 
-const EXPOSED = ['activeProjectId', 'selectedModel', 'userName'] as const;
+const EXPOSED = ['activeProjectId', 'selectedModel', 'userName', 'webSearchEnabled'] as const;
 
 export const settingsRouter = Router();
 

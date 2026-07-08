@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import {
   newId,
   now,
+  getSetting,
   getConversation,
   getProject,
   touchConversation,
@@ -267,7 +268,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
       } catch (err) {
         logTo('mcp', `connector tools unavailable: ${err instanceof Error ? err.message : err}`);
       }
-      const tools: BedrockTool[] = [...(memEnabled ? MEMORY_TOOLS : []), ...WEB_TOOLS, ...connectorTools];
+      // web search is on by default; the user can toggle it off in the composer
+      const webEnabled = getSetting('webSearchEnabled') !== '0';
+      const tools: BedrockTool[] = [...(memEnabled ? MEMORY_TOOLS : []), ...(webEnabled ? WEB_TOOLS : []), ...connectorTools];
 
       const fullMessages = [{ role: 'system' as const, content: system }, ...(chatHistory as ChatMessage[])];
       const stream = bedrockStreamWithTools(
