@@ -38,6 +38,12 @@ function resolveRel(p: string): string {
 export function loadConfig(): AtlasConfig {
   const raw = readFileSync(path.join(repoRoot, 'atlas.config.json'), 'utf8');
   const cfg = JSON.parse(raw) as AtlasConfig;
+  // Lambda: /var/task is read-only — all scratch space lives in /tmp
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    cfg.dataDir = '/tmp/atlas';
+    cfg.models.dir = '/tmp/atlas/models';
+    return cfg;
+  }
   // portable folder: relative paths resolve against the folder; if the
   // configured macOS dataDir is absent, fall back to ./data (PRD Stage 5)
   cfg.dataDir = resolveRel(cfg.dataDir);
