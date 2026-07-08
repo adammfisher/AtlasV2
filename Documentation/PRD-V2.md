@@ -31,7 +31,7 @@ verified by Playwright-driven end-to-end tests (`PARITY_REPORT.md`).
 | FR-1.2 | Exactly two selectable chat models | **Claude Haiku 4.5** (`us.anthropic.claude-haiku-4-5-20251001-v1:0`, "Fast") and **Claude Sonnet** (see FR-1.3). The user's menu pick drives *everything* — router, chat, documents. No hidden model routing. | ✅ |
 | FR-1.3 | Self-healing Sonnet slot | `probeSonnet()` (boot/connect/refresh) issues a 1-token invoke of Sonnet 5. Refused → the slot binds to Sonnet 4.5 (`us.anthropic.claude-sonnet-4-5-20250929-v1:0`) with the honest label "Sonnet 5 pending AWS activation"; cleared → auto-upgrades. Setting key `sonnetResolved`. | ✅ (Sonnet 5 agreement ACTIVE, runtime still AWS-gated) |
 | FR-1.4 | Connection = verified round-trip | "Connect Bedrock" runs a real `ListFoundationModels`; failures surface the raw AWS error. Credentials: named AWS profile via `fromIni` (default `default`), region default `us-east-1`. Auto-connect at boot, non-fatal. | ✅ |
-| FR-1.5 | Structured outputs | Claude 4.5+ uses Converse `json_schema` response format. Sanitizer strips unsupported keys (`maxItems/minItems/maxLength/minLength/pattern/maximum/minimum`). Map-type schemas (`additionalProperties` as a schema — e.g. filename→content) route to forced tool-use, with deterministic healing when the model emits map entries missing the single required wrapper key. ajv re-validates everything downstream. | ✅ |
+| FR-1.5 | Structured outputs | Claude 4.5+ uses Converse `json_schema` response format. Sanitizer strips unsupported keys (`maxItems/minItems/maxLength/minLength/pattern/maximum/minimum`). Map-type schemas route to forced tool-use with deterministic wrapper-key healing. **3-tier fallback** (FR-1.9): json_schema → (grammar/complexity error, or schema >2.2KB) forced tool-use → (still too complex) plain free-form JSON. ajv re-validates + repairs downstream. Complex schemas (product) generate in ~8–15s instead of timing out. | ✅ |
 | FR-1.6 | Vision | Image attachments become Converse image blocks (`data:` URL → bytes; jpg→jpeg normalization). | ✅ |
 | FR-1.7 | Extended thinking | Opt-in per message (composer toggle). Converse `additionalModelRequestFields: {thinking: {type:'enabled', budget_tokens:4000}}`, temperature forced to 1, maxTokens ≥6000. Reasoning deltas stream as SSE `thinking` events; in tool loops thinking applies to the first pass only. | ✅ |
 | FR-1.8 | Streaming tool loop | `bedrockStreamWithTools`: ConverseStream; text deltas stream through; on `stopReason=tool_use` the requested tools execute, `toolResult` blocks append, loop continues (cap 3 iterations). | ✅ |
@@ -57,7 +57,7 @@ verified by Playwright-driven end-to-end tests (`PARITY_REPORT.md`).
 |---|---|---|---|
 | FR-3.1 | Memory tools | `remember {fact, scope:user\|project}` (stores a note in the chosen scope; model picks scope — verified choosing `user` for personal prefs) and `forget {query}` (deletes **all** ≥0.5-similarity matches across KV+notes — extractor siblings included). System prompt instructs tool use over mere acknowledgement. | ✅ |
 | FR-3.2 | Web tools | `web_search` (DuckDuckGo HTML endpoint, no API key; top-5 title/URL/snippet) and `web_fetch` (http(s) page → tag-stripped readable text, 8k cap, 12s timeout). Verified: model chains search→fetch and cites. | ✅ |
-| FR-3.3 | MCP connector tools | Every connector enabled for the project surfaces its tools (name mangled `connector__tool`, ≤64 chars) with the connector name in the description; execution via the MCP manager (`callTool`, 30s timeout). Verified live: `fs_list · Filesystem`. | ✅ |
+| FR-3.3 | MCP connector tools | Retired SQLite peers (atlas-memory, sqlite) are excluded from the tool loop so they can't shadow native memory. Every OTHER connector enabled for the project surfaces its tools (name mangled `connector__tool`, ≤64 chars) with the connector name in the description; execution via the MCP manager (`callTool`, 30s timeout). Verified live: `fs_list · Filesystem`. | ✅ |
 | FR-3.4 | Tool chips | Each execution emits an SSE `tool` event; the UI renders `tool · connector` chips on the live exchange and persists them with the message. | ✅ |
 
 ## 4. Memory (the differentiating subsystem — see MEMORY_DESIGN.md)
@@ -87,7 +87,8 @@ never block chat.
 |---|---|---|---|
 | FR-5.1 | Isolated workspaces | Conversations, artifacts, memory, knowledge, and plugin enablement scope to a project. Active project drives new chats. | ✅ |
 | FR-5.2 | Instructions | Per-project instructions inject into every chat and the document pipeline. | ✅ |
-| FR-5.3 | Creation UI | New-project modal (name + instructions); card grid shows chats/templates/plugins counts, Active badge, isolation badge. | ✅ |
+| FR-5.3 | Creation UI | New-project modal (name + instructions); card grid shows chats/templates/plugins counts, Active/isolation badges. | ✅ |
+| FR-5.3b | Delete project | `DELETE /projects/:id` cascades conversations+messages, memory (items+vectors+queue), and knowledge; refuses the last project. Card trash button with confirm. | ✅ |
 | FR-5.4 | **Knowledge files** | Documents uploaded to a project persist and inform every chat in it: file → local + S3 (`knowledge/<project>/<id>`) → markitdown/direct extraction → paragraph-aware ~1000-char chunks (≤200/file) → embedded into the project vector index as `KN#` items (no dedup probing; excluded from the notes list). Recall surfaces relevant passages automatically, labeled `[filename]`. Registry in SQLite (status indexing/ready/error, chunk count). Modal: upload, list with live status, download original, delete (removes chunks + vectors + S3 object). Verified: fresh chat answered two facts from an uploaded plan. | ✅ |
 | FR-5.5 | Knowledge citations | Recall separates knowledge passages from memories and instructs citing sources inline as `[source: filename]`; the client renders citations as accent badges (BookOpen chip, hover shows provenance) in live and persisted messages. Verified on a document-only fact. Note: facts already absorbed into project memory answer from memory without a citation — expected precedence. | ✅ |
 
@@ -97,7 +98,8 @@ never block chat.
 |---|---|---|---|
 | FR-6.1 | Nine generation skills | `pptx` (python-pptx + 16-style DFS slide system), `docx`, `xlsx`, `pdf` (weasyprint), `md`, `mermaid`, `svg`, `react`, `site` — each a skill playbook (schema + guidance) driving constrained JSON on the selected Claude model. | ✅ all verified live |
 | FR-6.2 | Validation chain | ajv schema validation → one repair retry with the error → per-format checks (OOXML zip sanity, round-trip, placeholder grep, mermaid syntax, SVG parse, file-map validation). Honest failure surfaces when validation can't be met. | ✅ |
-| FR-6.3 | Office build helpers | Bundled Python venv (`runtimes/python/venv`, python-pptx/docx/openpyxl/weasyprint/markitdown pinned); LibreOffice (`soffice`) renders deck thumbnails. | ✅ |
+| FR-6.3 | Office build helpers | Local: bundled Python venv. **Cloud: separate `atlasv2-office` Python zip Lambda** (arm64, pure/manylinux wheels) invoked by the app Lambda — scale-to-zero, no containers. PDF uses pure-python xhtml2pdf in cloud (weasyprint locally). | ✅ live in cloud |
+| FR-6.2b | Non-blocking validation | soffice thumbnail/convert + openxml-audit checks degrade to amber skips when the tool/lib is absent or broken — only genuine structural failures (round-trip, zip sanity) block. Documents never fail on a missing LibreOffice. | ✅ |
 | FR-6.4 | Versioning | Every generation/edit creates a numbered version; `edit_doc` intent targets the conversation's latest artifact; versions restorable; per-version download (single file, or zip for multi-file kinds). | ✅ |
 | FR-6.5 | Inline previews | mermaid/svg/react/site/md render inline in the thread and in the artifact panel; office kinds show meta + download. | ✅ |
 | FR-6.6 | **Share links** | Artifact version → S3 `shares/` + presigned GET URL (7 days); Share button copies the link. Anyone with the link can download. | ✅ |
@@ -190,4 +192,4 @@ on everything; no idle cost anywhere.
 See `PARITY_REPORT.md` for the full sweep. Highlights: memory eval 14/14 twice; all nine
 artifact skills live; stop/partial/recover verified; knowledge QA verified; S3
 upload/download round-trip verified; web search→fetch chain verified; thinking stream
-(145 deltas) verified; share link presigned+expiring verified; MCP `fs_list` verified.
+(145 deltas) verified; share link presigned+expiring verified; MCP `fs_list` verified. Overnight scenario harness (`scripts/test/scenarios*.ts`): 57/58 real-user checks — projects/isolation, knowledge, memory lifecycle, all 9 skills, product, versioning, contradiction/tombstone, 30-turn context, uploads, ergonomics, adversarial edge cases. See OVERNIGHT_REPORT.md.
