@@ -8,7 +8,7 @@
  * over ~6 turns), persisted in settings `convsum:<conv>` with a coverage
  * watermark so nothing is ever summarized twice or silently dropped.
  */
-import { getDb, getSetting, setSetting } from '../db/db.js';
+import { getSetting, setSetting, listMessages } from '../db/appdb.js';
 import { completeText } from '../llama/json.js';
 import { logTo } from '../log.js';
 
@@ -79,11 +79,7 @@ async function compact(convId: string, prior: SummaryState | null, uncovered: Ro
 export async function buildContext(
   convId: string,
 ): Promise<{ history: HistoryMessage[]; summary: string | null }> {
-  const rows = getDb()
-    .prepare(
-      "SELECT role, payload, created_at FROM messages WHERE conversation_id = ? AND kind = 'text' ORDER BY created_at ASC",
-    )
-    .all(convId) as Row[];
+  const rows = (await listMessages(convId)).filter((m) => m.kind === 'text') as Row[];
 
   const recent = rows.slice(-RECENT_COUNT);
   const older = rows.slice(0, -RECENT_COUNT);

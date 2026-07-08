@@ -321,14 +321,14 @@ export async function runCreateDoc(opts: {
     const p = payload as Record<string, unknown>;
     if (skill.id === 'product') {
       name = `${slug(String(p.name ?? 'product'))}.product.json`;
-      ({ id: artifactId } = createArtifact(opts.projectId, name, 'product'));
+      ({ id: artifactId } = await createArtifact(opts.projectId, name, 'product'));
       const dir = versionDir(opts.projectId, artifactId, 1);
       const file = path.join(dir, 'definition.json');
       writeFileSync(file, JSON.stringify(payload, null, 2));
       const checks = await productChecks(payload, 'proposed', ctx.projectId);
       for (const step of checks) pushStep(ctx, step);
       meta = `product master · ${Object.keys(p).length} fields`;
-      const ver = addVersion(artifactId, { payload, meta, validation: checks, filePath: file });
+      const ver = await addVersion(artifactId, { payload, meta, validation: checks, filePath: file });
       digest = `product definition "${String(p.name)}" (${meta})`;
       const summaryText = await summarize(ctx, digest);
       const artifact = { artifactId, name, kind: 'product', meta, ver };
@@ -340,7 +340,7 @@ export async function runCreateDoc(opts: {
     if (skill.id === 'react' || skill.id === 'site') {
       const files = (p.files ?? {}) as Record<string, string>;
       name = skill.id === 'react' ? 'component' : 'preview-site';
-      ({ id: artifactId } = createArtifact(opts.projectId, name, skill.id));
+      ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
       const dir = versionDir(opts.projectId, artifactId, 1);
       writeVersionFiles(dir, files);
       const entry = skill.id === 'react' ? String(p.entry ?? '/App.jsx') : '/index.html';
@@ -348,7 +348,7 @@ export async function runCreateDoc(opts: {
       pushStep(ctx, { state: 'ok', label: 'Files persisted', detail: `${Object.keys(files).length} files · entry ${entry}` });
       pushStep(ctx, { state: 'ok', label: 'Sandbox', detail: 'bundles client-side · CSP locked · offline' });
       meta = `${Object.keys(files).length} files · bundled offline`;
-      const ver = addVersion(artifactId, { payload, meta, validation: ctx.steps.slice(-2), filePath: dir });
+      const ver = await addVersion(artifactId, { payload, meta, validation: ctx.steps.slice(-2), filePath: dir });
       digest = `${skill.id} project with ${Object.keys(files).length} files`;
       const summaryText = await summarize(ctx, digest);
       const artifact = { artifactId, name, kind: skill.id, meta, ver };
@@ -364,7 +364,7 @@ export async function runCreateDoc(opts: {
         `${skill.id}-document`,
     );
     name = `${slug(title)}.${skill.id}`;
-    ({ id: artifactId } = createArtifact(opts.projectId, name, skill.id));
+    ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
     const dir = versionDir(opts.projectId, artifactId, 1);
     const outFile = path.join(dir, name);
     pushStep(ctx, { state: 'pending', label: `build_${skill.id}.py`, detail: 'compiling' });
@@ -385,7 +385,7 @@ export async function runCreateDoc(opts: {
       state: c.ok ? 'ok' : 'warn',
       label: c.label,
     }));
-    const ver = addVersion(artifactId, { payload, meta, validation: checkSteps, filePath: outFile });
+    const ver = await addVersion(artifactId, { payload, meta, validation: checkSteps, filePath: outFile });
     digest = `${name} (${metaParts})`;
     const summaryText = await summarize(ctx, digest);
     const artifact = { artifactId, name, kind: skill.id, meta, ver };
@@ -443,7 +443,7 @@ export async function runCreateDoc(opts: {
       : skill.id === 'mermaid'
         ? 'diagram.mmd'
         : 'graphic.svg';
-  ({ id: artifactId } = createArtifact(opts.projectId, name, skill.id));
+  ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
   const dir = versionDir(opts.projectId, artifactId, 1);
   const outFile = path.join(dir, name);
   writeFileSync(outFile, emitted);
@@ -455,7 +455,7 @@ export async function runCreateDoc(opts: {
       : skill.id === 'mermaid'
         ? `${firstLine.split(/\s/)[0]}`
         : 'validated SVG';
-  const ver = addVersion(artifactId, {
+  const ver = await addVersion(artifactId, {
     payload: { source: emitted },
     meta,
     validation: [{ state: 'ok', label: checkLabel }],
@@ -489,7 +489,7 @@ export async function runEditDoc(opts: {
     detail: `intent: edit_doc · skill: ${skill.id} · ${opts.routerMs} ms`,
   });
 
-  const current = latestPayload(opts.artifactId);
+  const current = await latestPayload(opts.artifactId);
   if (!current) throw new PipelineError('no editable payload found for this artifact');
 
   if (skill.id === 'product') {
@@ -506,7 +506,7 @@ export async function runEditDoc(opts: {
     const checks = await productChecks(merged, 'proposed', ctx.projectId);
     for (const step of checks) pushStep(ctx, step);
     const meta = `product master · ${Object.keys(merged).length} fields`;
-    const ver = addVersion(opts.artifactId, { payload: merged, meta, validation: checks, filePath: file });
+    const ver = await addVersion(opts.artifactId, { payload: merged, meta, validation: checks, filePath: file });
     const summaryText = await summarize(ctx, `field-scoped edit of ${opts.artifactName}: ${fields.join(', ')}`);
     const artifact = { artifactId: opts.artifactId, name: opts.artifactName, kind: 'product', meta, ver };
     ctx.send('artifact', artifact);
@@ -574,7 +574,7 @@ export async function runEditDoc(opts: {
         : skill.id === 'mermaid'
           ? `${emitted.split('\n')[0]?.split(/\s/)[0] ?? 'diagram'}`
           : 'validated SVG';
-    const ver = addVersion(opts.artifactId, {
+    const ver = await addVersion(opts.artifactId, {
       payload: { source: emitted },
       meta,
       validation: [{ state: 'ok', label: checkLabel }],
@@ -673,7 +673,7 @@ DESIGN GUIDANCE: ${skill.guidance}`;
     if (!files[entry]) throw new PipelineError(`entry file ${entry} missing from emitted files`);
     pushStep(ctx, { state: 'ok', label: 'Files persisted', detail: `${Object.keys(files).length} files · entry ${entry}` });
     const meta = `${Object.keys(files).length} files · bundled offline`;
-    const ver = addVersion(opts.artifactId, {
+    const ver = await addVersion(opts.artifactId, {
       payload: edited,
       meta,
       validation: [{ state: 'ok', label: 'Files persisted' }],
@@ -699,7 +699,7 @@ DESIGN GUIDANCE: ${skill.guidance}`;
     .map(([k, v]) => `${v} ${k}`)
     .join(' · ');
   const checkSteps: CheckStep[] = helper.checks.map((c) => ({ state: c.ok ? 'ok' : 'warn', label: c.label }));
-  const ver = addVersion(opts.artifactId, { payload: edited, meta: metaParts, validation: checkSteps, filePath: outFile });
+  const ver = await addVersion(opts.artifactId, { payload: edited, meta: metaParts, validation: checkSteps, filePath: outFile });
   const summaryText = await summarize(ctx, `targeted edit of ${opts.artifactName} — ${changed.length} ${unit} changed`);
   const artifact = { artifactId: opts.artifactId, name: opts.artifactName, kind: skill.id, meta: metaParts, ver };
   ctx.send('artifact', artifact);

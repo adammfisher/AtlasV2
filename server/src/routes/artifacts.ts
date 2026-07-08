@@ -8,7 +8,17 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { fromIni } from '@aws-sdk/credential-providers';
 import { bedrockSettings } from '../providers/bedrock.js';
-import { getDb } from '../db/db.js';
+import {
+  listProjects,
+  getProject,
+  listArtifacts,
+  getArtifactRow,
+  setArtifactCurrentVersion,
+  listVersions,
+  getVersion,
+  listProductStates,
+  getProjection,
+} from '../db/appdb.js';
 import { scopedArtifacts } from '../db/scoped.js';
 import {
   currentState,
@@ -41,22 +51,8 @@ interface ArtifactRow {
   project_name: string;
 }
 
-interface VersionRow {
-  id: string;
-  version: number;
-  file_path: string | null;
-  meta: string | null;
-  validation: string | null;
-  created_at: number;
-}
-
-const SELECT = `SELECT a.id, a.project_id, a.name, a.kind, a.current_version, a.created_at, p.name AS project_name
-   FROM artifacts a JOIN projects p ON p.id = a.project_id`;
-
-function summarize(a: ArtifactRow) {
-  const latest = getDb()
-    .prepare('SELECT meta FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(a.id, a.current_version) as { meta: string | null } | undefined;
+async function summarize(a: ArtifactRow) {
+  const latest = await getVersion(a.id, a.current_version);
   return {
     id: a.id,
     projectId: a.project_id,
@@ -65,189 +61,187 @@ function summarize(a: ArtifactRow) {
     kind: a.kind,
     ver: a.current_version,
     meta: latest?.meta ?? '',
-    state: a.kind === 'product' ? currentState(a.id) : null,
+    state: a.kind === 'product' ? await currentState(a.id) : null,
     created_at: a.created_at,
   };
 }
 
-function getArtifact(id: string): ArtifactRow | undefined {
-  return getDb().prepare(`${SELECT} WHERE a.id = ?`).get(id) as ArtifactRow | undefined;
+async function getArtifact(id: string): Promise<ArtifactRow | undefined> {
+  const row = await getArtifactRow(id);
+  if (!row) return undefined;
+  const project = await getProject(row.project_id);
+  return { ...row, project_name: project?.name ?? '' };
 }
 
 export const artifactsRouter = Router();
 
 artifactsRouter.get('/', (req, res) => {
-  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : null;
-  if (projectId) {
-    const names = new Map(
-      (getDb().prepare('SELECT id, name FROM projects').all() as Array<{ id: string; name: string }>).map(
-        (p) => [p.id, p.name],
-      ),
-    );
+  void (async () => {
+    const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : null;
+    const names = new Map((await listProjects()).map((p) => [p.id, p.name]));
+    const rows = projectId ? await scopedArtifacts(projectId) : await listArtifacts(); // created_at DESC
     res.json(
-      scopedArtifacts(projectId).map((a) =>
-        summarize({ ...a, project_name: names.get(a.project_id) ?? '' }),
+      await Promise.all(
+        rows.map((a) => summarize({ ...a, project_name: names.get(a.project_id) ?? '' })),
       ),
     );
-    return;
-  }
-  const rows = getDb().prepare(`${SELECT} ORDER BY a.created_at DESC`).all() as ArtifactRow[];
-  res.json(rows.map(summarize));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 artifactsRouter.get('/:id', (req, res) => {
-  const row = getArtifact(req.params.id);
-  if (!row) {
-    res.status(404).json({ error: 'artifact not found' });
-    return;
-  }
-  const versions = (
-    getDb()
-      .prepare(
-        'SELECT id, version, file_path, meta, validation, created_at FROM artifact_versions WHERE artifact_id = ? ORDER BY version DESC',
-      )
-      .all(row.id) as VersionRow[]
-  ).map((v) => ({
-    version: v.version,
-    meta: v.meta,
-    validation: v.validation ? (JSON.parse(v.validation) as unknown[]) : [],
-    hasFile: Boolean(v.file_path && existsSync(v.file_path)),
-    created_at: v.created_at,
-  }));
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'artifact not found' });
+      return;
+    }
+    const versions = (await listVersions(row.id))
+      .slice()
+      .sort((a, b) => b.version - a.version)
+      .map((v) => ({
+        version: v.version,
+        meta: v.meta,
+        validation: v.validation ? (JSON.parse(v.validation) as unknown[]) : [],
+        hasFile: Boolean(v.file_path && existsSync(v.file_path)),
+        created_at: v.created_at,
+      }));
 
-  const base = { ...summarize(row), versions };
-  if (row.kind !== 'product') {
-    res.json(base);
-    return;
-  }
+    const base = { ...(await summarize(row)), versions };
+    if (row.kind !== 'product') {
+      res.json(base);
+      return;
+    }
 
-  const timeline = getDb()
-    .prepare('SELECT state, note, stamped_by, at_version, created_at FROM product_states WHERE artifact_id = ? ORDER BY created_at')
-    .all(row.id);
-  const payload = latestPayload(row.id);
-  const state = currentState(row.id);
-  const target = nextState(state);
-  const unmet =
-    target && payload
-      ? transitionRules(payload.payload as Record<string, unknown>, hasBundleRow(row.id))[target]
-      : [];
-  res.json({
-    ...base,
-    state,
-    timeline,
-    promote: target ? { to: target, unmet } : null,
-    projections: listProjections(row.id, row.current_version),
-    payload: payload?.payload ?? null,
-  });
+    const timeline = (await listProductStates(row.id)).map((s) => ({
+      state: s.state,
+      note: s.note,
+      stamped_by: s.stamped_by,
+      at_version: s.at_version,
+      created_at: s.created_at,
+    }));
+    const payload = await latestPayload(row.id);
+    const state = await currentState(row.id);
+    const target = nextState(state);
+    const unmet =
+      target && payload
+        ? transitionRules(payload.payload as Record<string, unknown>, await hasBundleRow(row.id))[target]
+        : [];
+    res.json({
+      ...base,
+      state,
+      timeline,
+      promote: target ? { to: target, unmet } : null,
+      projections: await listProjections(row.id, row.current_version),
+      payload: payload?.payload ?? null,
+    });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
-artifactsRouter.get('/:id/versions/:v/download', async (req, res) => {
-  const row = getArtifact(req.params.id);
-  const version = getDb()
-    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
-  if (!row || !version?.file_path || !existsSync(version.file_path)) {
-    res.status(404).json({ error: 'no file for this version' });
-    return;
-  }
-  const target = version.file_path;
-  if (statSync(target).isDirectory()) {
-    // multi-file kinds stream as zip (PRD §7)
-    const zipPath = path.join(os.tmpdir(), `atlas-dl-${row.id}-v${req.params.v}.zip`);
-    await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
-    res.download(zipPath, `${row.name}-v${req.params.v}.zip`);
-    return;
-  }
-  // express maps .mmd to a karaoke MIME type; pin sane types for our text kinds
-  const TEXT_TYPES: Record<string, string> = {
-    '.mmd': 'text/plain; charset=utf-8',
-    '.md': 'text/markdown; charset=utf-8',
-    '.svg': 'image/svg+xml',
-    '.json': 'application/json',
-  };
-  const ext = path.extname(target).toLowerCase();
-  if (TEXT_TYPES[ext]) res.type(TEXT_TYPES[ext]);
-  res.download(target, path.basename(target));
+artifactsRouter.get('/:id/versions/:v/download', (req, res) => {
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    const version = await getVersion(req.params.id, Number(req.params.v));
+    if (!row || !version?.file_path || !existsSync(version.file_path)) {
+      res.status(404).json({ error: 'no file for this version' });
+      return;
+    }
+    const target = version.file_path;
+    if (statSync(target).isDirectory()) {
+      // multi-file kinds stream as zip (PRD §7)
+      const zipPath = path.join(os.tmpdir(), `atlas-dl-${row.id}-v${req.params.v}.zip`);
+      await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
+      res.download(zipPath, `${row.name}-v${req.params.v}.zip`);
+      return;
+    }
+    // express maps .mmd to a karaoke MIME type; pin sane types for our text kinds
+    const TEXT_TYPES: Record<string, string> = {
+      '.mmd': 'text/plain; charset=utf-8',
+      '.md': 'text/markdown; charset=utf-8',
+      '.svg': 'image/svg+xml',
+      '.json': 'application/json',
+    };
+    const ext = path.extname(target).toLowerCase();
+    if (TEXT_TYPES[ext]) res.type(TEXT_TYPES[ext]);
+    res.download(target, path.basename(target));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /** Share (claude.ai publish parity): upload the version file to S3 and return
  * a 7-day presigned link anyone can download. Multi-file kinds share as zip. */
-artifactsRouter.post('/:id/versions/:v/share', async (req, res) => {
-  const row = getArtifact(req.params.id);
-  const version = getDb()
-    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
-  if (!row || !version?.file_path || !existsSync(version.file_path)) {
-    res.status(404).json({ error: 'no file for this version' });
-    return;
-  }
-  try {
-    let target = version.file_path;
-    let filename = path.basename(target);
-    if (statSync(target).isDirectory()) {
-      const zipPath = path.join(os.tmpdir(), `atlas-share-${row.id}-v${req.params.v}.zip`);
-      await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
-      target = zipPath;
-      filename = `${row.name}-v${req.params.v}.zip`;
+artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    const version = await getVersion(req.params.id, Number(req.params.v));
+    if (!row || !version?.file_path || !existsSync(version.file_path)) {
+      res.status(404).json({ error: 'no file for this version' });
+      return;
     }
-    const s = bedrockSettings();
-    const s3 = new S3Client({ region: s.region || 'us-east-1', credentials: fromIni({ profile: s.profile || 'default' }) });
-    const bucket = 'atlasv2-uploads-683032473658';
-    const key = `shares/${row.id}-v${req.params.v}/${filename}`;
-    await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: readFileSync(target) }));
-    const url = await getSignedUrl(
-      s3,
-      new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: `attachment; filename="${filename}"` }),
-      { expiresIn: 7 * 86_400 },
-    );
-    logTo('app', `artifact shared: ${row.id} v${req.params.v} → s3 presigned (7d)`);
-    res.json({ url, expiresDays: 7 });
-  } catch (err) {
-    res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
-  }
+    try {
+      let target = version.file_path;
+      let filename = path.basename(target);
+      if (statSync(target).isDirectory()) {
+        const zipPath = path.join(os.tmpdir(), `atlas-share-${row.id}-v${req.params.v}.zip`);
+        await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
+        target = zipPath;
+        filename = `${row.name}-v${req.params.v}.zip`;
+      }
+      const s = bedrockSettings();
+      const s3 = new S3Client({ region: s.region || 'us-east-1', credentials: fromIni({ profile: s.profile || 'default' }) });
+      const bucket = 'atlasv2-uploads-683032473658';
+      const key = `shares/${row.id}-v${req.params.v}/${filename}`;
+      await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: readFileSync(target) }));
+      const url = await getSignedUrl(
+        s3,
+        new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: `attachment; filename="${filename}"` }),
+        { expiresIn: 7 * 86_400 },
+      );
+      logTo('app', `artifact shared: ${row.id} v${req.params.v} → s3 presigned (7d)`);
+      res.json({ url, expiresDays: 7 });
+    } catch (err) {
+      res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 artifactsRouter.post('/:id/restore', (req, res) => {
-  const { version } = req.body as { version?: number };
-  const row = getArtifact(req.params.id);
-  if (!row) {
-    res.status(404).json({ error: 'artifact not found' });
-    return;
-  }
-  const exists = getDb()
-    .prepare('SELECT version FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(row.id, version) as { version: number } | undefined;
-  if (!exists) {
-    res.status(400).json({ error: `version ${version} does not exist` });
-    return;
-  }
-  getDb().prepare('UPDATE artifacts SET current_version = ? WHERE id = ?').run(exists.version, row.id);
-  logTo('app', `artifact ${row.id} restored to v${exists.version}`);
-  res.json({ ok: true, ver: exists.version });
+  void (async () => {
+    const { version } = req.body as { version?: number };
+    const row = await getArtifact(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'artifact not found' });
+      return;
+    }
+    const exists = typeof version === 'number' ? await getVersion(row.id, version) : undefined;
+    if (!exists) {
+      res.status(400).json({ error: `version ${version} does not exist` });
+      return;
+    }
+    await setArtifactCurrentVersion(row.id, exists.version);
+    logTo('app', `artifact ${row.id} restored to v${exists.version}`);
+    res.json({ ok: true, ver: exists.version });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /** raw file content for previews (md/mermaid/svg single files; react/site file map) */
 artifactsRouter.get('/:id/versions/:v/content', (req, res) => {
-  const row = getArtifact(req.params.id);
-  const version = getDb()
-    .prepare('SELECT file_path, payload FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(req.params.id, Number(req.params.v)) as
-    | { file_path: string | null; payload: string | null }
-    | undefined;
-  if (!row || !version) {
-    res.status(404).json({ error: 'version not found' });
-    return;
-  }
-  if (row.kind === 'react' || row.kind === 'site') {
-    const payload = version.payload ? (JSON.parse(version.payload) as Record<string, unknown>) : {};
-    res.json({ kind: row.kind, files: payload.files ?? {}, entry: payload.entry ?? '/index.html' });
-    return;
-  }
-  if (version.file_path && existsSync(version.file_path) && !statSync(version.file_path).isDirectory()) {
-    res.json({ kind: row.kind, source: readFileSync(version.file_path, 'utf8') });
-    return;
-  }
-  res.status(404).json({ error: 'no previewable content' });
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    const version = await getVersion(req.params.id, Number(req.params.v));
+    if (!row || !version) {
+      res.status(404).json({ error: 'version not found' });
+      return;
+    }
+    if (row.kind === 'react' || row.kind === 'site') {
+      const payload = version.payload ? (JSON.parse(version.payload) as Record<string, unknown>) : {};
+      res.json({ kind: row.kind, files: payload.files ?? {}, entry: payload.entry ?? '/index.html' });
+      return;
+    }
+    if (version.file_path && existsSync(version.file_path) && !statSync(version.file_path).isDirectory()) {
+      res.json({ kind: row.kind, source: readFileSync(version.file_path, 'utf8') });
+      return;
+    }
+    res.status(404).json({ error: 'no previewable content' });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /**
@@ -255,218 +249,222 @@ artifactsRouter.get('/:id/versions/:v/content', (req, res) => {
  * (cached per version) and stream the PDF inline. 404s when soffice is absent —
  * the client falls back to the markitdown text preview (PRD §7 degradation).
  */
-artifactsRouter.get('/:id/versions/:v/render.pdf', async (req, res) => {
-  const row = getArtifact(req.params.id);
-  const version = getDb()
-    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
-  if (!row || !version?.file_path || !existsSync(version.file_path) || statSync(version.file_path).isDirectory()) {
-    res.status(404).json({ error: 'no renderable file for this version' });
-    return;
-  }
-  const file = version.file_path;
-  // filename on the inline disposition: saves from the embedded PDF viewer
-  // otherwise land as UUID-named files with no extension
-  const pdfName = `${path.basename(file, path.extname(file))}.pdf`;
-  const inline = (pdf: string) => {
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${pdfName.replace(/"/g, '')}"`);
-    res.sendFile(pdf);
-  };
-  if (row.kind === 'pdf') {
-    inline(file);
-    return;
-  }
-  if (!['pptx', 'docx', 'xlsx'].includes(row.kind)) {
-    res.status(400).json({ error: `no PDF rendering for kind ${row.kind}` });
-    return;
-  }
-  const cached = path.join(path.dirname(file), `${path.basename(file)}.preview.pdf`);
-  if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(file).mtimeMs) {
-    inline(cached);
-    return;
-  }
-  const soffice = ['/opt/homebrew/bin/soffice', '/Applications/LibreOffice.app/Contents/MacOS/soffice'].find((p) =>
-    existsSync(p),
-  );
-  if (!soffice) {
-    res.status(404).json({ error: 'soffice not present — falling back to text preview' });
-    return;
-  }
-  try {
-    const outDir = path.dirname(file);
-    await execFileAsync(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', outDir, file], {
-      timeout: 120_000,
-    });
-    const produced = path.join(outDir, `${path.basename(file, path.extname(file))}.pdf`);
-    if (!existsSync(produced)) throw new Error('soffice produced no PDF');
-    const { renameSync } = await import('node:fs');
-    renameSync(produced, cached);
-    inline(cached);
-  } catch (err) {
-    res.status(500).json({ error: `render failed: ${err instanceof Error ? err.message : err}` });
-  }
+artifactsRouter.get('/:id/versions/:v/render.pdf', (req, res) => {
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    const version = await getVersion(req.params.id, Number(req.params.v));
+    if (!row || !version?.file_path || !existsSync(version.file_path) || statSync(version.file_path).isDirectory()) {
+      res.status(404).json({ error: 'no renderable file for this version' });
+      return;
+    }
+    const file = version.file_path;
+    // filename on the inline disposition: saves from the embedded PDF viewer
+    // otherwise land as UUID-named files with no extension
+    const pdfName = `${path.basename(file, path.extname(file))}.pdf`;
+    const inline = (pdf: string) => {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${pdfName.replace(/"/g, '')}"`);
+      res.sendFile(pdf);
+    };
+    if (row.kind === 'pdf') {
+      inline(file);
+      return;
+    }
+    if (!['pptx', 'docx', 'xlsx'].includes(row.kind)) {
+      res.status(400).json({ error: `no PDF rendering for kind ${row.kind}` });
+      return;
+    }
+    const cached = path.join(path.dirname(file), `${path.basename(file)}.preview.pdf`);
+    if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(file).mtimeMs) {
+      inline(cached);
+      return;
+    }
+    const soffice = ['/opt/homebrew/bin/soffice', '/Applications/LibreOffice.app/Contents/MacOS/soffice'].find((p) =>
+      existsSync(p),
+    );
+    if (!soffice) {
+      res.status(404).json({ error: 'soffice not present — falling back to text preview' });
+      return;
+    }
+    try {
+      const outDir = path.dirname(file);
+      await execFileAsync(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', outDir, file], {
+        timeout: 120_000,
+      });
+      const produced = path.join(outDir, `${path.basename(file, path.extname(file))}.pdf`);
+      if (!existsSync(produced)) throw new Error('soffice produced no PDF');
+      const { renameSync } = await import('node:fs');
+      renameSync(produced, cached);
+      inline(cached);
+    } catch (err) {
+      res.status(500).json({ error: `render failed: ${err instanceof Error ? err.message : err}` });
+    }
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /** extraction-based text preview for office kinds (markitdown, labeled "text preview" — PRD §7) */
-artifactsRouter.get('/:id/versions/:v/preview', async (req, res) => {
-  const row = getArtifact(req.params.id);
-  const version = getDb()
-    .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(req.params.id, Number(req.params.v)) as { file_path: string | null } | undefined;
-  if (!row || !version?.file_path || !existsSync(version.file_path)) {
-    res.status(404).json({ error: 'no file for this version' });
-    return;
-  }
-  if (statSync(version.file_path).isDirectory()) {
-    res.status(400).json({ error: 'directory artifacts preview in the sandbox' });
-    return;
-  }
-  try {
-    const { repoRoot } = await import('../config.js');
-    const { stdout } = await execFileAsync(
-      path.join(repoRoot, 'runtimes/python/venv/bin/python'),
-      ['-m', 'markitdown', version.file_path],
-      { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
-    );
-    res.json({ kind: row.kind, label: 'text preview', text: stdout.slice(0, 20_000) });
-  } catch (err) {
-    res.status(500).json({ error: `markitdown extraction failed: ${err instanceof Error ? err.message : err}` });
-  }
+artifactsRouter.get('/:id/versions/:v/preview', (req, res) => {
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    const version = await getVersion(req.params.id, Number(req.params.v));
+    if (!row || !version?.file_path || !existsSync(version.file_path)) {
+      res.status(404).json({ error: 'no file for this version' });
+      return;
+    }
+    if (statSync(version.file_path).isDirectory()) {
+      res.status(400).json({ error: 'directory artifacts preview in the sandbox' });
+      return;
+    }
+    try {
+      const { repoRoot } = await import('../config.js');
+      const { stdout } = await execFileAsync(
+        path.join(repoRoot, 'runtimes/python/venv/bin/python'),
+        ['-m', 'markitdown', version.file_path],
+        { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+      );
+      res.json({ kind: row.kind, label: 'text preview', text: stdout.slice(0, 20_000) });
+    } catch (err) {
+      res.status(500).json({ error: `markitdown extraction failed: ${err instanceof Error ? err.message : err}` });
+    }
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /* ---------- Amendment 1: state machine + projections + bundle ---------- */
 
 artifactsRouter.post('/:id/state', (req, res) => {
-  const { to, note } = req.body as { to?: string; note?: string };
-  const row = getArtifact(req.params.id);
-  if (!row || row.kind !== 'product') {
-    res.status(404).json({ error: 'product artifact not found' });
-    return;
-  }
-  const state = currentState(row.id);
-  const target = nextState(state);
-  if (!to || to !== target) {
-    res.status(400).json({ error: `only forward transition to '${target ?? 'none'}' is allowed from '${state}'` });
-    return;
-  }
-  if (to === 'operating' && !note?.trim()) {
-    res.status(400).json({ error: 'operating requires a note (manual stamp)' });
-    return;
-  }
-  const payload = latestPayload(row.id);
-  const unmet = payload
-    ? transitionRules(payload.payload as Record<string, unknown>, hasBundleRow(row.id))[to as ProductState]
-    : ['no payload'];
-  if (unmet.length > 0) {
-    res.status(400).json({ error: `unmet requirements: ${unmet.join(' · ')}` });
-    return;
-  }
-  // outstanding ambers carried into the stamp note verbatim (A5)
-  const latestValidation = getDb()
-    .prepare('SELECT validation FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(row.id, row.current_version) as { validation: string | null } | undefined;
-  const ambers = latestValidation?.validation
-    ? (JSON.parse(latestValidation.validation) as Array<{ state: string; label: string }>)
-        .filter((c) => c.state === 'warn')
-        .map((c) => c.label)
-    : [];
-  stampState(row.id, to as ProductState, note ?? '', row.current_version, ambers);
-  logTo('app', `product ${row.id} promoted to ${to} at v${row.current_version}`);
-  res.json({ ok: true, state: to, ambers });
+  void (async () => {
+    const { to, note } = req.body as { to?: string; note?: string };
+    const row = await getArtifact(req.params.id);
+    if (!row || row.kind !== 'product') {
+      res.status(404).json({ error: 'product artifact not found' });
+      return;
+    }
+    const state = await currentState(row.id);
+    const target = nextState(state);
+    if (!to || to !== target) {
+      res.status(400).json({ error: `only forward transition to '${target ?? 'none'}' is allowed from '${state}'` });
+      return;
+    }
+    if (to === 'operating' && !note?.trim()) {
+      res.status(400).json({ error: 'operating requires a note (manual stamp)' });
+      return;
+    }
+    const payload = await latestPayload(row.id);
+    const unmet = payload
+      ? transitionRules(payload.payload as Record<string, unknown>, await hasBundleRow(row.id))[to as ProductState]
+      : ['no payload'];
+    if (unmet.length > 0) {
+      res.status(400).json({ error: `unmet requirements: ${unmet.join(' · ')}` });
+      return;
+    }
+    // outstanding ambers carried into the stamp note verbatim (A5)
+    const latestValidation = await getVersion(row.id, row.current_version);
+    const ambers = latestValidation?.validation
+      ? (JSON.parse(latestValidation.validation) as Array<{ state: string; label: string }>)
+          .filter((c) => c.state === 'warn')
+          .map((c) => c.label)
+      : [];
+    await stampState(row.id, to as ProductState, note ?? '', row.current_version, ambers);
+    logTo('app', `product ${row.id} promoted to ${to} at v${row.current_version}`);
+    res.json({ ok: true, state: to, ambers });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 artifactsRouter.get('/:id/projections', (req, res) => {
-  const row = getArtifact(req.params.id);
-  if (!row) {
-    res.status(404).json({ error: 'artifact not found' });
-    return;
-  }
-  res.json(listProjections(row.id, row.current_version));
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'artifact not found' });
+      return;
+    }
+    res.json(await listProjections(row.id, row.current_version));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
-artifactsRouter.post('/:id/projections', async (req, res) => {
-  const { kind } = req.body as { kind?: string };
-  const row = getArtifact(req.params.id);
-  if (!row || row.kind !== 'product') {
-    res.status(404).json({ error: 'product artifact not found' });
-    return;
-  }
-  if (kind === 'confluence_page' || kind === 'jira_epics') {
+artifactsRouter.post('/:id/projections', (req, res) => {
+  void (async () => {
+    const { kind } = req.body as { kind?: string };
+    const row = await getArtifact(req.params.id);
+    if (!row || row.kind !== 'product') {
+      res.status(404).json({ error: 'product artifact not found' });
+      return;
+    }
+    if (kind === 'confluence_page' || kind === 'jira_epics') {
+      try {
+        const result = await generatePushProjection(row.project_id, row.id, row.name, kind);
+        res.json(result);
+      } catch (err) {
+        res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      }
+      return;
+    }
+    if (!kind || !([...LOCAL_KINDS, 'bundle'] as string[]).includes(kind)) {
+      res.status(400).json({ error: `unknown projection kind: ${kind}` });
+      return;
+    }
     try {
-      const result = await generatePushProjection(row.project_id, row.id, row.name, kind);
+      const result = await generateProjection(
+        row.project_id,
+        row.id,
+        row.name,
+        kind as LocalKind | 'bundle',
+        await currentState(row.id),
+      );
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
-    return;
-  }
-  if (!kind || !([...LOCAL_KINDS, 'bundle'] as string[]).includes(kind)) {
-    res.status(400).json({ error: `unknown projection kind: ${kind}` });
-    return;
-  }
-  try {
-    const result = await generateProjection(
-      row.project_id,
-      row.id,
-      row.name,
-      kind as LocalKind | 'bundle',
-      currentState(row.id),
-    );
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-  }
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
-artifactsRouter.get('/:id/bundle', async (req, res) => {
-  const row = getArtifact(req.params.id);
-  if (!row || row.kind !== 'product') {
-    res.status(404).json({ error: 'product artifact not found' });
-    return;
-  }
-  const state = currentState(row.id);
-  const order = PRODUCT_STATES.indexOf(state);
-  if (order < PRODUCT_STATES.indexOf('specified')) {
-    res.status(400).json({ error: `bundle export unlocks at 'specified' — current state is '${state}'` });
-    return;
-  }
-  try {
-    const result = await generateProjection(row.project_id, row.id, row.name, 'bundle', state);
-    res.download(result.outputRef, path.basename(result.outputRef));
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-  }
+artifactsRouter.get('/:id/bundle', (req, res) => {
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    if (!row || row.kind !== 'product') {
+      res.status(404).json({ error: 'product artifact not found' });
+      return;
+    }
+    const state = await currentState(row.id);
+    const order = PRODUCT_STATES.indexOf(state);
+    if (order < PRODUCT_STATES.indexOf('specified')) {
+      res.status(400).json({ error: `bundle export unlocks at 'specified' — current state is '${state}'` });
+      return;
+    }
+    try {
+      const result = await generateProjection(row.project_id, row.id, row.name, 'bundle', state);
+      res.download(result.outputRef, path.basename(result.outputRef));
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 artifactsRouter.get('/:id/projections/:pid/download', (req, res) => {
-  const projection = getDb()
-    .prepare('SELECT output_ref FROM projections WHERE id = ? AND artifact_id = ?')
-    .get(req.params.pid, req.params.id) as { output_ref: string | null } | undefined;
-  if (!projection?.output_ref || !existsSync(projection.output_ref)) {
-    res.status(404).json({ error: 'projection output not found' });
-    return;
-  }
-  if (statSync(projection.output_ref).isDirectory()) {
-    res.status(400).json({ error: 'directory projections preview in the sandbox' });
-    return;
-  }
-  res.download(projection.output_ref, path.basename(projection.output_ref));
+  void (async () => {
+    const projection = await getProjection(req.params.id, req.params.pid);
+    if (!projection?.output_ref || !existsSync(projection.output_ref)) {
+      res.status(404).json({ error: 'projection output not found' });
+      return;
+    }
+    if (statSync(projection.output_ref).isDirectory()) {
+      res.status(400).json({ error: 'directory projections preview in the sandbox' });
+      return;
+    }
+    res.download(projection.output_ref, path.basename(projection.output_ref));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /** Reveal the artifact file in Finder — the always-works path for local files. */
 artifactsRouter.post('/:id/versions/:v/reveal', (req, res) => {
-  const row = getArtifact(req.params.id);
-  const version = row
-    ? (getDb()
-        .prepare('SELECT file_path FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-        .get(row.id, Number(req.params.v)) as { file_path: string | null } | undefined)
-    : undefined;
-  if (!version?.file_path) {
-    res.status(404).json({ error: 'no file for this version' });
-    return;
-  }
-  execFile('/usr/bin/open', ['-R', version.file_path], (err) =>
-    err ? res.status(500).json({ error: err.message }) : res.json({ ok: true }),
-  );
+  void (async () => {
+    const row = await getArtifact(req.params.id);
+    const version = row ? await getVersion(row.id, Number(req.params.v)) : undefined;
+    if (!version?.file_path) {
+      res.status(404).json({ error: 'no file for this version' });
+      return;
+    }
+    execFile('/usr/bin/open', ['-R', version.file_path], (err) =>
+      err ? res.status(500).json({ error: err.message }) : res.json({ ok: true }),
+    );
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });

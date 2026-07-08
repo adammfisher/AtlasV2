@@ -1,17 +1,20 @@
 import { Router } from 'express';
-import { getDb } from '../db/db.js';
+import { skillEnabledStates, setSkillEnabled } from '../db/appdb.js';
 import { SKILL_REGISTRY } from '../skills/registry.js';
 
 export const skillsRouter = Router();
 
 skillsRouter.get('/', (_req, res) => {
-  const states = new Map(
-    (getDb().prepare('SELECT skill_id, enabled FROM skills_state').all() as Array<{
-      skill_id: string;
-      enabled: number;
-    }>).map((r) => [r.skill_id, r.enabled === 1]),
-  );
-  res.json(SKILL_REGISTRY.map((s) => ({ ...s, enabled: states.get(s.id) ?? true })));
+  skillEnabledStates()
+    .then((states) =>
+      res.json(
+        SKILL_REGISTRY.map((s) => ({
+          ...s,
+          enabled: states[s.id] === undefined ? true : states[s.id] === 1,
+        })),
+      ),
+    )
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 skillsRouter.patch('/:id', (req, res) => {
@@ -24,10 +27,7 @@ skillsRouter.patch('/:id', (req, res) => {
     res.status(404).json({ error: 'unknown skill' });
     return;
   }
-  getDb()
-    .prepare(
-      'INSERT INTO skills_state (skill_id, enabled) VALUES (?, ?) ON CONFLICT(skill_id) DO UPDATE SET enabled = excluded.enabled',
-    )
-    .run(req.params.id, enabled ? 1 : 0);
-  res.json({ ok: true });
+  setSkillEnabled(req.params.id, enabled)
+    .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
 });

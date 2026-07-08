@@ -13,7 +13,13 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { fromIni } from '@aws-sdk/credential-providers';
-import { getDb } from '../db/db.js';
+import {
+  listKnowledgeRows,
+  getKnowledgeRow,
+  putKnowledgeRow,
+  deleteKnowledgeRow,
+  type KnowledgeRow,
+} from '../db/appdb.js';
 import { config, repoRoot } from '../config.js';
 import { bedrockSettings } from '../providers/bedrock.js';
 import { logTo } from '../log.js';
@@ -35,12 +41,6 @@ function s3(): S3Client {
   return _s3;
 }
 
-function table(): void {
-  getDb().exec(
-    'CREATE TABLE IF NOT EXISTS project_knowledge (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, size INTEGER, status TEXT, chunks INTEGER DEFAULT 0, error TEXT, created_at INTEGER)',
-  );
-}
-
 function knowledgeDir(): string {
   const dir = path.join(config.dataDir, 'knowledge');
   mkdirSync(dir, { recursive: true });
@@ -58,11 +58,8 @@ export interface KnowledgeFile {
   created_at: number;
 }
 
-export function listKnowledge(projectId: string): KnowledgeFile[] {
-  table();
-  return getDb()
-    .prepare('SELECT * FROM project_knowledge WHERE project_id = ? ORDER BY created_at DESC')
-    .all(projectId) as KnowledgeFile[];
+export async function listKnowledge(projectId: string): Promise<KnowledgeFile[]> {
+  return (await listKnowledgeRows(projectId)) as KnowledgeFile[];
 }
 
 /** Paragraph-aware chunking: fill up to ~CHUNK_CHARS, break on blank lines. */
@@ -99,7 +96,6 @@ async function extractText(file: string, ext: string): Promise<string> {
 /** Register + index a knowledge file. Returns immediately with status
  * 'indexing'; chunk embedding runs async and flips status when done. */
 export function addKnowledge(projectId: string, name: string, buf: Buffer): KnowledgeFile {
-  table();
   const safe = name.replace(/[^A-Za-z0-9._ -]/g, '_').slice(-80);
   const id = randomUUID().slice(0, 12);
   const ext = path.extname(safe).toLowerCase();
@@ -115,9 +111,9 @@ export function addKnowledge(projectId: string, name: string, buf: Buffer): Know
     error: null,
     created_at: Date.now(),
   };
-  getDb()
-    .prepare('INSERT INTO project_knowledge (id, project_id, name, size, status, chunks, created_at) VALUES (?,?,?,?,?,0,?)')
-    .run(id, projectId, safe, buf.length, 'indexing', row.created_at);
+  void putKnowledgeRow(row as KnowledgeRow).catch((err: Error) =>
+    logTo('memory', `knowledge registry write failed ${id}: ${err.message}`),
+  );
 
   // durable copy + async indexing
   void s3()
@@ -131,11 +127,11 @@ export function addKnowledge(projectId: string, name: string, buf: Buffer): Know
       for (let n = 0; n < chunks.length; n++) {
         await putKnowledgeChunk(projectId, id, n, `[${safe}] ${chunks[n]!}`, safe);
       }
-      getDb().prepare("UPDATE project_knowledge SET status='ready', chunks=? WHERE id=?").run(chunks.length, id);
+      await putKnowledgeRow({ ...row, status: 'ready', chunks: chunks.length } as KnowledgeRow);
       logTo('memory', `knowledge indexed: ${safe} → ${chunks.length} chunks (project ${projectId})`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      getDb().prepare("UPDATE project_knowledge SET status='error', error=? WHERE id=?").run(msg.slice(0, 300), id);
+      await putKnowledgeRow({ ...row, status: 'error', error: msg.slice(0, 300) } as KnowledgeRow).catch(() => undefined);
       logTo('memory', `knowledge indexing failed ${safe}: ${msg}`);
     }
   })();
@@ -143,10 +139,7 @@ export function addKnowledge(projectId: string, name: string, buf: Buffer): Know
 }
 
 export async function removeKnowledge(projectId: string, id: string): Promise<void> {
-  table();
-  const row = getDb().prepare('SELECT * FROM project_knowledge WHERE id = ? AND project_id = ?').get(id, projectId) as
-    | KnowledgeFile
-    | undefined;
+  const row = await getKnowledgeRow(projectId, id);
   if (!row) return;
   const removed = await deleteKnowledgeChunks(projectId, id);
   const ext = path.extname(row.name).toLowerCase();
@@ -154,18 +147,26 @@ export async function removeKnowledge(projectId: string, id: string): Promise<vo
   void s3()
     .send(new DeleteObjectCommand({ Bucket: BUCKET, Key: `knowledge/${projectId}/${id}${ext}` }))
     .catch(() => undefined);
-  getDb().prepare('DELETE FROM project_knowledge WHERE id = ?').run(id);
+  await deleteKnowledgeRow(projectId, id);
   logTo('memory', `knowledge removed: ${row.name} (${removed} chunks)`);
 }
 
-/** The local file path (for the download route). */
-export function knowledgePath(projectId: string, id: string): { file: string; name: string } | null {
-  table();
-  const row = getDb().prepare('SELECT * FROM project_knowledge WHERE id = ? AND project_id = ?').get(id, projectId) as
-    | KnowledgeFile
-    | undefined;
+/** Download source: local staging copy when present, else the S3 original. */
+export async function knowledgeSource(
+  projectId: string,
+  id: string,
+): Promise<{ name: string; file?: string; s3Key?: string } | null> {
+  const row = await getKnowledgeRow(projectId, id);
   if (!row) return null;
   const ext = path.extname(row.name).toLowerCase();
   const file = path.join(knowledgeDir(), `${id}${ext}`);
-  return existsSync(file) ? { file, name: row.name } : null;
+  if (existsSync(file)) return { name: row.name, file };
+  return { name: row.name, s3Key: `knowledge/${projectId}/${id}${ext}` };
+}
+
+export function knowledgeBucket(): string {
+  return BUCKET;
+}
+export function knowledgeS3(): S3Client {
+  return s3();
 }

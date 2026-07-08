@@ -144,6 +144,9 @@ never block chat.
 
 | Resource | Purpose |
 |---|---|
+| `atlasv2-app` (DynamoDB, on-demand) | **ALL app data** (FR-10.1, was SQLite): settings (write-through cache, sync reads), projects, conversations, messages (sk-ordered), artifacts+versions, skills, plugin installs, product states, projections, knowledge registry, extraction queue. ConsistentRead everywhere (read-after-write correctness). One-time migration script moved 373 items. |
+| `atlasv2-artifacts-<acct>` (S3) | Generated document files (pending cutover FR-10.2) |
+| ECR `atlasv2-app` + Lambda exec role | Container deployment (Lambda Web Adapter + streaming Function URL; pending) |
 | `atlasv2-memory` (DynamoDB, on-demand) | Memory items: KV/NOTE/KN/ENT/EDGE/TOMB/PROFILE; gsi1 reverse edges; TTL; PITR |
 | `atlasv2-memory-vectors` (S3 Vectors) | Semantic indexes `user-mem`, `proj-<id>-mem` (Titan v2, 1024-dim cosine) |
 | `atlasv2-uploads-<acct>` (S3, private, SSE) | Attachment mirrors (`uploads/`), knowledge originals (`knowledge/`), share objects (`shares/`) |

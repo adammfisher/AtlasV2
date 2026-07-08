@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { repoRoot } from '../config.js';
-import { getDb } from '../db/db.js';
+import { skillEnabledStates } from '../db/appdb.js';
 
 export const JSON_SKILLS = ['pptx', 'docx', 'xlsx', 'pdf', 'react', 'site', 'product'] as const;
 export const TEXT_SKILLS = ['md', 'mermaid', 'svg'] as const;
@@ -54,11 +54,10 @@ export function loadSkill(id: SkillId): LoadedSkill {
   return skill;
 }
 
-export function skillEnabled(id: SkillId): boolean {
-  const row = getDb().prepare('SELECT enabled FROM skills_state WHERE skill_id = ?').get(id) as
-    | { enabled: number }
-    | undefined;
-  return row ? row.enabled === 1 : true;
+export async function skillEnabled(id: SkillId): Promise<boolean> {
+  const states = await skillEnabledStates();
+  const enabled = states[id];
+  return enabled === undefined ? true : enabled === 1;
 }
 
 export function templatePath(id: SkillId): string | null {

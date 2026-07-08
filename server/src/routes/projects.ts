@@ -1,5 +1,18 @@
 import { Router } from 'express';
-import { getDb, newId, now } from '../db/db.js';
+import { Readable } from 'node:stream';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  newId,
+  now,
+  listProjects,
+  getProject,
+  putProject,
+  listConversations,
+  listArtifacts,
+  listInstalls,
+  putInstall,
+  type ProjectRow,
+} from '../db/appdb.js';
 import {
   memorySnapshot,
   upsertKv,
@@ -11,41 +24,18 @@ import {
 } from '../memory/engine.js';
 import { wipeScope, listTombstones } from '../memory/store.js';
 
-export interface ProjectRow {
-  id: string;
-  name: string;
-  instructions: string;
-  created_at: number;
-  settings: string;
-}
-
-function withStats(p: ProjectRow) {
-  const db = getDb();
-  const chats = (
-    db.prepare('SELECT COUNT(*) AS n FROM conversations WHERE project_id = ?').get(p.id) as {
-      n: number;
-    }
-  ).n;
-  // template libraries are post-v1 — artifact count stands in (PRD A47)
-  const templates = (
-    db.prepare('SELECT COUNT(*) AS n FROM artifacts WHERE project_id = ?').get(p.id) as {
-      n: number;
-    }
-  ).n;
-  const installs = db
-    .prepare('SELECT enabled_projects FROM plugin_installs')
-    .all() as Array<{ enabled_projects: string }>;
-  const plugins = installs.filter((r) =>
-    (JSON.parse(r.enabled_projects) as string[]).includes(p.id),
-  ).length;
+async function withStats(p: ProjectRow) {
+  const [convs, arts, installs] = await Promise.all([listConversations(p.id), listArtifacts([p.id]), listInstalls()]);
+  const plugins = installs.filter((r) => (JSON.parse(r.enabled_projects) as string[]).includes(p.id)).length;
   const shared = Boolean((JSON.parse(p.settings || '{}') as { shared?: boolean }).shared);
   return {
     id: p.id,
     name: p.name,
     instructions: p.instructions,
     created_at: p.created_at,
-    chats,
-    templates,
+    chats: convs.length,
+    // template libraries are post-v1 — artifact count stands in (PRD A47)
+    templates: arts.length,
     plugins,
     shared,
   };
@@ -54,10 +44,10 @@ function withStats(p: ProjectRow) {
 export const projectsRouter = Router();
 
 projectsRouter.get('/', (_req, res) => {
-  const rows = getDb()
-    .prepare('SELECT id, name, instructions, created_at, settings FROM projects ORDER BY created_at')
-    .all() as ProjectRow[];
-  res.json(rows.map(withStats));
+  listProjects()
+    .then((rows) => Promise.all(rows.map(withStats)))
+    .then((out) => res.json(out))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 projectsRouter.post('/', (req, res) => {
@@ -66,44 +56,37 @@ projectsRouter.post('/', (req, res) => {
     res.status(400).json({ error: 'name is required' });
     return;
   }
-  const id = newId('p');
-  getDb()
-    .prepare('INSERT INTO projects (id, name, instructions, created_at) VALUES (?, ?, ?, ?)')
-    .run(id, name.trim(), instructions?.trim() ?? '', now());
-  // holistic memory: every new project gets its own (isolated) memory, on by default
-  const mem = getDb().prepare("SELECT id, enabled_projects FROM plugin_installs WHERE connector_id = 'memory'").get() as
-    | { id: string; enabled_projects: string }
-    | undefined;
-  if (mem) {
-    const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
-    enabled.add(id);
-    getDb().prepare('UPDATE plugin_installs SET enabled_projects = ? WHERE id = ?').run(JSON.stringify([...enabled]), mem.id);
-  }
-  const row = getDb()
-    .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
-    .get(id) as ProjectRow;
-  res.status(201).json(withStats(row));
+  void (async () => {
+    const id = newId('p');
+    const row: ProjectRow = { id, name: name.trim(), instructions: instructions?.trim() ?? '', settings: '{}', created_at: now() };
+    await putProject(row);
+    // holistic memory: every new project gets its own (isolated) memory, on by default
+    const mem = (await listInstalls()).find((i) => i.connector_id === 'memory' || i.connector_id === 'atlas-memory');
+    if (mem) {
+      const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
+      enabled.add(id);
+      await putInstall({ ...mem, enabled_projects: JSON.stringify([...enabled]) });
+    }
+    res.status(201).json(await withStats(row));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 projectsRouter.patch('/:id', (req, res) => {
   const { name, instructions } = req.body as { name?: string; instructions?: string };
-  const db = getDb();
-  const existing = db
-    .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
-    .get(req.params.id) as ProjectRow | undefined;
-  if (!existing) {
-    res.status(404).json({ error: 'project not found' });
-    return;
-  }
-  db.prepare('UPDATE projects SET name = ?, instructions = ? WHERE id = ?').run(
-    name ?? existing.name,
-    instructions ?? existing.instructions,
-    existing.id,
-  );
-  const row = db
-    .prepare('SELECT id, name, instructions, created_at, settings FROM projects WHERE id = ?')
-    .get(existing.id) as ProjectRow;
-  res.json(withStats(row));
+  void (async () => {
+    const existing = await getProject(req.params.id);
+    if (!existing) {
+      res.status(404).json({ error: 'project not found' });
+      return;
+    }
+    const row: ProjectRow = {
+      ...existing,
+      name: name ?? existing.name,
+      instructions: instructions ?? existing.instructions,
+    };
+    await putProject(row);
+    res.json(await withStats(row));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /* ---------- holistic memory (browse/edit) ----------
@@ -162,7 +145,8 @@ projectsRouter.get('/:id/memory/export', (req, res) => {
 
 projectsRouter.get('/:id/knowledge', (req, res) => {
   import('../memory/knowledge.js')
-    .then(({ listKnowledge }) => res.json(listKnowledge(req.params.id)))
+    .then(({ listKnowledge }) => listKnowledge(req.params.id))
+    .then((rows) => res.json(rows))
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
@@ -174,16 +158,21 @@ projectsRouter.post('/:id/knowledge/:kid/delete', (req, res) => {
 });
 
 projectsRouter.get('/:id/knowledge/:kid/download', (req, res) => {
-  import('../memory/knowledge.js')
-    .then(({ knowledgePath }) => {
-      const hit = knowledgePath(req.params.id, req.params.kid);
-      if (!hit) {
-        res.status(404).json({ error: 'knowledge file not found' });
-        return;
-      }
+  void (async () => {
+    const { knowledgeSource, knowledgeBucket, knowledgeS3 } = await import('../memory/knowledge.js');
+    const hit = await knowledgeSource(req.params.id, req.params.kid);
+    if (!hit) {
+      res.status(404).json({ error: 'knowledge file not found' });
+      return;
+    }
+    if (hit.file) {
       res.download(hit.file, hit.name);
-    })
-    .catch((err: Error) => res.status(502).json({ error: err.message }));
+      return;
+    }
+    const out = await knowledgeS3().send(new GetObjectCommand({ Bucket: knowledgeBucket(), Key: hit.s3Key! }));
+    res.setHeader('Content-Disposition', `attachment; filename="${hit.name}"`);
+    (out.Body as Readable).pipe(res);
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /** Irreversible scope wipe (items + vector index + queued extractions). */

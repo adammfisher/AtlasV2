@@ -3,7 +3,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { config, repoRoot } from '../config.js';
-import { getDb, newId, now } from '../db/db.js';
+import { newId, now } from '../db/db.js';
+import { listProjectionsFor, putProjection } from '../db/appdb.js';
 import { completeJson } from '../llama/json.js';
 import { loadSkill } from './skills.js';
 import { validateJson } from './validate.js';
@@ -282,7 +283,7 @@ export async function generateProjection(
   state: string,
   signal?: AbortSignal,
 ): Promise<ProjectionResult> {
-  const current = latestPayload(artifactId);
+  const current = await latestPayload(artifactId);
   if (!current) throw new Error('product has no payload to project');
   const payload = current.payload as Payload;
   const dir = projectionDir(projectId, artifactId, kind, current.version);
@@ -347,20 +348,18 @@ export async function generateProjection(
   }
 
   // upsert the projections row for this kind (regenerate replaces)
-  const db = getDb();
-  const existing = db
-    .prepare('SELECT id FROM projections WHERE artifact_id = ? AND kind = ?')
-    .get(artifactId, kind) as { id: string } | undefined;
+  const existing = (await listProjectionsFor(artifactId)).find((r) => r.kind === kind);
   const id = existing?.id ?? newId('pj');
-  if (existing) {
-    db.prepare(
-      "UPDATE projections SET at_version = ?, output_ref = ?, status = 'local', created_at = ? WHERE id = ?",
-    ).run(current.version, outputRef, now(), id);
-  } else {
-    db.prepare(
-      "INSERT INTO projections (id, artifact_id, kind, at_version, output_ref, status, created_at) VALUES (?, ?, ?, ?, ?, 'local', ?)",
-    ).run(id, artifactId, kind, current.version, outputRef, now());
-  }
+  await putProjection({
+    id,
+    artifact_id: artifactId,
+    kind,
+    at_version: current.version,
+    output_ref: outputRef,
+    target_ref: existing?.target_ref ?? null,
+    status: 'local',
+    created_at: now(),
+  });
   return { id, kind, atVersion: current.version, outputRef, generated };
 }
 
@@ -409,7 +408,7 @@ export function toJiraEpics(p: Payload): {
 /** Find a connected connector for a push target in this project (directory id or custom-*). */
 async function pushConnector(target: 'confluence' | 'jira', projectId: string) {
   const { installs, callTool } = await import('../mcp/manager.js');
-  for (const row of installs()) {
+  for (const row of await installs()) {
     if (row.status !== 'connected') continue;
     const matches =
       row.connector_id === target ||
@@ -431,7 +430,7 @@ export async function generatePushProjection(
   artifactName: string,
   kind: 'confluence_page' | 'jira_epics',
 ): Promise<ProjectionResult & { status: string; note?: string; targetRef?: string }> {
-  const current = latestPayload(artifactId);
+  const current = await latestPayload(artifactId);
   if (!current) throw new Error('product has no payload to project');
   const payload = current.payload as Payload;
   const dir = projectionDir(projectId, artifactId, kind, current.version);
@@ -480,18 +479,18 @@ export async function generatePushProjection(
     }
   }
 
-  const db = getDb();
-  const existing = db
-    .prepare('SELECT id FROM projections WHERE artifact_id = ? AND kind = ?')
-    .get(artifactId, kind) as { id: string } | undefined;
+  const existing = (await listProjectionsFor(artifactId)).find((r) => r.kind === kind);
   const id = existing?.id ?? newId('pj');
-  if (existing) {
-    db.prepare('UPDATE projections SET at_version = ?, output_ref = ?, target_ref = ?, status = ?, created_at = ? WHERE id = ?')
-      .run(current.version, outputRef, targetRef ?? null, status, now(), id);
-  } else {
-    db.prepare('INSERT INTO projections (id, artifact_id, kind, at_version, output_ref, target_ref, status, created_at) VALUES (?,?,?,?,?,?,?,?)')
-      .run(id, artifactId, kind, current.version, outputRef, targetRef ?? null, status, now());
-  }
+  await putProjection({
+    id,
+    artifact_id: artifactId,
+    kind,
+    at_version: current.version,
+    output_ref: outputRef,
+    target_ref: targetRef ?? null,
+    status,
+    created_at: now(),
+  });
   return { id, kind, atVersion: current.version, outputRef, generated: false, status, note, targetRef };
 }
 
@@ -578,7 +577,7 @@ async function buildBundle(
   );
   // A7: .mcp.json included now that Knowledge Core can be connected (Stage 4)
   const { installFor } = await import('../mcp/manager.js');
-  const kc = installFor('knowledge-core');
+  const kc = await installFor('knowledge-core');
   if (kc && kc.status === 'connected') {
     writeFileSync(
       path.join(bundleDir, '.mcp.json'),
@@ -591,10 +590,10 @@ async function buildBundle(
   return zipPath;
 }
 
-export function listProjections(
+export async function listProjections(
   artifactId: string,
   currentVersion: number,
-): Array<{
+): Promise<Array<{
   id: string;
   kind: string;
   atVersion: number;
@@ -603,17 +602,8 @@ export function listProjections(
   generated: boolean;
   outputRef: string | null;
   targetRef: string | null;
-}> {
-  const rows = getDb()
-    .prepare('SELECT * FROM projections WHERE artifact_id = ? ORDER BY created_at')
-    .all(artifactId) as Array<{
-    id: string;
-    kind: string;
-    at_version: number;
-    status: string;
-    output_ref: string | null;
-    target_ref: string | null;
-  }>;
+}>> {
+  const rows = await listProjectionsFor(artifactId); // sorted created_at ascending
   return rows.map((r) => ({
     id: r.id,
     kind: r.kind,
@@ -626,9 +616,7 @@ export function listProjections(
   }));
 }
 
-export function bundleExists(artifactId: string): boolean {
-  const row = getDb()
-    .prepare("SELECT COUNT(*) AS n FROM projections WHERE artifact_id = ? AND kind = 'bundle'")
-    .get(artifactId) as { n: number };
-  return row.n > 0;
+export async function bundleExists(artifactId: string): Promise<boolean> {
+  const rows = await listProjectionsFor(artifactId);
+  return rows.some((r) => r.kind === 'bundle');
 }

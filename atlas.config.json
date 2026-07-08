@@ -14,5 +14,5 @@
     "extraFlags": ["--jinja"]
   },
   "server": { "port": 5175 },
-  "bedrock": { "enabled": false, "region": "us-east-1", "profile": "corp-bedrock" }
+  "bedrock": { "enabled": false, "region": "us-east-1", "profile": "default" }
 }

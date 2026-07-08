@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { repoRoot } from '../config.js';
-import { getDb, newId, now, getSetting } from '../db/db.js';
+import { newId, now, getSetting } from '../db/db.js';
+import { listProductStates, addProductState, listProjectionsFor } from '../db/appdb.js';
 import { completeJson } from '../llama/json.js';
 import { logTo } from '../log.js';
 import { validateJson } from './validate.js';
@@ -48,11 +49,10 @@ export function transitionRules(payload: Payload, hasBundle: boolean): Record<Pr
   };
 }
 
-export function currentState(artifactId: string): ProductState {
-  const row = getDb()
-    .prepare('SELECT state FROM product_states WHERE artifact_id = ? ORDER BY created_at DESC LIMIT 1')
-    .get(artifactId) as { state: ProductState } | undefined;
-  return row?.state ?? 'proposed';
+export async function currentState(artifactId: string): Promise<ProductState> {
+  const rows = await listProductStates(artifactId); // sk-ordered by created_at ascending
+  const last = rows[rows.length - 1];
+  return (last?.state as ProductState | undefined) ?? 'proposed';
 }
 
 export function nextState(state: ProductState): ProductState | null {
@@ -60,19 +60,23 @@ export function nextState(state: ProductState): ProductState | null {
   return i >= 0 && i < PRODUCT_STATES.length - 1 ? PRODUCT_STATES[i + 1] ?? null : null;
 }
 
-export function stampState(
+export async function stampState(
   artifactId: string,
   to: ProductState,
   note: string,
   atVersion: number,
   ambers: string[],
-): void {
+): Promise<void> {
   const fullNote = ambers.length > 0 ? `${note ? `${note} · ` : ''}ambers: ${ambers.join('; ')}` : note;
-  getDb()
-    .prepare(
-      'INSERT INTO product_states (id, artifact_id, state, note, stamped_by, at_version, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    )
-    .run(newId('ps'), artifactId, to, fullNote, getSetting('userName') ?? 'user', atVersion, now());
+  await addProductState({
+    id: newId('ps'),
+    artifact_id: artifactId,
+    state: to,
+    note: fullNote,
+    stamped_by: getSetting('userName') ?? 'user',
+    at_version: atVersion,
+    created_at: now(),
+  });
 }
 
 /**
@@ -152,7 +156,7 @@ export async function productChecks(
 /** Returns a call helper when the knowledge-core connector is connected + enabled in the project. */
 async function kcClient(projectId: string): Promise<((tool: string, args: Record<string, unknown>) => Promise<string>) | null> {
   const { installFor, callTool } = await import('../mcp/manager.js');
-  const install = installFor('knowledge-core');
+  const install = await installFor('knowledge-core');
   if (!install || install.status !== 'connected') return null;
   const enabled = JSON.parse(install.enabled_projects) as string[];
   if (!enabled.includes(projectId)) return null;
@@ -160,11 +164,9 @@ async function kcClient(projectId: string): Promise<((tool: string, args: Record
 }
 
 
-export function hasBundleRow(artifactId: string): boolean {
-  const row = getDb()
-    .prepare("SELECT COUNT(*) AS n FROM projections WHERE artifact_id = ? AND kind = 'bundle'")
-    .get(artifactId) as { n: number };
-  return row.n > 0;
+export async function hasBundleRow(artifactId: string): Promise<boolean> {
+  const rows = await listProjectionsFor(artifactId);
+  return rows.some((r) => r.kind === 'bundle');
 }
 
 /** Top-level property names of the product schema, for the A4.2 field router. */

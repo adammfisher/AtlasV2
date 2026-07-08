@@ -3,12 +3,10 @@ import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { config, repoRoot } from './config.js';
 import { log } from './log.js';
-import { getDb } from './db/db.js';
-import { seedIfNeeded, backfillSeedArtifactFiles } from './db/seed.js';
-import { stopLlama, llamaState } from './llama/spawn.js';
-import { ensureBedrockConnected } from './providers/bedrock.js';
+import { loadSettings, refreshSettings } from './db/appdb.js';
+import { seedIfNeeded } from './db/seed.js';
+import { ensureBedrockConnected, bedrockSettings } from './providers/bedrock.js';
 import { scheduleConsolidation, startExtractionQueue } from './memory/engine.js';
-import { scanModels } from './llama/models.js';
 import { projectsRouter } from './routes/projects.js';
 import { settingsRouter } from './routes/settings.js';
 import { conversationsRouter } from './routes/conversations.js';
@@ -20,26 +18,29 @@ import { artifactsRouter } from './routes/artifacts.js';
 import { ensureBundledInstalled, probeKnowledgeCore } from './mcp/manager.js';
 import { uploadsRouter } from './routes/uploads.js';
 
-// 1. App data directories (models/ already exists and is never touched)
-for (const dir of ['data', 'artifacts', 'credentials', 'logs', 'uploads']) {
+const IS_LAMBDA = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+// 1. Scratch directories (build steps + upload staging; durable copies live in S3)
+for (const dir of ['artifacts', 'logs', 'uploads', 'knowledge']) {
   mkdirSync(path.join(config.dataDir, dir), { recursive: true });
 }
 
-// 2. Database + first-boot fixtures
-getDb();
-seedIfNeeded();
-backfillSeedArtifactFiles();
-ensureBundledInstalled();
+// 2. Data layer (DynamoDB) — settings cache, first-boot seed, bundled plugins
+await loadSettings();
+await seedIfNeeded();
+await ensureBundledInstalled();
 void probeKnowledgeCore();
 
-// 3. Bedrock is the inference backend — auto-connect (non-fatal on failure).
-// The local llama sidecar is retired; nothing is spawned here anymore.
+// 3. Bedrock auto-connect (non-fatal on failure)
 void ensureBedrockConnected();
 
-// 3b. memory lifecycle: durable extraction queue (survives restarts) +
-// consolidation sweep (profile summaries refresh when >24h stale)
-startExtractionQueue();
-scheduleConsolidation();
+// 3b. memory lifecycle. In Lambda, EventBridge hits /api/internal/sweep and
+// /api/internal/consolidate instead of in-process timers (nothing to keep warm).
+if (!IS_LAMBDA) {
+  startExtractionQueue();
+  scheduleConsolidation();
+  setInterval(() => void refreshSettings(), 30_000); // cross-process settings drift
+}
 
 // 4. HTTP API
 const app = express();
@@ -48,28 +49,41 @@ const app = express();
 app.use('/api/uploads', uploadsRouter);
 app.use(express.json({ limit: '2mb' }));
 
-// portable folder: serve the built client when it exists (dev uses Vite instead)
+// Lambda: settings can change from another instance — refresh per request
+if (IS_LAMBDA) {
+  app.use((_req, _res, next) => {
+    void refreshSettings().finally(next);
+  });
+}
+
+// portable folder / Lambda: serve the built client when present (dev uses Vite)
 const clientDist = path.join(repoRoot, 'client', 'dist');
 if (existsSync(clientDist)) {
   app.use(express.static(clientDist));
 }
 
 app.get('/api/health', (_req, res) => {
-  const llama = llamaState();
   res.json({
-    ok: llama.status === 'ready',
-    llama: {
-      status: llama.status,
-      modelFile: llama.modelFile,
-      port: llama.port,
-      pid: llama.pid,
-      error: llama.error,
-    },
-    llamaVersion: llama.version,
-    models: scanModels().map((m) => ({ id: m.id, file: m.file, present: m.present })),
-    dirs: { dataDir: config.dataDir, modelsDir: config.models.dir },
-    appVersion: '0.1.0',
+    ok: bedrockSettings().connected,
+    backend: 'bedrock',
+    lambda: IS_LAMBDA,
+    dirs: { dataDir: config.dataDir },
+    appVersion: '2.0.0',
   });
+});
+
+// EventBridge-invoked internal endpoints (Lambda replaces in-process timers)
+app.post('/api/internal/sweep', (req, res) => {
+  import('./memory/engine.js')
+    .then(({ sweepPendingNow }) => sweepPendingNow())
+    .then((n) => res.json({ ok: true, processed: n }))
+    .catch((err: Error) => res.status(500).json({ error: err.message }));
+});
+app.post('/api/internal/consolidate', (req, res) => {
+  import('./memory/engine.js')
+    .then(({ consolidateStaleScopes }) => consolidateStaleScopes())
+    .then(() => res.json({ ok: true }))
+    .catch((err: Error) => res.status(500).json({ error: err.message }));
 });
 
 app.use('/api/projects', projectsRouter);
@@ -85,13 +99,13 @@ if (existsSync(clientDist)) {
   app.get(/^\/(?!api).*/, (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }
 
-const server = app.listen(config.server.port, '127.0.0.1', () => {
-  log(`Atlas server listening on http://127.0.0.1:${config.server.port}`);
+const host = IS_LAMBDA ? '0.0.0.0' : '127.0.0.1'; // LWA proxies from inside the container
+const server = app.listen(Number(process.env.PORT ?? config.server.port), host, () => {
+  log(`Atlas server listening on http://${host}:${process.env.PORT ?? config.server.port}`);
 });
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
-    stopLlama();
     server.close();
     process.exit(0);
   });

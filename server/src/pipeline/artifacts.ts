@@ -1,7 +1,16 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { config } from '../config.js';
-import { getDb, newId, now } from '../db/db.js';
+import { newId, now } from '../db/db.js';
+import {
+  getArtifactRow,
+  putArtifact,
+  listVersions,
+  getVersion,
+  putVersion,
+  setArtifactCurrentVersion,
+  listMessages,
+} from '../db/appdb.js';
 
 export interface CheckStep {
   state: 'ok' | 'warn' | 'pending';
@@ -23,69 +32,51 @@ export interface VersionInput {
   filePath: string;
 }
 
-export function createArtifact(
+export async function createArtifact(
   projectId: string,
   name: string,
   kind: string,
-): { id: string } {
+): Promise<{ id: string }> {
   const id = newId('a');
-  getDb()
-    .prepare(
-      'INSERT INTO artifacts (id, project_id, name, kind, current_version, created_at) VALUES (?, ?, ?, ?, 0, ?)',
-    )
-    .run(id, projectId, name, kind, now());
+  await putArtifact({ id, project_id: projectId, name, kind, current_version: 0, created_at: now() });
   return { id };
 }
 
-export function addVersion(artifactId: string, input: VersionInput): number {
-  const db = getDb();
-  const row = db.prepare('SELECT current_version FROM artifacts WHERE id = ?').get(artifactId) as
-    | { current_version: number }
-    | undefined;
+export async function addVersion(artifactId: string, input: VersionInput): Promise<number> {
+  const row = await getArtifactRow(artifactId);
   if (!row) throw new Error(`artifact not found: ${artifactId}`);
-  const next =
-    (db
-      .prepare('SELECT MAX(version) AS v FROM artifact_versions WHERE artifact_id = ?')
-      .get(artifactId) as { v: number | null }).v ?? 0;
+  const versions = await listVersions(artifactId);
+  const next = versions.reduce((max, v) => Math.max(max, v.version), 0);
   const version = next + 1;
-  db.prepare(
-    'INSERT INTO artifact_versions (id, artifact_id, version, file_path, meta, validation, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-  ).run(
-    newId('av'),
-    artifactId,
+  await putVersion({
+    id: newId('av'),
+    artifact_id: artifactId,
     version,
-    input.filePath,
-    input.meta,
-    JSON.stringify(input.validation),
-    JSON.stringify(input.payload),
-    now(),
-  );
-  db.prepare('UPDATE artifacts SET current_version = ? WHERE id = ?').run(version, artifactId);
+    file_path: input.filePath,
+    meta: input.meta,
+    validation: JSON.stringify(input.validation),
+    payload: JSON.stringify(input.payload),
+    created_at: now(),
+  });
+  await setArtifactCurrentVersion(artifactId, version);
   return version;
 }
 
-export function latestPayload(artifactId: string): { payload: unknown; version: number } | null {
-  const db = getDb();
-  const art = db.prepare('SELECT current_version FROM artifacts WHERE id = ?').get(artifactId) as
-    | { current_version: number }
-    | undefined;
+export async function latestPayload(artifactId: string): Promise<{ payload: unknown; version: number } | null> {
+  const art = await getArtifactRow(artifactId);
   if (!art) return null;
-  const row = db
-    .prepare('SELECT payload FROM artifact_versions WHERE artifact_id = ? AND version = ?')
-    .get(artifactId, art.current_version) as { payload: string | null } | undefined;
+  const row = await getVersion(artifactId, art.current_version);
   if (!row?.payload) return null;
   return { payload: JSON.parse(row.payload), version: art.current_version };
 }
 
 /** Find the most recent artifact of a skill kind referenced by this conversation's pipeline messages. */
-export function lastPipelineArtifact(
+export async function lastPipelineArtifact(
   conversationId: string,
-): { artifactId: string; kind: string; name: string } | null {
-  const rows = getDb()
-    .prepare(
-      "SELECT payload FROM messages WHERE conversation_id = ? AND kind = 'pipeline' ORDER BY created_at DESC",
-    )
-    .all(conversationId) as Array<{ payload: string }>;
+): Promise<{ artifactId: string; kind: string; name: string } | null> {
+  const rows = (await listMessages(conversationId))
+    .filter((m) => m.kind === 'pipeline')
+    .reverse(); // listMessages sorts ascending — newest first here
   for (const row of rows) {
     const parsed = JSON.parse(row.payload) as {
       artifact?: { artifactId?: string; kind?: string; name?: string };

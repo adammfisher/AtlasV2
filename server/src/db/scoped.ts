@@ -8,7 +8,20 @@
  */
 import path from 'node:path';
 import { mkdirSync } from 'node:fs';
-import { getDb } from './db.js';
+import {
+  listConversations,
+  listMessages,
+  listArtifacts,
+  listVersions,
+  listProductStates,
+  listProjectionsFor,
+  type ConversationRow,
+  type MessageRow,
+  type ArtifactRow,
+  type ArtifactVersionRow,
+  type ProductStateRow,
+  type ProjectionRow,
+} from './appdb.js';
 import { config } from '../config.js';
 
 export const SHARED_PARTITION = '__shared__';
@@ -22,166 +35,51 @@ function scopeIds(projectId: string, opts?: ScopeOptions): string[] {
   return opts?.includeShared ? [projectId, SHARED_PARTITION] : [projectId];
 }
 
-function placeholders(n: number): string {
-  return Array.from({ length: n }, () => '?').join(',');
+export type {
+  ConversationRow,
+  MessageRow,
+  ArtifactRow,
+  ArtifactVersionRow,
+  ProductStateRow,
+  ProjectionRow,
+};
+
+export async function scopedConversations(projectId: string): Promise<ConversationRow[]> {
+  return listConversations(projectId); // sorted updated_at DESC
 }
 
-export interface ConversationRow {
-  id: string;
-  project_id: string;
-  title: string;
-  created_at: number;
-  updated_at: number;
+export async function scopedMessages(projectId: string): Promise<MessageRow[]> {
+  const convs = await listConversations(projectId);
+  const all: MessageRow[] = [];
+  for (const c of convs) all.push(...(await listMessages(c.id)));
+  return all.sort((a, b) => a.created_at - b.created_at);
 }
 
-export function scopedConversations(projectId: string): ConversationRow[] {
-  return getDb()
-    .prepare('SELECT * FROM conversations WHERE project_id = ? ORDER BY updated_at DESC')
-    .all(projectId) as ConversationRow[];
+export async function scopedArtifacts(projectId: string, opts?: ScopeOptions): Promise<ArtifactRow[]> {
+  return listArtifacts(scopeIds(projectId, opts)); // sorted created_at DESC
 }
 
-export interface MessageRow {
-  id: string;
-  conversation_id: string;
-  role: 'user' | 'assistant';
-  kind: string;
-  payload: string;
-  created_at: number;
-}
-
-export function scopedMessages(projectId: string): MessageRow[] {
-  return getDb()
-    .prepare(
-      `SELECT m.* FROM messages m
-       JOIN conversations c ON c.id = m.conversation_id
-       WHERE c.project_id = ? ORDER BY m.created_at`,
-    )
-    .all(projectId) as MessageRow[];
-}
-
-export interface ArtifactRow {
-  id: string;
-  project_id: string;
-  name: string;
-  kind: string;
-  current_version: number;
-  created_at: number;
-}
-
-export function scopedArtifacts(projectId: string, opts?: ScopeOptions): ArtifactRow[] {
-  const ids = scopeIds(projectId, opts);
-  return getDb()
-    .prepare(
-      `SELECT * FROM artifacts WHERE project_id IN (${placeholders(ids.length)}) ORDER BY created_at DESC`,
-    )
-    .all(...ids) as ArtifactRow[];
-}
-
-export interface ArtifactVersionRow {
-  id: string;
-  artifact_id: string;
-  version: number;
-  file_path: string | null;
-  meta: string | null;
-  validation: string | null;
-  payload: string | null;
-  created_at: number;
-}
-
-export function scopedArtifactVersions(projectId: string): ArtifactVersionRow[] {
-  return getDb()
-    .prepare(
-      `SELECT v.* FROM artifact_versions v
-       JOIN artifacts a ON a.id = v.artifact_id
-       WHERE a.project_id = ? ORDER BY v.created_at`,
-    )
-    .all(projectId) as ArtifactVersionRow[];
-}
-
-export interface MemKvRow {
-  project_id: string;
-  key: string;
-  value: string;
-}
-
-export function scopedMemKv(projectId: string, opts?: ScopeOptions): MemKvRow[] {
-  const ids = scopeIds(projectId, opts);
-  return getDb()
-    .prepare(`SELECT * FROM mem_kv WHERE project_id IN (${placeholders(ids.length)})`)
-    .all(...ids) as MemKvRow[];
-}
-
-export interface GraphNodeRow {
-  id: string;
-  project_id: string;
-  kind: string;
-  name: string;
-  props: string;
-}
-
-export function scopedGraphNodes(projectId: string, opts?: ScopeOptions): GraphNodeRow[] {
-  const ids = scopeIds(projectId, opts);
-  return getDb()
-    .prepare(`SELECT * FROM mem_graph_nodes WHERE project_id IN (${placeholders(ids.length)})`)
-    .all(...ids) as GraphNodeRow[];
-}
-
-export interface GraphEdgeRow {
-  src: string;
-  dst: string;
-  project_id: string;
-  rel: string;
-  props: string;
-}
-
-export function scopedGraphEdges(projectId: string, opts?: ScopeOptions): GraphEdgeRow[] {
-  const ids = scopeIds(projectId, opts);
-  return getDb()
-    .prepare(`SELECT * FROM mem_graph_edges WHERE project_id IN (${placeholders(ids.length)})`)
-    .all(...ids) as GraphEdgeRow[];
-}
-
-export interface ProductStateRow {
-  id: string;
-  artifact_id: string;
-  state: string;
-  note: string;
-  stamped_by: string | null;
-  at_version: number | null;
-  created_at: number;
+export async function scopedArtifactVersions(projectId: string): Promise<ArtifactVersionRow[]> {
+  const artifacts = await listArtifacts([projectId]);
+  const all: ArtifactVersionRow[] = [];
+  for (const a of artifacts) all.push(...(await listVersions(a.id)));
+  return all.sort((a, b) => a.created_at - b.created_at);
 }
 
 /** product_states is project-scoped through its artifact (Amendment 1 §A2). */
-export function scopedProductStates(projectId: string): ProductStateRow[] {
-  return getDb()
-    .prepare(
-      `SELECT s.* FROM product_states s
-       JOIN artifacts a ON a.id = s.artifact_id
-       WHERE a.project_id = ? ORDER BY s.created_at`,
-    )
-    .all(projectId) as ProductStateRow[];
-}
-
-export interface ProjectionRow {
-  id: string;
-  artifact_id: string;
-  kind: string;
-  at_version: number;
-  output_ref: string | null;
-  target_ref: string | null;
-  status: string;
-  created_at: number;
+export async function scopedProductStates(projectId: string): Promise<ProductStateRow[]> {
+  const artifacts = await listArtifacts([projectId]);
+  const all: ProductStateRow[] = [];
+  for (const a of artifacts) all.push(...(await listProductStates(a.id)));
+  return all.sort((a, b) => a.created_at - b.created_at);
 }
 
 /** projections is project-scoped through its artifact (Amendment 1 §A2). */
-export function scopedProjections(projectId: string): ProjectionRow[] {
-  return getDb()
-    .prepare(
-      `SELECT p.* FROM projections p
-       JOIN artifacts a ON a.id = p.artifact_id
-       WHERE a.project_id = ? ORDER BY p.created_at`,
-    )
-    .all(projectId) as ProjectionRow[];
+export async function scopedProjections(projectId: string): Promise<ProjectionRow[]> {
+  const artifacts = await listArtifacts([projectId]);
+  const all: ProjectionRow[] = [];
+  for (const a of artifacts) all.push(...(await listProjectionsFor(a.id)));
+  return all.sort((a, b) => a.created_at - b.created_at);
 }
 
 const PROJECT_ID_RE = /^[A-Za-z0-9_-]+$/;

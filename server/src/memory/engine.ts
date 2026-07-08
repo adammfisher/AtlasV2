@@ -12,7 +12,17 @@
  * the current message across both scopes. Failures degrade to '' — memory
  * never blocks chat.
  */
-import { getDb, getSetting, setSetting } from '../db/db.js';
+import {
+  getSetting,
+  setSetting,
+  listMessages,
+  listProjects,
+  upsertPending,
+  duePending,
+  deletePending,
+  bumpPending,
+  cancelPendingForProject,
+} from '../db/appdb.js';
 import { completeJson, completeText } from '../llama/json.js';
 import { logTo } from '../log.js';
 import {
@@ -233,49 +243,37 @@ const IDLE_MS = 75_000;
 const SWEEP_MS = 15_000;
 const MAX_ATTEMPTS = 3;
 
-function pendingTable(): void {
-  getDb().exec(
-    'CREATE TABLE IF NOT EXISTS mem_pending (conv_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, due_at INTEGER NOT NULL, attempts INTEGER DEFAULT 0)',
-  );
-}
-
-/** Debounced: call after every completed exchange; extraction fires on idle. */
+/** Debounced: call after every completed exchange; extraction fires on idle.
+ * Pending rows live in DynamoDB — durable across restarts AND shared with the
+ * Lambda deployment (EventBridge sweeps the same queue). */
 export function scheduleExtraction(convId: string, projectId: string): void {
   if (!rememberEnabled(convId)) return;
-  pendingTable();
-  getDb()
-    .prepare(
-      'INSERT INTO mem_pending (conv_id, project_id, due_at, attempts) VALUES (?,?,?,0) ON CONFLICT(conv_id) DO UPDATE SET due_at = excluded.due_at, project_id = excluded.project_id, attempts = 0',
-    )
-    .run(convId, projectId, Date.now() + IDLE_MS);
+  void upsertPending(convId, projectId, Date.now() + IDLE_MS).catch((err: Error) =>
+    logTo('memory', `pending enqueue failed ${convId}: ${err.message}`),
+  );
 }
 
 let sweeping = false;
 
-async function sweepPending(): Promise<void> {
-  if (sweeping) return;
+/** Process due extractions. Returns how many rows were handled. */
+export async function sweepPendingNow(): Promise<number> {
+  if (sweeping) return 0;
   sweeping = true;
+  let handled = 0;
   try {
-    pendingTable();
-    const db = getDb();
-    const due = db
-      .prepare('SELECT conv_id, project_id, attempts FROM mem_pending WHERE due_at <= ?')
-      .all(Date.now()) as Array<{ conv_id: string; project_id: string; attempts: number }>;
+    const due = await duePending(Date.now());
     for (const row of due) {
+      handled++;
       try {
         await extract(row.conv_id, row.project_id);
-        db.prepare('DELETE FROM mem_pending WHERE conv_id = ?').run(row.conv_id);
+        await deletePending(row.conv_id);
       } catch (err) {
         const attempts = row.attempts + 1;
         if (attempts >= MAX_ATTEMPTS) {
-          db.prepare('DELETE FROM mem_pending WHERE conv_id = ?').run(row.conv_id);
+          await deletePending(row.conv_id);
           logTo('memory', `extraction abandoned for ${row.conv_id} after ${attempts} attempts: ${err instanceof Error ? err.message : err}`);
         } else {
-          db.prepare('UPDATE mem_pending SET attempts = ?, due_at = ? WHERE conv_id = ?').run(
-            attempts,
-            Date.now() + attempts * 60_000, // backoff
-            row.conv_id,
-          );
+          await bumpPending(row.conv_id, attempts, Date.now() + attempts * 60_000); // backoff
           logTo('memory', `extraction retry ${attempts}/${MAX_ATTEMPTS} scheduled for ${row.conv_id}`);
         }
       }
@@ -283,29 +281,26 @@ async function sweepPending(): Promise<void> {
   } finally {
     sweeping = false;
   }
+  return handled;
 }
 
 export function startExtractionQueue(): void {
-  pendingTable();
-  setInterval(() => void sweepPending(), SWEEP_MS);
+  setInterval(() => void sweepPendingNow(), SWEEP_MS);
 }
 
 /** Wiping a scope's memory also cancels its queued learning — otherwise a
  * pending extraction resurrects facts minutes after the wipe. */
 export function cancelPending(projectId: string): void {
-  pendingTable();
-  getDb().prepare('DELETE FROM mem_pending WHERE project_id = ?').run(projectId);
+  void cancelPendingForProject(projectId).catch(() => undefined);
 }
 
 export async function extract(convId: string, projectId: string): Promise<void> {
   if (!rememberEnabled(convId)) return;
-  const db = getDb();
   const lastSeen = getSetting(`memext:${convId}`);
-  const rows = db
-    .prepare(
-      "SELECT id, role, payload, created_at FROM messages WHERE conversation_id = ? AND kind = 'text' ORDER BY created_at DESC LIMIT 8",
-    )
-    .all(convId) as Array<{ id: string; role: string; payload: string; created_at: number }>;
+  const rows = (await listMessages(convId))
+    .filter((m) => m.kind === 'text')
+    .slice(-8)
+    .reverse() as Array<{ id: string; role: string; payload: string; created_at: number }>;
   const newest = rows[0];
   if (!newest) return;
   if (lastSeen === newest.id) return; // nothing new since the last pass
@@ -411,7 +406,7 @@ export async function consolidate(scope: Scope): Promise<string | null> {
 /** Refresh any scope whose profile is missing or >24h old. In-server timer for
  * now; moves to EventBridge Scheduler + Lambda with the Phase 4 migration. */
 export async function consolidateStaleScopes(): Promise<void> {
-  const projects = getDb().prepare('SELECT id FROM projects').all() as Array<{ id: string }>;
+  const projects = await listProjects();
   for (const scope of ['user', ...projects.map((p) => p.id)] as Scope[]) {
     try {
       const profile = await getProfile(scope);

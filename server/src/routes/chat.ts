@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { getDb, newId, now } from '../db/db.js';
+import {
+  newId,
+  now,
+  getConversation,
+  getProject,
+  touchConversation,
+  countMessages,
+  addMessage,
+} from '../db/appdb.js';
 import { logTo } from '../log.js';
 import { installFor, toolsForProject, callTool, type ChatTool } from '../mcp/manager.js';
 import { webSearch, webFetch } from '../tools/web.js';
@@ -83,10 +91,7 @@ function sse(res: Response, event: string, data: unknown): void {
 export const chatRouter = Router();
 
 chatRouter.post('/:id/messages', async (req, res) => {
-  const db = getDb();
-  const conv = db
-    .prepare('SELECT id, project_id, title FROM conversations WHERE id = ?')
-    .get(req.params.id) as { id: string; project_id: string; title: string } | undefined;
+  const conv = await getConversation(req.params.id);
   if (!conv) {
     res.status(404).json({ error: 'conversation not found' });
     return;
@@ -117,36 +122,34 @@ chatRouter.post('/:id/messages', async (req, res) => {
   });
 
   const t = now();
-  const messageCount = (
-    db.prepare('SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?').get(conv.id) as {
-      n: number;
-    }
-  ).n;
+  const messageCount = await countMessages(conv.id);
   if (!retry) {
-    const userMsgId = newId('m');
-    db.prepare(
-      'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(
-      userMsgId,
-      conv.id,
-      'user',
-      'text',
-      JSON.stringify(atts.length ? { text: text.trim(), attachments: atts } : { text: text.trim() }),
-      t,
-    );
+    await addMessage({
+      id: newId('m'),
+      conversation_id: conv.id,
+      role: 'user',
+      kind: 'text',
+      payload: JSON.stringify(atts.length ? { text: text.trim(), attachments: atts } : { text: text.trim() }),
+      created_at: t,
+    });
     if (messageCount === 0) {
       const title = text.trim().length > 42 ? `${text.trim().slice(0, 42)}…` : text.trim();
-      db.prepare('UPDATE conversations SET title = ? WHERE id = ?').run(title, conv.id);
+      await touchConversation(conv.id, { title, updated_at: t });
     }
   }
-  db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(t, conv.id);
+  await touchConversation(conv.id, { updated_at: t }).catch(() => undefined);
 
-  const persistAssistant = (kind: 'text' | 'pipeline', payload: unknown): string => {
+  const persistAssistant = async (kind: 'text' | 'pipeline', payload: unknown): Promise<string> => {
     const id = newId('m');
-    db.prepare(
-      'INSERT INTO messages (id, conversation_id, role, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(id, conv.id, 'assistant', kind, JSON.stringify(payload), now());
-    db.prepare('UPDATE conversations SET updated_at = ? WHERE id = ?').run(now(), conv.id);
+    await addMessage({
+      id,
+      conversation_id: conv.id,
+      role: 'assistant',
+      kind,
+      payload: JSON.stringify(payload),
+      created_at: now(),
+    });
+    void touchConversation(conv.id, { updated_at: now() }).catch(() => undefined);
     return id;
   };
 
@@ -155,9 +158,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
       throw new Error('No model connected — open the model menu and connect Amazon Bedrock');
     }
 
-    const project = db
-      .prepare('SELECT instructions FROM projects WHERE id = ?')
-      .get(conv.project_id) as { instructions: string } | undefined;
+    const project = await getProject(conv.project_id);
     const instructions = project?.instructions ?? '';
 
     // attachments: documents inject extracted text; images become vision parts
@@ -182,7 +183,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
 
     const routerModel = activeModel().name;
     sse(res, 'step', { state: 'pending', label: `Router · ${routerModel}`, detail: 'classifying the task' });
-    const editable = lastPipelineArtifact(conv.id);
+    const editable = await lastPipelineArtifact(conv.id);
     const tRoute = Date.now();
     const routedText = atts.length
       ? `${text.trim()} [attached: ${atts.map((a) => a.name).join(', ')}]`
@@ -200,9 +201,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
 
       // holistic recall: USER KV + PROJECT KV (capped) + semantic hits from
       // S3 Vectors — AWS-native (MEMORY_DESIGN.md); per-conversation toggle honored
-      const memEnabled = (() => {
+      const memEnabled = await (async () => {
         try {
-          const memInstall = installFor('memory');
+          const memInstall = await installFor('memory');
           return (
             !!memInstall &&
             (JSON.parse(memInstall.enabled_projects) as string[]).includes(conv.project_id) &&
@@ -306,14 +307,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
         // dropping everything the user watched stream in
         if (abort.signal.aborted) {
           if (full) {
-            persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
+            await persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
             scheduleExtraction(conv.id, conv.project_id);
           }
           return;
         }
         throw err;
       }
-      const id = persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
+      const id = await persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
       scheduleExtraction(conv.id, conv.project_id);
       sse(res, 'done', { messageId: id });
       return;
@@ -333,12 +334,12 @@ chatRouter.post('/:id/messages', async (req, res) => {
         ? editable.kind
         : (routed.skill as SkillId);
 
-    if (!skillEnabled(skillId)) {
+    if (!(await skillEnabled(skillId))) {
       const skillName = loadSkill(skillId).name;
       const refusal = `The ${skillName} skill is turned off, so I can't generate that right now. Flip it back on in Skills and ask again — the router will pick it up immediately.`;
       sse(res, 'route', { intent: 'chat' });
       sse(res, 'token', { delta: refusal });
-      const id = persistAssistant('text', { text: refusal });
+      const id = await persistAssistant('text', { text: refusal });
       sse(res, 'done', { messageId: id });
       return;
     }
@@ -370,7 +371,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         signal: abort.signal,
       });
     }
-    const id = persistAssistant('pipeline', payload);
+    const id = await persistAssistant('pipeline', payload);
     sse(res, 'pipeline', { phase: 'end', duration: payload.duration });
     sse(res, 'done', { messageId: id });
   } catch (err) {
@@ -381,7 +382,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         err instanceof PipelineError
           ? `Generation failed: ${message}`
           : `Something went wrong: ${message}`;
-      persistAssistant('text', { text: honest });
+      await persistAssistant('text', { text: honest });
       sse(res, 'error', { message: honest, retryable: true });
     }
   } finally {

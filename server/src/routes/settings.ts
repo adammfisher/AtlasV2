@@ -1,18 +1,15 @@
 import { Router } from 'express';
-import { getDb, setSetting } from '../db/db.js';
+import { getSetting, setSetting } from '../db/db.js';
 
 const EXPOSED = ['activeProjectId', 'selectedModel', 'userName'] as const;
 
 export const settingsRouter = Router();
 
 settingsRouter.get('/', (_req, res) => {
-  const rows = getDb().prepare('SELECT key, value FROM settings').all() as Array<{
-    key: string;
-    value: string;
-  }>;
   const out: Record<string, string> = {};
-  for (const row of rows) {
-    if ((EXPOSED as readonly string[]).includes(row.key)) out[row.key] = row.value;
+  for (const key of EXPOSED) {
+    const value = getSetting(key);
+    if (value !== null) out[key] = value;
   }
   res.json(out);
 });
