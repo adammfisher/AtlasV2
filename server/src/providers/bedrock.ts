@@ -364,9 +364,13 @@ export async function bedrockCompleteJson(
   };
 
   const complex = (msg: string): boolean => /grammar|compilation|timed out|too complex|too large/i.test(msg);
+  // Large/deep schemas reliably blow Bedrock's grammar compiler (which wastes
+  // ~60s before erroring). Skip json_schema for them and go straight to
+  // tool-use — avoids the timeout and generates fast (the product skill).
+  const bigSchema = JSON.stringify(schema).length > 2200;
 
   let content: string;
-  if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema)) {
+  if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema) && !bigSchema) {
     try {
       const out = await client.send(
         new ConverseCommand({

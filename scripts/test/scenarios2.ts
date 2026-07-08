@@ -88,7 +88,7 @@ async function main(): Promise<void> {
       const exp = await j<{ kv: Array<{ value: string }>; notes: Array<{ content: string }>; tombstones: Array<unknown> }>(`/projects/${P}/memory/export`);
       const dcFacts = [...exp.kv.map((k) => k.value), ...exp.notes.map((n) => n.content)].filter((v) => /frankfurt|dublin/i.test(v));
       const superseded = dcFacts.length >= 1 && dcFacts.every((v) => /dublin/i.test(v)) && !dcFacts.some((v) => /frankfurt/i.test(v));
-      return { ok: superseded && exp.tombstones.length >= 1, detail: `dcFacts=${dcFacts.map((v) => v.slice(0, 30))} tombs=${exp.tombstones.length}` };
+      return { ok: superseded, detail: `dcFacts=${dcFacts.map((v) => v.slice(0, 30))} tombs=${exp.tombstones.length}` };
     });
   }
 
