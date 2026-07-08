@@ -31,11 +31,17 @@ input::placeholder {
   background: transparent;
 }
 
-/* Stage 5 polish: keyboard focus is always visible */
+/* Stage 5 polish: keyboard focus is always visible on interactive controls */
 :focus-visible {
   outline: 2px solid #d97757;
   outline-offset: 2px;
   border-radius: 6px;
+}
+/* text fields already signal focus via the caret + their container styling —
+   the bright accent ring around a composer box reads as harsh, so suppress it */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
 }
 
 /* Stage 5 polish: respect prefers-reduced-motion — spinners go static, no animations */
