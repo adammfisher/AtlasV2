@@ -224,33 +224,7 @@ export function Sidebar({
       </div>
 
       <div className="px-3 pb-3 pt-2" style={{ borderTop: `1px solid ${C.borderSoft}` }}>
-        <div className="rounded-xl px-3 py-2.5" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Cloud size={13} style={{ color: bedrockConnected ? C.green : C.amber }} />
-            <span className="text-xs font-medium" style={{ color: C.text, fontFamily: sans }}>
-              Amazon Bedrock
-            </span>
-            <span className="text-xs ml-auto" style={{ color: C.mute, fontFamily: sans }}>
-              {bedrockConnected ? bedrockRegion : 'not connected'}
-            </span>
-          </div>
-          {(registry?.bedrockModels ?? []).map((m) => {
-            const active = bedrockConnected && registry?.selected === m.id;
-            return (
-              <div key={m.id} className="flex items-center gap-2 py-0.5">
-                <span
-                  className="text-xs flex-1 truncate"
-                  style={{ color: active ? C.sub : C.mute, fontFamily: sans }}
-                  title={m.sub}
-                >
-                  {m.name}
-                </span>
-                {active && <Check size={12} style={{ color: C.green }} />}
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-2 px-1.5 pt-2.5">
+        <div className="flex items-center gap-2 px-1.5 pt-1">
           <span
             className="flex items-center justify-center rounded-full text-xs font-semibold"
             style={{ width: 26, height: 26, background: C.raised, color: C.text, fontFamily: sans }}

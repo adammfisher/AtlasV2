@@ -28,7 +28,9 @@ export interface BedrockSettings {
   modelId: string;
 }
 
-/** The only two models Atlas exposes — both ACTIVE inference profiles in us-east-1. */
+/** The models Atlas exposes on us-east-1. Claude Haiku/Sonnet are the primary
+ * pair; Amazon Nova 2 Lite is a third, cheaper option (fast, multimodal —
+ * text+image+video in). All support the Converse API + tool use. */
 export const BEDROCK_MODELS: Record<string, { id: string; name: string; sub: string }> = {
   haiku: {
     id: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
@@ -39,6 +41,11 @@ export const BEDROCK_MODELS: Record<string, { id: string; name: string; sub: str
     id: 'us.anthropic.claude-sonnet-5',
     name: 'Claude Sonnet 5',
     sub: 'Most capable · Amazon Bedrock',
+  },
+  nova: {
+    id: 'us.amazon.nova-2-lite-v1:0',
+    name: 'Nova 2 Lite',
+    sub: 'Fast & low-cost · multimodal · Amazon Bedrock',
   },
 };
 export const DEFAULT_MODEL_KEY = 'haiku';
