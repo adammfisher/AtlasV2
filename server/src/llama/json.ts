@@ -1,7 +1,8 @@
 import { config } from '../config.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from './client.js';
-import { bedrockActive, bedrockCompleteJson, bedrockCompleteText } from '../providers/bedrock.js';
+import { bedrockActive } from '../providers/bedrock.js';
+import { cloudReady, completeJson as cloudCompleteJson, completeText as cloudCompleteText } from '../providers/dispatch.js';
 
 export interface JsonCallOptions {
   temperature?: number;
@@ -96,8 +97,8 @@ export function completeJson(
   schema: Record<string, unknown>,
   opts: JsonCallOptions = {},
 ): Promise<string> {
-  if (bedrockActive()) {
-    return bedrockCompleteJson(messages, schema, {
+  if (cloudReady()) {
+    return cloudCompleteJson(messages, schema, {
       temperature: opts.temperature,
       maxTokens: opts.maxTokens,
       signal: opts.signal,
@@ -124,8 +125,8 @@ export function completeText(
   messages: ChatMessage[],
   opts: JsonCallOptions = {},
 ): Promise<string> {
-  if (bedrockActive()) {
-    return bedrockCompleteText(messages, {
+  if (cloudReady()) {
+    return cloudCompleteText(messages, {
       temperature: opts.temperature,
       maxTokens: opts.maxTokens,
       signal: opts.signal,

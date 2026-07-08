@@ -13,7 +13,8 @@ import {
 import { logTo } from '../log.js';
 import { installFor, toolsForProject, callTool, type ChatTool } from '../mcp/manager.js';
 import { webSearch, webFetch } from '../tools/web.js';
-import { bedrockSettings, activeModel, bedrockStreamWithTools, type BedrockTool } from '../providers/bedrock.js';
+import { bedrockSettings, activeModel, type BedrockTool } from '../providers/bedrock.js';
+import { streamWithTools } from '../providers/dispatch.js';
 import { attachmentDataUrl, attachmentTextWait } from './uploads.js';
 import { recallContext, scheduleExtraction, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
 
@@ -273,7 +274,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
       const tools: BedrockTool[] = [...(memEnabled ? MEMORY_TOOLS : []), ...(webEnabled ? WEB_TOOLS : []), ...connectorTools];
 
       const fullMessages = [{ role: 'system' as const, content: system }, ...(chatHistory as ChatMessage[])];
-      const stream = bedrockStreamWithTools(
+      const stream = streamWithTools(
         fullMessages,
         tools,
         (name, input) => {

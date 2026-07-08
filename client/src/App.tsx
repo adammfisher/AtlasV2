@@ -65,6 +65,11 @@ export default function App() {
     const path = view === 'chat' && effectiveConv ? `/c/${effectiveConv}` : '/';
     if (window.location.pathname !== path) window.history.replaceState({}, '', path);
   }, [effectiveConv, view]);
+  // the artifact/preview panel belongs to a chat — moving to another chat closes it
+  useEffect(() => {
+    setRightPanel(null);
+    setLiveGen(null);
+  }, [effectiveConv]);
   // back/forward navigation
   useEffect(() => {
     const onPop = () => {
