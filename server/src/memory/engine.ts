@@ -216,7 +216,7 @@ export async function recallContext(projectId: string, query: string): Promise<s
       if (mChosen.length) parts.push(`Relevant memories:\n${mChosen.map((h) => h.content).join('\n')}`);
       if (kChosen.length) {
         parts.push(
-          `Knowledge passages from project documents — when you use information from one, cite it inline as [source: filename]:\n${kChosen
+          `The following passages have ALREADY been retrieved from this project's documents for you — they are the relevant excerpts. Answer directly from them; do NOT say you will search, look up, or check files (you have no file-search tool). When you use information from a passage, cite it inline as [source: filename].\n${kChosen
             .map((h) => h.content)
             .join('\n')}`,
         );

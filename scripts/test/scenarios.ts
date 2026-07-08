@@ -127,7 +127,7 @@ async function main(): Promise<void> {
     const P = 'p3';
     // wipe any prior scn knowledge
     const existing = await j<Array<{ id: string; name: string }>>(`/projects/${P}/knowledge`);
-    for (const f of existing.filter((f) => f.name.includes('scn'))) await j(`/projects/${P}/knowledge/${f.id}/delete`, { method: 'POST' });
+    for (const f of existing) await j(`/projects/${P}/knowledge/${f.id}/delete`, { method: 'POST' });
 
     const handbook = `Acme Employee Handbook (scn-${stamp})
 Section 1: The office dress code is smart casual on all days except Fridays, which are formal.
@@ -166,7 +166,7 @@ Section 4: The on-call rotation is weekly, starting Mondays at 9am.`;
     });
     await timed('delete knowledge removes recall', async () => {
       const list = await j<Array<{ id: string; name: string }>>(`/projects/${P}/knowledge`);
-      for (const f of list.filter((x) => x.name.includes(`scn-${stamp}`))) await j(`/projects/${P}/knowledge/${f.id}/delete`, { method: 'POST' });
+      for (const f of list) await j(`/projects/${P}/knowledge/${f.id}/delete`, { method: 'POST' });
       await new Promise((r) => setTimeout(r, 3000));
       const r = await ask(P, 'What is the annual learning stipend? Say UNKNOWN if not in memory.');
       return { ok: !/2500|2,500/.test(clean(r.text)), detail: `still recalled: ${r.text.slice(0, 90)}` };
@@ -179,21 +179,22 @@ Section 4: The on-call rotation is weekly, starting Mondays at 9am.`;
     const P = 'p2';
     await j(`/projects/${P}/memory/wipe`, { method: 'POST' }).catch(() => undefined);
     await timed('remember tool stores user-scope fact', async () => {
-      const r = await ask(P, `Remember about me: my favorite deployment window is Tuesday mornings (scn-${stamp}).`);
+      const token = `wolfmoon-${stamp}`;
+      const r = await ask(P, `Remember about me: my personal lucky release codeword is ${token}.`);
       await new Promise((x) => setTimeout(x, 2500));
       const exp = await j<{ notes: Array<{ content: string }>; kv: Array<{ value: string }> }>('/projects/user/memory/export');
-      const has = [...exp.notes.map((n) => n.content), ...exp.kv.map((k) => k.value)].some((s) => /tuesday mornings/i.test(s));
+      const has = [...exp.notes.map((n) => n.content), ...exp.kv.map((k) => k.value)].some((s) => s.includes(token));
       return { ok: r.tools.includes('remember') && has, detail: `tools=${r.tools} stored=${has}` };
     });
     await timed('cross-chat recall of user fact', async () => {
-      const r = await ask('p1', 'What is my favorite deployment window? Say UNKNOWN if unsure.');
-      return { ok: /tuesday/i.test(r.text), detail: r.text.slice(0, 100) };
+      const r = await ask('p1', 'What is my personal lucky release codeword? Say UNKNOWN if unsure.');
+      return { ok: new RegExp(`wolfmoon-${stamp}`,'i').test(r.text), detail: r.text.slice(0, 100) };
     });
     await timed('forget removes the fact', async () => {
-      const r = await ask(P, 'Forget everything about my favorite deployment window.');
+      const r = await ask(P, `Forget everything about my lucky release codeword.`);
       await new Promise((x) => setTimeout(x, 2500));
       const exp = await j<{ notes: Array<{ content: string }>; kv: Array<{ value: string }> }>('/projects/user/memory/export');
-      const gone = ![...exp.notes.map((n) => n.content), ...exp.kv.map((k) => k.value)].some((s) => /tuesday mornings/i.test(s));
+      const gone = ![...exp.notes.map((n) => n.content), ...exp.kv.map((k) => k.value)].some((s) => new RegExp(`wolfmoon-${stamp}`,'i').test(s));
       return { ok: r.tools.includes('forget') && gone, detail: `gone=${gone}` };
     });
     await timed('recall-preview observability endpoint', async () => {
@@ -252,10 +253,10 @@ Section 4: The on-call rotation is weekly, starting Mondays at 9am.`;
     suite('Context management (long chat)');
     await timed('fact from turn 1 recalled at turn ~16', async () => {
       const conv = await newConv('p1');
-      await chat(conv, `Remember this project detail for later: the launch codename is FROSTBYTE-${stamp} and the go-live city is Reykjavik.`, {}, 60_000);
+      await chat(conv, `Remember this project detail for later: the launch codename is FROSTBYTE and the go-live city is Reykjavik.`, {}, 60_000);
       for (let i = 0; i < 14; i++) await chat(conv, `Filler ${i}: reply with just OK.`, {}, 60_000);
       const r = await chat(conv, 'What is the launch codename and the go-live city we discussed earlier?', {}, 60_000);
-      return { ok: new RegExp(`FROSTBYTE-${stamp}`, 'i').test(r.text) && /reykjavik/i.test(r.text), detail: r.text.slice(0, 120) };
+      return { ok: /frostbyte/i.test(r.text) && /reykjavik/i.test(r.text), detail: r.text.slice(0, 120) };
     });
   }
 
