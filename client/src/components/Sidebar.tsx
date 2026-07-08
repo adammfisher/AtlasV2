@@ -76,7 +76,7 @@ export function Sidebar({
 
       <div className="px-2.5">
         <button
-          onClick={newChat}
+          onClick={() => newChat()}
           className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{ color: C.accent, fontFamily: sans }}
           onMouseEnter={(e) => (e.currentTarget.style.background = C.accentDim)}

@@ -78,11 +78,14 @@ export default function App() {
     // explicit project scoping (no reliance on the async activeProjectId
     // setting) so a new chat's project — and thus its memory scope — is
     // never ambiguous.
-    const pid = projectId ?? activeProjectId;
+    // guard: some onClick handlers may pass an event — only accept a string id
+    const scopedPid = typeof projectId === 'string' ? projectId : undefined;
+    const msg = typeof message === 'string' ? message : undefined;
+    const pid = scopedPid ?? activeProjectId;
     void api.createConversation(pid).then((c) => {
       void queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      if (projectId) setActiveProject(projectId);
-      if (message?.trim()) setAutoSend({ convId: c.id, text: message.trim(), attachments });
+      if (scopedPid) setActiveProject(scopedPid);
+      if (msg?.trim()) setAutoSend({ convId: c.id, text: msg.trim(), attachments });
       setActiveConv(c.id);
       setView('chat');
     });
