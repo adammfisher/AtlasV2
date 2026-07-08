@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process';
-import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { repoRoot } from '../config.js';
+import { repoRoot, config } from '../config.js';
 import { logTo } from '../log.js';
 import { completeJson, completeText } from '../llama/json.js';
 import { streamChat } from '../llama/client.js';
@@ -189,11 +189,35 @@ interface HelperResult {
   checks: Array<{ label: string; ok: boolean }>;
 }
 
+/** Cloud: invoke the atlasv2-office Python Lambda (no python in the app Lambda).
+ * Returns the built file as base64 which we write to outFile. */
+async function runHelperLambda(skillId: string, payload: unknown, outFile: string): Promise<HelperResult> {
+  const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
+  const client = new LambdaClient({ region: config.bedrock.region || 'us-east-1' });
+  const out = await client.send(
+    new InvokeCommand({
+      FunctionName: 'atlasv2-office',
+      Payload: Buffer.from(JSON.stringify({ skill: skillId, payload })),
+    }),
+  );
+  const res = JSON.parse(Buffer.from(out.Payload ?? new Uint8Array()).toString('utf8')) as HelperResult & {
+    file_b64?: string;
+    error?: string;
+  };
+  if (!res.ok || !res.file_b64) {
+    throw new PipelineError(`office lambda (${skillId}) failed: ${res.error ?? 'no file returned'}`);
+  }
+  mkdirSync(path.dirname(outFile), { recursive: true });
+  writeFileSync(outFile, Buffer.from(res.file_b64, 'base64'));
+  return { ok: true, file: outFile, meta: res.meta, checks: res.checks };
+}
+
 async function runHelper(
   skillId: string,
   payload: unknown,
   outFile: string,
 ): Promise<HelperResult> {
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) return runHelperLambda(skillId, payload, outFile);
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'atlas-'));
   const payloadFile = path.join(tmp, 'payload.json');
   writeFileSync(payloadFile, JSON.stringify(payload));

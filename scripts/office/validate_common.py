@@ -58,10 +58,13 @@ def zip_sanity(path: Path) -> dict:
 def openxml_audit(path: Path) -> dict:
     try:
         from openxml_audit import OpenXmlValidator  # type: ignore
-
+    except ImportError:
+        # library absent (optional per bootstrap §4.5) ⇒ skip, non-blocking.
+        # round-trip + zip-sanity already prove the file opens.
+        return check("openxml-audit skipped — validator not installed", False)
+    try:
         result = OpenXmlValidator(strict=False).validate(str(path))
-        ok = bool(getattr(result, "is_valid", False))
-        return check("openxml-audit", ok)
+        return check("openxml-audit", bool(getattr(result, "is_valid", False)))
     except Exception:
         # library present but errored on this file ⇒ fail honestly
         return check("openxml-audit", False)

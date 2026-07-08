@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Compile pages-JSON (skills/pdf/schema.json) to PDF via weasyprint."""
 import html
+import os
 from pathlib import Path
 
 import validate_common as vc
@@ -44,12 +45,28 @@ def build(payload: dict, out: Path) -> dict:
             if block.get("kind") == "heading":
                 first_heading = False
 
-    from weasyprint import HTML, CSS as WPCSS
-
     out.parent.mkdir(parents=True, exist_ok=True)
-    HTML(string=f"<html><body>{''.join(parts)}</body></html>").write_pdf(
-        str(out), stylesheets=[WPCSS(string=CSS)]
-    )
+    body = "".join(parts)
+    force_pure = os.environ.get("ATLAS_PDF_ENGINE") == "xhtml2pdf"
+    try:
+        if force_pure:
+            raise ImportError("forced pure-python engine")
+        # weasyprint: highest fidelity (local dev). Needs pango/cairo native libs.
+        from weasyprint import HTML, CSS as WPCSS
+
+        HTML(string=f"<html><body>{body}</body></html>").write_pdf(
+            str(out), stylesheets=[WPCSS(string=CSS)]
+        )
+    except Exception:
+        # cloud (zip Lambda, no native libs): xhtml2pdf is pure-python. Same
+        # HTML; @page/page-break/tables are supported. Engine noted for parity.
+        from xhtml2pdf import pisa
+
+        doc = f"<html><head><style>{CSS}</style></head><body>{body}</body></html>"
+        with open(out, "wb") as fh:
+            result = pisa.CreatePDF(doc, dest=fh)
+        if result.err:
+            raise RuntimeError(f"xhtml2pdf failed with {result.err} errors")
     return {"pages": len(payload["pages"]), "bytes": out.stat().st_size}
 
 
