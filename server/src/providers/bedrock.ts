@@ -309,25 +309,9 @@ export async function bedrockCompleteJson(
   const modelId = activeModelId();
   const inferenceConfig = { maxTokens: opts.maxTokens ?? 3072, temperature: opts.temperature ?? 0.2 };
 
-  let content: string;
-  if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema)) {
-    const out = await client.send(
-      new ConverseCommand({
-        modelId,
-        system,
-        messages: msgs,
-        inferenceConfig,
-        outputConfig: {
-          textFormat: {
-            type: 'json_schema',
-            structure: { jsonSchema: { name: 'payload', schema: JSON.stringify(sanitizeForBedrock(schema)) } },
-          },
-        },
-      }),
-      { abortSignal: opts.signal },
-    );
-    content = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
-  } else {
+  // forced tool-use path — accepts schemas json_schema can't express (maps) and
+  // is the fallback when json_schema's grammar compiler chokes on a big schema.
+  const viaToolUse = async (): Promise<string> => {
     const out = await client.send(
       new ConverseCommand({
         modelId,
@@ -361,7 +345,68 @@ export async function bedrockCompleteJson(
         payload = { [required[0]]: payload };
       }
     }
-    content = toolUse ? JSON.stringify(payload) : '';
+    return toolUse ? JSON.stringify(payload) : '';
+  };
+
+  // last-resort: no Bedrock grammar at all. Complex schemas (e.g. the product
+  // skill) exceed BOTH json_schema and tool-use constrained-decoding limits;
+  // the caller's system prompt already describes the schema and demands raw
+  // JSON, and the orchestrator ajv-validates + repairs, so a plain completion
+  // is safe and correct here.
+  const viaPlain = async (): Promise<string> => {
+    const out = await client.send(
+      new ConverseCommand({ modelId, system, messages: msgs, inferenceConfig }),
+      { abortSignal: opts.signal },
+    );
+    const raw = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
+    // strip markdown fences the model may add without constrained decoding
+    return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+  };
+
+  const complex = (msg: string): boolean => /grammar|compilation|timed out|too complex|too large/i.test(msg);
+
+  let content: string;
+  if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema)) {
+    try {
+      const out = await client.send(
+        new ConverseCommand({
+          modelId,
+          system,
+          messages: msgs,
+          inferenceConfig,
+          outputConfig: {
+            textFormat: {
+              type: 'json_schema',
+              structure: { jsonSchema: { name: 'payload', schema: JSON.stringify(sanitizeForBedrock(schema)) } },
+            },
+          },
+        }),
+        { abortSignal: opts.signal },
+      );
+      content = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!complex(msg)) throw err;
+      // json_schema grammar choked → try tool-use, then plain JSON.
+      try {
+        logTo('app', `json_schema grammar failed (${msg.slice(0, 50)}) — trying tool-use`);
+        content = await viaToolUse();
+      } catch (err2) {
+        const msg2 = err2 instanceof Error ? err2.message : String(err2);
+        if (!complex(msg2)) throw err2;
+        logTo('app', `tool-use too complex (${msg2.slice(0, 50)}) — falling back to plain JSON`);
+        content = await viaPlain();
+      }
+    }
+  } else {
+    try {
+      content = await viaToolUse();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!complex(msg)) throw err;
+      logTo('app', `tool-use too complex (${msg.slice(0, 50)}) — falling back to plain JSON`);
+      content = await viaPlain();
+    }
   }
   if (opts.onDelta && content) opts.onDelta(content);
   return content;
