@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText, Share2 } from 'lucide-react';
+import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText, Share2, ExternalLink } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon } from '../theme/tokens';
 import { api, type ProjectionRow } from '../lib/api';
@@ -315,6 +315,26 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
           >
             <FolderOpen size={14} />
           </button>
+          {['pptx', 'docx', 'xlsx'].includes(a.kind) && (
+            <button
+              onClick={() => {
+                // open the tab synchronously (avoids popup blocking), then point
+                // it at Microsoft's Office Online viewer with a signed share URL
+                const win = window.open('', '_blank');
+                act(async () => {
+                  const { url } = await api.shareArtifact(a.id, activeVer);
+                  const viewer = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+                  if (win) win.location.href = viewer;
+                  else window.open(viewer, '_blank');
+                });
+              }}
+              title="Open a pixel-perfect PowerPoint view (Microsoft Office Online — the file is fetched via a temporary signed link)"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium"
+              style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
+            >
+              <ExternalLink size={14} />
+            </button>
+          )}
           <button
             onClick={() =>
               act(async () => {
