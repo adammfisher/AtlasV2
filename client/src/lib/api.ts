@@ -156,7 +156,7 @@ export interface ModelEntry {
 
 export interface ModelsRegistry {
   /** The Claude models Atlas exposes — the only selectable inference backends. */
-  bedrockModels: Array<{ id: string; name: string; sub: string }>;
+  bedrockModels: Array<{ id: string; name: string; sub: string; provider?: string; available?: boolean; vision?: boolean }>;
   models: ModelEntry[];
   selected: string;
   bedrock: { connected: boolean; region?: string; profile?: string; modelId?: string };

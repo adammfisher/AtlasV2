@@ -12,16 +12,23 @@ interface MenuRow {
   selectable: boolean;
 }
 
+const PROVIDER_LABEL: Record<string, string> = { bedrock: 'Bedrock', openai: 'OpenAI', anthropic: 'Anthropic' };
+
 function buildRows(registry: ModelsRegistry): MenuRow[] {
-  const connected = registry.bedrock.connected;
-  return registry.bedrockModels.map((m) => ({
-    id: m.id,
-    name: m.name,
-    detail: connected ? m.sub : 'Connect Amazon Bedrock to enable',
-    badge: connected ? 'Bedrock' : 'Connect',
-    locked: !connected,
-    selectable: connected,
-  }));
+  return registry.bedrockModels.map((m) => {
+    const provider = m.provider ?? 'bedrock';
+    const available = m.available ?? registry.bedrock.connected;
+    const unavailDetail =
+      provider === 'bedrock' ? 'Connect Amazon Bedrock to enable' : `Set the ${provider === 'openai' ? 'OpenAI' : 'Anthropic'} API key to enable`;
+    return {
+      id: m.id,
+      name: m.name,
+      detail: available ? m.sub : unavailDetail,
+      badge: PROVIDER_LABEL[provider] ?? provider,
+      locked: !available && provider === 'bedrock',
+      selectable: available,
+    };
+  });
 }
 
 export function ModelMenu({
@@ -49,6 +56,7 @@ export function ModelMenu({
               onClose();
               return;
             }
+            if (!m.selectable) return; // API model without its key — not selectable
             onSelect(m.id);
             onClose();
           }}

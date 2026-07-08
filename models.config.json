@@ -1,0 +1,51 @@
+{
+  "_comment": "Add or remove models here — they appear in the model dropdown. provider: 'bedrock' (uses the connected AWS Bedrock account), 'openai' (OpenAI API), or 'anthropic' (Anthropic API). For openai/anthropic set keyEnv to the environment variable holding the API key (e.g. OPENAI_API_KEY); the model shows as available only when that key is present. 'vision' true enables image uploads for that model.",
+  "default": "haiku",
+  "models": [
+    {
+      "key": "haiku",
+      "name": "Claude Haiku 4.5",
+      "sub": "Fast · Amazon Bedrock",
+      "provider": "bedrock",
+      "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "vision": true
+    },
+    {
+      "key": "sonnet",
+      "name": "Claude Sonnet 4.6",
+      "sub": "Most capable · Amazon Bedrock",
+      "provider": "bedrock",
+      "model": "us.anthropic.claude-sonnet-4-6",
+      "modelComment": "set to us.anthropic.claude-sonnet-5 once AWS clears it for this account",
+      "vision": true
+    },
+    {
+      "key": "nova",
+      "name": "Nova 2 Lite",
+      "sub": "Fast & low-cost · multimodal · Amazon Bedrock",
+      "provider": "bedrock",
+      "model": "us.amazon.nova-2-lite-v1:0",
+      "vision": true
+    }
+  ],
+  "examples_you_can_uncomment_into_models": [
+    {
+      "key": "gpt",
+      "name": "GPT-5",
+      "sub": "OpenAI API",
+      "provider": "openai",
+      "model": "gpt-5",
+      "keyEnv": "OPENAI_API_KEY",
+      "vision": true
+    },
+    {
+      "key": "claude-api",
+      "name": "Claude Sonnet 4.5 (Anthropic API)",
+      "sub": "Anthropic API",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5",
+      "keyEnv": "ANTHROPIC_API_KEY",
+      "vision": true
+    }
+  ]
+}

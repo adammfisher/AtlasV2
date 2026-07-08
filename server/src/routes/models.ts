@@ -26,10 +26,11 @@ function registry() {
   const llama = llamaState();
   const b = bedrockSettings();
   return {
-    // The two Claude models Atlas exposes — the only selectable inference backends.
+    // Config-driven catalog (models.config.json). `available` gates selection:
+    // bedrock models need the connection; api models need their key env set.
     bedrockModels: MODEL_KEYS.map((key) => {
       const m = modelCatalog()[key]!;
-      return { id: key, name: m.name, sub: m.sub };
+      return { id: key, name: m.name, sub: m.sub, provider: m.provider, available: m.available, vision: m.vision };
     }),
     models: scanModels(),
     selected: activeModelKey(),

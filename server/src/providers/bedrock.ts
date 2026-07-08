@@ -16,6 +16,9 @@ import {
   type ContentBlock,
 } from '@aws-sdk/client-bedrock-runtime';
 import { fromIni } from '@aws-sdk/credential-providers';
+import { readFileSync } from 'node:fs';
+import { join as pathJoin } from 'node:path';
+import { repoRoot } from '../config.js';
 import { getSetting, setSetting } from '../db/db.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from '../llama/client.js';
@@ -28,89 +31,92 @@ export interface BedrockSettings {
   modelId: string;
 }
 
-/** The models Atlas exposes on us-east-1. Claude Haiku/Sonnet are the primary
- * pair; Amazon Nova 2 Lite is a third, cheaper option (fast, multimodal —
- * text+image+video in). All support the Converse API + tool use. */
-export const BEDROCK_MODELS: Record<string, { id: string; name: string; sub: string }> = {
-  haiku: {
-    id: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',
-    name: 'Claude Haiku 4.5',
-    sub: 'Fast · Amazon Bedrock',
-  },
-  sonnet: {
-    id: 'us.anthropic.claude-sonnet-5',
-    name: 'Claude Sonnet 5',
-    sub: 'Most capable · Amazon Bedrock',
-  },
-  nova: {
-    id: 'us.amazon.nova-2-lite-v1:0',
-    name: 'Nova 2 Lite',
-    sub: 'Fast & low-cost · multimodal · Amazon Bedrock',
-  },
-};
-export const DEFAULT_MODEL_KEY = 'haiku';
-export const MODEL_KEYS = Object.keys(BEDROCK_MODELS);
-
-/** Sonnet 5's model agreement is ACTIVE on this account but AWS runtime can
- * still refuse it while activation propagates (or pending a manual AWS grant).
- * Until it clears, the sonnet slot binds to Sonnet 4.6 — honestly labeled —
- * and auto-upgrades to Sonnet 5 once a probe succeeds. */
-const SONNET_46 = {
-  id: 'us.anthropic.claude-sonnet-4-6',
-  name: 'Claude Sonnet 4.6',
-  sub: 'Most capable available · Amazon Bedrock (Sonnet 5 pending AWS activation)',
-};
-
-/** The live catalog: BEDROCK_MODELS with the sonnet slot resolved to whatever
- * this account can actually invoke (probed at connect time). Any non-'5'
- * resolution serves Sonnet 4.6 (covers the legacy '4.5' stored value too). */
-export function modelCatalog(): Record<string, { id: string; name: string; sub: string }> {
-  if (getSetting('sonnetResolved') !== '5') return { ...BEDROCK_MODELS, sonnet: SONNET_46 };
-  return BEDROCK_MODELS;
+/** Model catalog is CONFIG-DRIVEN — edit models.config.json (repo root) to add
+ * or remove models from the dropdown. Each entry names a provider: 'bedrock'
+ * (the connected AWS account), 'openai' or 'anthropic' (their APIs, keyed by an
+ * env var). */
+export type Provider = 'bedrock' | 'openai' | 'anthropic';
+export interface ModelDef {
+  key: string;
+  name: string;
+  sub: string;
+  provider: Provider;
+  model: string;
+  keyEnv?: string;
+  baseUrl?: string;
+  vision?: boolean;
 }
 
-/** 1-token probe: can this account invoke Sonnet 5 right now? Binds the sonnet
- * slot accordingly. Cheap, non-fatal, safe to call on every boot/refresh. */
-export async function probeSonnet(): Promise<void> {
-  const settings = bedrockSettings();
-  if (!settings.connected) return;
-  const client = runtime(settings);
+const FALLBACK_MODELS: ModelDef[] = [
+  { key: 'haiku', name: 'Claude Haiku 4.5', sub: 'Fast · Amazon Bedrock', provider: 'bedrock', model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', vision: true },
+];
+
+function loadModelConfig(): { models: ModelDef[]; default: string } {
   try {
-    await client.send(
-      new ConverseCommand({
-        modelId: BEDROCK_MODELS.sonnet!.id,
-        messages: [{ role: 'user', content: [{ text: 'ping' }] }],
-        inferenceConfig: { maxTokens: 1 },
-      }),
-    );
-    if (getSetting('sonnetResolved') !== '5') logTo('app', 'Sonnet 5 is live on this account — sonnet slot upgraded');
-    setSetting('sonnetResolved', '5');
+    const raw = JSON.parse(readFileSync(pathJoin(repoRoot, 'models.config.json'), 'utf8')) as {
+      models?: ModelDef[];
+      default?: string;
+    };
+    const models = (raw.models ?? []).filter((m) => m && m.key && m.model && m.provider);
+    if (!models.length) throw new Error('no models in config');
+    return { models, default: raw.default && models.some((m) => m.key === raw.default) ? raw.default : models[0]!.key };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/not available for this account/i.test(msg)) {
-      if (getSetting('sonnetResolved') !== '4.6') {
-        logTo('app', 'Sonnet 5 refused by AWS runtime — sonnet slot bound to Sonnet 4.6 until activation clears');
-      }
-      setSetting('sonnetResolved', '4.6');
-    }
-    // other errors (throttle, network) leave the current binding untouched
+    logTo('app', `models.config.json unavailable (${err instanceof Error ? err.message : err}) — using fallback`);
+    return { models: FALLBACK_MODELS, default: 'haiku' };
   }
 }
 
-function isModelKey(v: string | null | undefined): v is string {
-  return !!v && Object.prototype.hasOwnProperty.call(BEDROCK_MODELS, v);
+const MODEL_CFG = loadModelConfig();
+export const MODEL_DEFS: ModelDef[] = MODEL_CFG.models;
+export const DEFAULT_MODEL_KEY = MODEL_CFG.default;
+export const MODEL_KEYS = MODEL_DEFS.map((m) => m.key);
+
+/** A provider is usable when: bedrock is connected, or an API model's key env is set. */
+export function modelAvailable(m: ModelDef): boolean {
+  if (m.provider === 'bedrock') return bedrockSettings().connected;
+  return !!(m.keyEnv && process.env[m.keyEnv]);
 }
 
-/** The model key (haiku|sonnet) the user has selected — defaults to haiku. */
+/** Client-facing catalog keyed by model key (id/name/sub + provider/availability). */
+export function modelCatalog(): Record<string, { id: string; name: string; sub: string; provider: Provider; available: boolean; vision: boolean }> {
+  const out: Record<string, { id: string; name: string; sub: string; provider: Provider; available: boolean; vision: boolean }> = {};
+  for (const m of MODEL_DEFS) {
+    out[m.key] = { id: m.model, name: m.name, sub: m.sub, provider: m.provider, available: modelAvailable(m), vision: !!m.vision };
+  }
+  return out;
+}
+/** Back-compat export (some callers read BEDROCK_MODELS[key].id/name/sub). */
+export const BEDROCK_MODELS = modelCatalog();
+
+/** No-op retained for boot callers — the sonnet slot is now set explicitly in
+ * models.config.json (no runtime probe/swap). */
+export async function probeSonnet(): Promise<void> {
+  return;
+}
+
+function isModelKey(v: string | null | undefined): v is string {
+  return !!v && MODEL_DEFS.some((m) => m.key === v);
+}
+
+/** The model key the user has selected — defaults to the config default. */
 export function activeModelKey(): string {
   const sel = getSetting('selectedModel');
   return isModelKey(sel) ? sel : DEFAULT_MODEL_KEY;
 }
 
-/** The full descriptor for the active selection (always defined). */
+/** The full model definition for the active selection (always defined). */
+export function activeModelDef(): ModelDef {
+  return (
+    MODEL_DEFS.find((m) => m.key === activeModelKey()) ??
+    MODEL_DEFS.find((m) => m.key === DEFAULT_MODEL_KEY) ??
+    MODEL_DEFS[0]!
+  );
+}
+
+/** The descriptor for the active selection (id/name/sub). */
 export function activeModel(): { id: string; name: string; sub: string } {
-  const catalog = modelCatalog();
-  return catalog[activeModelKey()] ?? catalog[DEFAULT_MODEL_KEY]!;
+  const m = activeModelDef();
+  return { id: m.model, name: m.name, sub: m.sub };
 }
 
 /** The Bedrock inference-profile id for the active selection. */
