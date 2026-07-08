@@ -263,6 +263,33 @@ export function ChatView({
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
+  // drag-and-drop file attach (claude.ai parity) — a counter avoids flicker as
+  // the pointer crosses child elements during a drag.
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const hasFiles = (e: React.DragEvent): boolean => Array.from(e.dataTransfer.types).includes('Files');
+  const onDragEnter = (e: React.DragEvent): void => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragging(true);
+  };
+  const onDragOver = (e: React.DragEvent): void => {
+    if (hasFiles(e)) e.preventDefault();
+  };
+  const onDragLeave = (e: React.DragEvent): void => {
+    if (!hasFiles(e)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragging(false);
+  };
+  const onDrop = (e: React.DragEvent): void => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    addFiles(e.dataTransfer.files);
+  };
+
   const { data: conv } = useQuery({
     queryKey: ['conversation', convId],
     queryFn: () => api.conversation(convId as string),
@@ -402,7 +429,32 @@ export function ChatView({
   const artifactCount = conversationArtifacts(messages).length + (live?.artifact?.artifactId && !messages.some((m) => m.kind === 'pipeline' && m.artifact?.artifactId === live.artifact?.artifactId) ? 1 : 0);
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0">
+    <div
+      className="flex-1 flex flex-col h-full min-w-0 relative"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {dragging && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
+          style={{ background: 'rgba(20,18,16,0.72)', backdropFilter: 'blur(2px)' }}
+        >
+          <div
+            className="flex flex-col items-center gap-3 rounded-2xl px-10 py-8"
+            style={{ border: `2px dashed ${C.accent}`, background: C.panel }}
+          >
+            <Paperclip size={28} style={{ color: C.accent }} />
+            <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>
+              Drop files to attach
+            </span>
+            <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+              Images, PDFs, Office docs, and text/code files
+            </span>
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
         <span className="text-sm" style={{ color: C.mute, fontFamily: sans }}>
           {activeProjectName}

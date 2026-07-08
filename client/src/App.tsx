@@ -99,10 +99,9 @@ export default function App() {
   };
 
   const onArtifactReady = (ref: ArtifactRef) => {
-    if (ref.artifactId) {
-      // the live writing view hands off to the finished document
-      setRightPanel((p) => (p === null || p.kind === 'live' ? { kind: 'detail', artifactId: ref.artifactId as string } : p));
-    }
+    // claude.ai parity: a freshly generated artifact always opens on the right,
+    // handing off from the live writing view (or replacing an older artifact).
+    if (ref.artifactId) setRightPanel({ kind: 'detail', artifactId: ref.artifactId });
   };
 
   return (
