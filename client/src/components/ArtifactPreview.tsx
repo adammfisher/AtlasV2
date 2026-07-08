@@ -16,6 +16,7 @@ const SANDBOX_KINDS = ['md', 'mermaid', 'svg', 'react', 'site'];
 interface OfficePreview {
   text: string;
   label: string;
+  svgs?: Array<string | null>;
   slides?: Array<{ title: string; bullets: string[] }>;
   sheets?: Array<{ name: string; rows: string[][] }>;
   blocks?: Array<{ style: string; text?: string; rows?: string[][] }>;
@@ -33,6 +34,28 @@ function StructuredOffice({ p, height }: { p: OfficePreview; height: number | st
     flexDirection: 'column',
     gap: 12,
   };
+  // true-to-design visual preview: SVGs rendered from the pptx shapes (cloud,
+  // no LibreOffice). Each 16:9 slide is isolated in an <img> data URI.
+  if (p.svgs?.some(Boolean)) {
+    return (
+      <div style={box}>
+        {p.svgs.map((svg, i) =>
+          svg ? (
+            <img
+              key={i}
+              src={`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`}
+              alt={`slide ${i + 1}`}
+              style={{ width: '100%', aspectRatio: '16 / 9', border: `1px solid ${C.border}`, borderRadius: 8, display: 'block' }}
+            />
+          ) : (
+            <div key={i} className="text-xs px-3 py-6 text-center" style={{ color: C.mute, background: C.panel, borderRadius: 8 }}>
+              slide {i + 1}
+            </div>
+          ),
+        )}
+      </div>
+    );
+  }
   if (p.slides?.length) {
     return (
       <div style={box}>

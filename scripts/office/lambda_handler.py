@@ -21,6 +21,96 @@ SKILLS = {"pptx", "docx", "xlsx", "pdf"}
 TEMPLATES = {"pptx": "dfs_default.potx", "docx": "atlas_default.dotx"}
 
 
+def _slide_to_svg(slide, w_emu, h_emu):
+    """Render a slide's shapes to an SVG (scale-to-zero visual preview — no
+    LibreOffice). EMU→px at 96dpi (EMU/9525); pt→px ×(96/72)."""
+    import html as _html
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+    from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+
+    U = 9525.0
+    VW, VH = w_emu / U, h_emu / U
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VW:.0f} {VH:.0f}" preserveAspectRatio="xMidYMid meet">']
+    parts.append(f'<rect x="0" y="0" width="{VW:.0f}" height="{VH:.0f}" fill="#FAF9F5"/>')
+
+    def hexof(color, default=None):
+        try:
+            return "#" + str(color.rgb)
+        except Exception:
+            return default
+
+    for sh in slide.shapes:
+        try:
+            x, y = sh.left / U, sh.top / U
+            w, h = sh.width / U, sh.height / U
+        except Exception:
+            continue
+        # fill
+        fill = None
+        try:
+            if sh.fill.type is not None and sh.fill.type == 1:  # solid
+                fill = hexof(sh.fill.fore_color)
+        except Exception:
+            fill = None
+        if sh.shape_type == MSO_SHAPE_TYPE.PICTURE:
+            parts.append(f'<rect x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" fill="#E3DFD5"/>')
+        elif sh.shape_type == MSO_SHAPE_TYPE.CHART:
+            parts.append(f'<rect x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" fill="#F1EEE7"/>')
+            parts.append(f'<text x="{x+w/2:.0f}" y="{y+h/2:.0f}" font-family="Poppins,Arial" font-size="16" fill="#73716B" text-anchor="middle">chart</text>')
+        elif fill:
+            shp = "ellipse" if getattr(sh, "auto_shape_type", None) is not None and str(sh.auto_shape_type) == "OVAL (9)" else "rect"
+            try:
+                is_oval = sh.auto_shape_type == 9  # MSO_SHAPE.OVAL
+            except Exception:
+                is_oval = False
+            if is_oval:
+                parts.append(f'<ellipse cx="{x+w/2:.0f}" cy="{y+h/2:.0f}" rx="{w/2:.0f}" ry="{h/2:.0f}" fill="{fill}"/>')
+            else:
+                rx = 8 if (getattr(sh, "auto_shape_type", None) == 5) else 0
+                parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx}" fill="{fill}"/>')
+        # text
+        if getattr(sh, "has_text_frame", False):
+            tf = sh.text_frame
+            anchor = tf.vertical_anchor
+            paras = [p for p in tf.paragraphs if "".join(r.text for r in p.runs).strip()]
+            # crude vertical layout: stack lines from the top (or centered)
+            line_hs, styles, texts = [], [], []
+            for p in paras:
+                runs = p.runs or []
+                sz = next((r.font.size.pt for r in runs if r.font.size), 18)
+                bold = any(r.font.bold for r in runs)
+                ital = any(r.font.italic for r in runs)
+                col = next((hexof(r.font.color) for r in runs if hexof(r.font.color)), "#1A1917")
+                fam = next((r.font.name for r in runs if r.font.name), "Poppins")
+                txt = "".join(r.text for r in runs)
+                px = sz * 96 / 72
+                line_hs.append(px * 1.25); styles.append((px, bold, ital, col, fam, p.alignment)); texts.append(txt)
+            total_h = sum(line_hs)
+            if anchor == MSO_ANCHOR.MIDDLE:
+                cy = y + (h - total_h) / 2
+            elif anchor == MSO_ANCHOR.BOTTOM:
+                cy = y + h - total_h
+            else:
+                cy = y
+            for (px, bold, ital, col, fam, align), txt, lh in zip(styles, texts, line_hs):
+                cy += lh
+                if align == PP_ALIGN.CENTER:
+                    tx, anc = x + w / 2, "middle"
+                elif align == PP_ALIGN.RIGHT:
+                    tx, anc = x + w, "end"
+                else:
+                    tx, anc = x, "start"
+                weight = "700" if bold else "400"
+                style = ' font-style="italic"' if ital else ""
+                fam = (fam or "Poppins").split(",")[0]
+                parts.append(
+                    f'<text x="{tx:.0f}" y="{cy - lh*0.28:.0f}" font-family="{_html.escape(fam)},Arial,sans-serif" '
+                    f'font-size="{px:.0f}" font-weight="{weight}" fill="{col}" text-anchor="{anc}"{style}>{_html.escape(txt)}</text>'
+                )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
 def extract_preview(kind, file_bytes):
     """Structured preview extraction (pure-python, no LibreOffice). Returns
     {text, slides?, sheets?} so the client can render a readable preview in the
@@ -33,7 +123,7 @@ def extract_preview(kind, file_bytes):
         from pptx import Presentation
 
         prs = Presentation(str(fp))
-        slides = []
+        slides, svgs = [], []
         for s in prs.slides:
             title, bullets = None, []
             for shape in s.shapes:
@@ -48,7 +138,12 @@ def extract_preview(kind, file_bytes):
                     else:
                         bullets.append(txt)
             slides.append({"title": title or "", "bullets": bullets[:12]})
+            try:
+                svgs.append(_slide_to_svg(s, prs.slide_width, prs.slide_height))
+            except Exception:
+                svgs.append(None)
         out["slides"] = slides
+        out["svgs"] = svgs  # visual preview (rendered from shapes, no LibreOffice)
         out["text"] = "\n\n".join(
             f"# {sl['title']}\n" + "\n".join(f"- {b}" for b in sl["bullets"]) for sl in slides
         )

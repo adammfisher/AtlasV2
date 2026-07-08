@@ -343,9 +343,10 @@ artifactsRouter.get('/:id/versions/:v/preview', (req, res) => {
           slides?: unknown;
           sheets?: unknown;
           blocks?: unknown;
+          svgs?: unknown;
         };
         if (!r.ok) throw new Error(r.error ?? 'extract failed');
-        res.json({ kind: row.kind, label: 'preview', text: (r.text ?? '').slice(0, 20_000), slides: r.slides, sheets: r.sheets, blocks: r.blocks });
+        res.json({ kind: row.kind, label: 'preview', text: (r.text ?? '').slice(0, 20_000), svgs: r.svgs, slides: r.slides, sheets: r.sheets, blocks: r.blocks });
         return;
       }
       const { repoRoot } = await import('../config.js');
