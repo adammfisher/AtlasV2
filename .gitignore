@@ -11,3 +11,4 @@ runtimes/
 test-results/
 playwright-report/
 !tests/e2e/fixtures/*.png
+dist-lambda/

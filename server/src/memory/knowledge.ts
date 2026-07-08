@@ -36,7 +36,7 @@ let _s3: S3Client | null = null;
 function s3(): S3Client {
   if (!_s3) {
     const s = bedrockSettings();
-    _s3 = new S3Client({ region: s.region || 'us-east-1', credentials: fromIni({ profile: s.profile || 'default' }) });
+    _s3 = new S3Client({ region: s.region || 'us-east-1', ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile: s.profile || 'default' }) }) });
   }
   return _s3;
 }

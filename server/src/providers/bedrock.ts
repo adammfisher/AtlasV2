@@ -124,13 +124,13 @@ export function bedrockActive(): boolean {
 function runtime(settings: BedrockSettings): BedrockRuntimeClient {
   return new BedrockRuntimeClient({
     region: settings.region,
-    credentials: fromIni({ profile: settings.profile }),
+    ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile: settings.profile }) }),
   });
 }
 
 /** Connect = a real ListFoundationModels round-trip. Returns the Claude model ids found. */
 export async function connectBedrock(region: string, profile: string): Promise<string[]> {
-  const client = new BedrockClient({ region, credentials: fromIni({ profile }) });
+  const client = new BedrockClient({ region, ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile }) }) });
   const out = await client.send(new ListFoundationModelsCommand({ byProvider: 'anthropic' }));
   const ids = (out.modelSummaries ?? []).map((m) => m.modelId ?? '').filter(Boolean);
   setSetting(

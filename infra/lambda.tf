@@ -2,25 +2,23 @@
 # Function URL (SSE chat), EventBridge schedules replacing in-process timers,
 # client on S3 + CloudFront with /api/* routed to the Lambda.
 
-variable "app_image_tag" {
-  description = "ECR image tag to deploy"
-  type        = string
-  default     = "latest"
-}
-
 resource "aws_lambda_function" "app" {
-  function_name = "${var.project_name}-app"
-  role          = aws_iam_role.lambda.arn
-  package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.app.repository_url}:${var.app_image_tag}"
-  architectures = ["arm64"]
-  timeout       = 300
-  memory_size   = 2048 # python builders + node; scale-to-zero so idle cost is nil
+  function_name    = "${var.project_name}-app"
+  role             = aws_iam_role.lambda.arn
+  filename         = "${path.module}/lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/lambda.zip")
+  handler          = "run.sh"
+  runtime          = "nodejs20.x"
+  architectures    = ["arm64"]
+  timeout          = 300
+  memory_size      = 1536
+  layers           = ["arn:aws:lambda:us-east-1:753240598075:layer:LambdaAdapterLayerArm64:25"]
 
   environment {
     variables = {
-      AWS_LWA_INVOKE_MODE = "response_stream"
-      PORT                = "8080"
+      AWS_LAMBDA_EXEC_WRAPPER = "/opt/bootstrap"
+      AWS_LWA_INVOKE_MODE     = "response_stream"
+      PORT                    = "8080"
     }
   }
 }

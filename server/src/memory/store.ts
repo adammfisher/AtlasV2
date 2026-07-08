@@ -60,7 +60,7 @@ let _brt: BedrockRuntimeClient | null = null;
 
 function creds() {
   const s = bedrockSettings();
-  return { region: s.region || 'us-east-1', credentials: fromIni({ profile: s.profile || 'default' }) };
+  return { region: s.region || 'us-east-1', ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile: s.profile || 'default' }) }) };
 }
 
 function ddb(): DynamoDBDocumentClient {

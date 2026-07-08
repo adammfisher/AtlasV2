@@ -189,7 +189,7 @@ artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
         filename = `${row.name}-v${req.params.v}.zip`;
       }
       const s = bedrockSettings();
-      const s3 = new S3Client({ region: s.region || 'us-east-1', credentials: fromIni({ profile: s.profile || 'default' }) });
+      const s3 = new S3Client({ region: s.region || 'us-east-1', ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile: s.profile || 'default' }) }) });
       const bucket = 'atlasv2-uploads-683032473658';
       const key = `shares/${row.id}-v${req.params.v}/${filename}`;
       await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: readFileSync(target) }));
