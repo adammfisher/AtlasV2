@@ -95,10 +95,17 @@ Categories:
 
 Use graph_facts for entity relationships (X depends-on Y, A owns B).
 
-Do NOT extract: conversational ephemera, things true only today, restatements of the
-assistant's own output, or sensitive attributes (health, politics, religion, sexuality,
-precise location, financial account details). Empty arrays are the right answer for small
-talk. Values must be one short sentence each.`;
+Extract only NEW STANDING FACTS the user asserts about themselves or the project.
+
+Do NOT extract (these pollute memory):
+- Questions the user asked ("User asked about X", "User wants to know Y") — a question is not a fact.
+- Requests to remember, forget, or delete memory, or any statement about the memory system itself.
+- The assistant's own answers, tool results, or restatements of retrieved knowledge/documents.
+- Conversational ephemera, pleasantries, or things true only for today.
+- Sensitive attributes (health, politics, religion, sexuality, precise location, financial account details).
+
+If the excerpt is only a question-and-answer with no new user-asserted fact, return empty arrays.
+Values must be one short declarative sentence stating the fact itself, never "the user asked/said/wants".`;
 
 /** Per-conversation opt-out ("don't remember this chat"). */
 export function rememberEnabled(convId: string): boolean {
@@ -171,40 +178,53 @@ export async function recallContext(projectId: string, query: string): Promise<s
     push('Project memory:', projKv, projProfile);
 
     if (query.trim()) {
+      // wider breadth (8/scope) so a second document's chunk isn't crowded out
       const [userHits, projHits] = await Promise.all([
-        searchVectors('user', query, 5).catch(() => []),
-        searchVectors(projectId, query, 5).catch(() => []),
+        searchVectors('user', query, 8).catch(() => []),
+        searchVectors(projectId, query, 8).catch(() => []),
       ]);
       const seen = new Set(parts.join('\n').split('\n')); // don't repeat injected KV lines
-      const hits = [
+      const all = [
         ...userHits.map((h) => ({ ...h, scope: 'user' as Scope })),
         ...projHits.map((h) => ({ ...h, scope: projectId as Scope })),
-      ]
-        .filter((h) => h.score >= MIN_SIMILARITY && h.content && !seen.has(h.content))
+      ].filter((h) => h.content && !seen.has(h.content));
+
+      // Knowledge (project documents) gets its own reserved budget so document
+      // facts surface reliably alongside conversational memory — and a lower
+      // floor, since a legitimately-relevant doc chunk can sit at moderate
+      // similarity for a multi-fact query.
+      const knowledge = all
+        .filter((h) => h.type === 'knowledge' && h.score >= 0.25)
         .sort((a, b) => rank(b) - rank(a));
-      const chosen: typeof hits = [];
-      let semBudget = SEMANTIC_BUDGET;
-      for (const h of hits) {
-        if (chosen.length >= 4 || semBudget - h.content.length < 0) break;
-        semBudget -= h.content.length;
-        chosen.push(h);
-      }
-      if (chosen.length) {
-        // knowledge passages carry citations (FR-5.5); plain memories don't
-        const knowledge = chosen.filter((h) => h.type === 'knowledge');
-        const memories = chosen.filter((h) => h.type !== 'knowledge');
-        if (memories.length) parts.push(`Relevant memories:\n${memories.map((h) => h.content).join('\n')}`);
-        if (knowledge.length) {
-          parts.push(
-            `Knowledge passages from project documents — when you use information from one, cite it inline as [source: filename]:\n${knowledge
-              .map((h) => h.content)
-              .join('\n')}`,
-          );
+      const memories = all
+        .filter((h) => h.type !== 'knowledge' && h.score >= MIN_SIMILARITY)
+        .sort((a, b) => rank(b) - rank(a));
+
+      const take = (pool: typeof all, maxN: number, maxChars: number): typeof all => {
+        const out: typeof all = [];
+        let budget = maxChars;
+        for (const h of pool) {
+          if (out.length >= maxN || budget - h.content.length < 0) break;
+          budget -= h.content.length;
+          out.push(h);
         }
-        // recalled notes shouldn't decay — extend their ttl (fire-and-forget)
-        bumpRecalled('user', chosen.filter((h) => h.scope === 'user').map((h) => h.key));
-        bumpRecalled(projectId, chosen.filter((h) => h.scope !== 'user').map((h) => h.key));
+        return out;
+      };
+      const kChosen = take(knowledge, 4, 2400);
+      const mChosen = take(memories, 3, SEMANTIC_BUDGET);
+
+      if (mChosen.length) parts.push(`Relevant memories:\n${mChosen.map((h) => h.content).join('\n')}`);
+      if (kChosen.length) {
+        parts.push(
+          `Knowledge passages from project documents — when you use information from one, cite it inline as [source: filename]:\n${kChosen
+            .map((h) => h.content)
+            .join('\n')}`,
+        );
       }
+      const chosen = [...kChosen, ...mChosen];
+      // recalled notes shouldn't decay — extend their ttl (fire-and-forget)
+      bumpRecalled('user', chosen.filter((h) => h.scope === 'user').map((h) => h.key));
+      bumpRecalled(projectId, chosen.filter((h) => h.scope !== 'user').map((h) => h.key));
     }
 
     // graph expansion: entities named in the message get their 1-hop
@@ -458,18 +478,22 @@ export async function rememberFact(scope: Scope, fact: string, source: string): 
   return `Stored ${scope === 'user' ? 'about the user (all projects)' : 'in project memory'}: "${fact.slice(0, 140)}"`;
 }
 
-export async function forgetFact(scope: Scope, query: string): Promise<string> {
-  // Delete EVERY sufficiently-matching memory, not just the best hit — the
-  // idle extractor can hold the same fact as both a KV and a note, and a
-  // "forget" that leaves siblings behind isn't a forget.
-  const hits = (await searchVectors(scope, query, 5)).filter((h) => h.score >= 0.5);
-  if (hits.length === 0) return 'No matching memory found.';
+export async function forgetFact(scope: Scope, query: string, projectId?: string): Promise<string> {
+  // Forget across BOTH the named scope and the user scope: "forget about my X"
+  // is a user-scope fact even when issued inside a project, and the model's
+  // scope guess is unreliable. Delete EVERY sufficiently-matching memory in
+  // each (extractor siblings included).
+  const scopes = [...new Set([scope, projectId ?? scope, 'user'])];
   const forgotten: string[] = [];
-  for (const h of hits) {
-    if (h.type === 'kv' && h.kvkey) await deleteKv(scope, h.kvkey);
-    else await deleteNote(scope, h.key);
-    forgotten.push(h.content.slice(0, 100));
+  for (const s of scopes) {
+    const hits = (await searchVectors(s, query, 5).catch(() => [])).filter((h) => h.score >= 0.5);
+    for (const h of hits) {
+      if (h.type === 'kv' && h.kvkey) await deleteKv(s, h.kvkey);
+      else await deleteNote(s, h.key);
+      forgotten.push(h.content.slice(0, 100));
+    }
   }
+  if (forgotten.length === 0) return 'No matching memory found.';
   return `Forgot ${forgotten.length} memor${forgotten.length === 1 ? 'y' : 'ies'}: ${forgotten.join(' | ')}`;
 }
 

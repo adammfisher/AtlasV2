@@ -271,7 +271,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         (name, input) => {
           const scope = input.scope === 'user' ? 'user' : conv.project_id;
           if (name === 'remember') return rememberFact(scope, String(input.fact ?? ''), conv.id);
-          if (name === 'forget') return forgetFact(scope, String(input.query ?? ''));
+          if (name === 'forget') return forgetFact(scope, String(input.query ?? ''), conv.project_id);
           if (name === 'web_search') return webSearch(String(input.query ?? ''));
           if (name === 'web_fetch') return webFetch(String(input.url ?? ''));
           const spec = byMangled.get(name);

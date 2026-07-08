@@ -1,6 +1,9 @@
 import { type Page, expect } from '@playwright/test';
 
-export const API = 'http://127.0.0.1:5175/api';
+// Local dev hits :5175 directly; cloud runs point both client + API at the
+// CloudFront origin via ATLAS_BASE (e.g. https://xxxx.cloudfront.net).
+const BASE_ORIGIN = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+export const API = `${BASE_ORIGIN}/api`;
 export const MARK = '[e2e]'; // title marker — teardown deletes marked conversations
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {

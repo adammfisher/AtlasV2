@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { sendNew, send, waitIdle, cleanupMarked, api, MARK } from './helpers';
+import { sendNew, send, waitIdle, cleanupMarked, api, API, MARK } from './helpers';
 
 /** Artifact pipeline through the UI: diagram create → preview → edit → v2 →
  * share; one office format as the build-chain smoke (pptx). The remaining
@@ -44,7 +44,7 @@ test.describe('artifacts @generation', () => {
           const arts = await api<Array<{ id: string; kind: string; ver: number }>>('/artifacts');
           const deck = arts.find((a) => a.kind === 'pptx' && !before.has(a.id));
           if (!deck) return 'no artifact yet';
-          const dl = await fetch(`http://127.0.0.1:5175/api/artifacts/${deck.id}/versions/${deck.ver}/download`);
+          const dl = await fetch(`${API}/artifacts/${deck.id}/versions/${deck.ver}/download`);
           if (!dl.ok) return `download ${dl.status}`;
           const bytes = (await dl.arrayBuffer()).byteLength;
           return bytes > 20_000 ? 'ok' : `too small: ${bytes}`;

@@ -18,7 +18,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: process.env.ATLAS_BASE ?? 'http://127.0.0.1:5173',
     viewport: { width: 1600, height: 1000 },
     screenshot: 'only-on-failure',
     permissions: ['clipboard-read', 'clipboard-write'],
