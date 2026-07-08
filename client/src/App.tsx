@@ -21,7 +21,8 @@ export default function App() {
     { kind: 'detail'; artifactId: string } | { kind: 'list' } | { kind: 'live' } | null
   >(null);
   const [liveGen, setLiveGen] = useState<{ text: string; label: string } | null>(null);
-  const [autoSend, setAutoSend] = useState<{ convId: string; text: string } | null>(null);
+  const [autoSend, setAutoSend] = useState<{ convId: string; text: string; attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }> } | null>(null);
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(currentTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const queryClient = useQueryClient();
@@ -69,7 +70,11 @@ export default function App() {
       .finally(() => void queryClient.invalidateQueries({ queryKey: ['settings'] }));
   };
 
-  const newChat = (projectId?: string, message?: string) => {
+  const newChat = (
+    projectId?: string,
+    message?: string,
+    attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>,
+  ) => {
     // explicit project scoping (no reliance on the async activeProjectId
     // setting) so a new chat's project — and thus its memory scope — is
     // never ambiguous.
@@ -77,10 +82,16 @@ export default function App() {
     void api.createConversation(pid).then((c) => {
       void queryClient.invalidateQueries({ queryKey: ['conversations'] });
       if (projectId) setActiveProject(projectId);
-      if (message?.trim()) setAutoSend({ convId: c.id, text: message.trim() });
+      if (message?.trim()) setAutoSend({ convId: c.id, text: message.trim(), attachments });
       setActiveConv(c.id);
       setView('chat');
     });
+  };
+
+  const openProjectWorkspace = (pid: string) => {
+    setActiveProject(pid);
+    setOpenProjectId(pid);
+    setView('projects');
   };
 
   const openConv = (id: string | null) => {
@@ -159,6 +170,7 @@ export default function App() {
             onArtifactReady={onArtifactReady}
             autoSend={autoSend}
             onAutoSendConsumed={() => setAutoSend(null)}
+            onOpenProject={openProjectWorkspace}
           />
         ) : null}
         {view === 'plugins' ? (
@@ -172,7 +184,9 @@ export default function App() {
             activeProject={activeProjectId}
             setActiveProject={setActiveProject}
             openConversation={(id) => openConv(id)}
-            newChatInProject={(pid, message) => newChat(pid, message)}
+            newChatInProject={(pid, message, attachments) => newChat(pid, message, attachments)}
+            openProjectId={openProjectId}
+            setOpenProjectId={setOpenProjectId}
           />
         ) : null}
         {view === 'chat' && rightPanel?.kind === 'detail' ? (

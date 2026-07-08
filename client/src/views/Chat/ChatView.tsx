@@ -213,6 +213,7 @@ export function ChatView({
   onArtifactReady,
   autoSend,
   onAutoSendConsumed,
+  onOpenProject,
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
@@ -222,8 +223,9 @@ export function ChatView({
   onOpenArtifactList: () => void;
   onGenStream: (text: string | null, label: string) => void;
   onArtifactReady: (a: ArtifactRef) => void;
-  autoSend?: { convId: string; text: string } | null;
+  autoSend?: { convId: string; text: string; attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }> } | null;
   onAutoSendConsumed?: () => void;
+  onOpenProject?: (projectId: string) => void;
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
@@ -311,7 +313,7 @@ export function ChatView({
   useEffect(() => {
     if (autoSend && convId === autoSend.convId && autoSentRef.current !== autoSend.convId && !busy) {
       autoSentRef.current = autoSend.convId;
-      void send(autoSend.text);
+      void send(autoSend.text, false, autoSend.attachments);
       onAutoSendConsumed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -324,10 +326,14 @@ export function ChatView({
     abortRef.current = null;
   };
 
-  const send = async (overrideText?: string, retry = false) => {
+  const send = async (
+    overrideText?: string,
+    retry = false,
+    attsOverride?: Array<{ id: string; name: string; kind: 'image' | 'document' }>,
+  ) => {
     const text = (overrideText ?? input).trim();
     if (!text || busy) return;
-    if (attachments.some((a) => a.uploading)) return; // wait for uploads
+    if (!attsOverride && attachments.some((a) => a.uploading)) return; // wait for uploads
     // no conversation yet (fresh install, or all chats deleted) — create one so
     // the composer always works instead of silently dropping the message
     let target = convId;
@@ -350,7 +356,7 @@ export function ChatView({
       }
       setEditing(null);
     }
-    const sendAtts = retry ? [] : attachments.map(({ id, name, kind }) => ({ id, name, kind }));
+    const sendAtts = retry ? [] : (attsOverride ?? attachments.map(({ id, name, kind }) => ({ id, name, kind })));
     if (!overrideText) {
       setInput('');
       setAttachments([]);
@@ -471,13 +477,17 @@ export function ChatView({
         </div>
       )}
       <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-        <span
-          className="flex items-center gap-1.5 text-sm px-2 py-0.5 rounded-md"
+        <button
+          onClick={() => {
+            const pid = conv?.projectId;
+            if (pid && onOpenProject) onOpenProject(pid);
+          }}
+          className="flex items-center gap-1.5 text-sm px-2 py-0.5 rounded-md transition-opacity hover:opacity-80"
           style={{ color: C.purple, background: C.purpleDim, fontFamily: sans }}
-          title={`This chat lives in "${activeProjectName}". Its memory and knowledge are scoped to this project.`}
+          title={`Open the "${activeProjectName}" project — this chat's memory and knowledge are scoped to it.`}
         >
           <FolderKanban size={13} /> {activeProjectName || 'No project'}
-        </span>
+        </button>
         <ChevronRight size={13} style={{ color: C.mute }} />
         <span className="text-sm font-medium truncate" style={{ color: C.text, fontFamily: sans }}>
           {conv?.title ?? 'New chat'}

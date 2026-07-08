@@ -14,16 +14,23 @@ export function ProjectsView({
   setActiveProject,
   openConversation,
   newChatInProject,
+  openProjectId,
+  setOpenProjectId,
 }: {
   projects: Project[];
   conversations: Conversation[];
   activeProject: string;
   setActiveProject: (id: string) => void;
   openConversation: (id: string) => void;
-  newChatInProject: (projectId: string, message?: string) => void;
+  newChatInProject: (projectId: string, message?: string, attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>) => void;
+  openProjectId: string | null;
+  setOpenProjectId: (id: string | null) => void;
 }) {
   const [showNew, setShowNew] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  // openId is controlled by the parent (so the chat header's project chip can
+  // deep-link into a workspace) with a local fallback for card clicks.
+  const openId = openProjectId;
+  const setOpenId = setOpenProjectId;
   const queryClient = useQueryClient();
 
   const create = (name: string, instructions: string) => {

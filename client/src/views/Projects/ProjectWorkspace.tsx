@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp, Upload } from 'lucide-react';
+import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp, Paperclip } from 'lucide-react';
 import { C, sans, serif, mono } from '../../theme/tokens';
 import { api, type Project, type Conversation } from '../../lib/api';
 import { MemoryModal } from '../../components/MemoryModal';
@@ -30,11 +30,16 @@ export function ProjectWorkspace({
   conversations: Conversation[];
   onBack: () => void;
   openConversation: (id: string) => void;
-  newChatInProject: (projectId: string, message?: string) => void;
+  newChatInProject: (projectId: string, message?: string, attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>) => void;
   onDelete: () => void;
 }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
+  // per-chat attachments for the message that STARTS the new chat (distinct
+  // from project Files/knowledge) — dropped/picked on the composer only.
+  const [atts, setAtts] = useState<Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean }>>([]);
+  const [composerDrag, setComposerDrag] = useState(false);
+  const attInputRef = useRef<HTMLInputElement>(null);
   const [editingInstr, setEditingInstr] = useState(false);
   const [instrText, setInstrText] = useState(project.instructions ?? '');
   const [memoryOpen, setMemoryOpen] = useState(false);
@@ -78,36 +83,38 @@ export function ProjectWorkspace({
     reader.readAsDataURL(file);
   };
 
-  // drag-and-drop files anywhere on the workspace → project knowledge
-  const [dragging, setDragging] = useState(false);
-  const dragDepth = useRef(0);
+  // drop onto the Files card → project knowledge (distinct from the composer,
+  // which attaches to a single chat)
+  const [knowledgeDrag, setKnowledgeDrag] = useState(false);
   const hasFiles = (e: React.DragEvent): boolean => Array.from(e.dataTransfer.types).includes('Files');
-  const onDragEnter = (e: React.DragEvent): void => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    dragDepth.current += 1;
-    setDragging(true);
-  };
-  const onDragOver = (e: React.DragEvent): void => {
-    if (hasFiles(e)) e.preventDefault();
-  };
-  const onDragLeave = (e: React.DragEvent): void => {
-    if (!hasFiles(e)) return;
-    dragDepth.current = Math.max(0, dragDepth.current - 1);
-    if (dragDepth.current === 0) setDragging(false);
-  };
-  const onDrop = (e: React.DragEvent): void => {
-    if (!hasFiles(e)) return;
-    e.preventDefault();
-    dragDepth.current = 0;
-    setDragging(false);
-    for (const f of Array.from(e.dataTransfer.files)) uploadFile(f);
+
+  // upload a file as a CHAT attachment (message-scoped, not project knowledge)
+  const addAttachments = (files: FileList | File[]): void => {
+    for (const file of Array.from(files)) {
+      const tempId = `pending-${file.name}-${Math.random()}`;
+      const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name);
+      const thumb = isImage ? URL.createObjectURL(file) : undefined;
+      setAtts((a) => [...a, { id: tempId, name: file.name, kind: isImage ? 'image' : 'document', thumb, uploading: true }]);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = String(reader.result).split(',')[1] ?? '';
+        void api
+          .uploadAttachment(file.name, b64)
+          .then((meta) => setAtts((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))))
+          .catch(() => setAtts((a) => a.filter((x) => x.id !== tempId)));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const startChat = (): void => {
+    if (atts.some((a) => a.uploading)) return; // wait for uploads
     const text = draft.trim();
+    if (!text && atts.length === 0) return;
+    const sendAtts = atts.map(({ id, name, kind }) => ({ id, name, kind }));
     setDraft('');
-    newChatInProject(project.id, text || undefined);
+    setAtts([]);
+    newChatInProject(project.id, text || 'Take a look at the attached file(s).', sendAtts);
   };
 
   const Card = ({ children }: { children: React.ReactNode }): React.ReactElement => (
@@ -117,32 +124,7 @@ export function ProjectWorkspace({
   );
 
   return (
-    <div
-      className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto relative"
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
-      {dragging && (
-        <div
-          className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"
-          style={{ background: 'rgba(20,18,16,0.72)', backdropFilter: 'blur(2px)' }}
-        >
-          <div
-            className="flex flex-col items-center gap-3 rounded-2xl px-10 py-8"
-            style={{ border: `2px dashed ${C.accent}`, background: C.panel }}
-          >
-            <Upload size={28} style={{ color: C.accent }} />
-            <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>
-              Drop files to add to {project.name}
-            </span>
-            <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
-              PDFs, Office docs, text, and code — added to project knowledge
-            </span>
-          </div>
-        </div>
-      )}
+    <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto relative">
       <div className="px-8 pt-6 pb-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm mb-4" style={{ color: C.mute, fontFamily: sans }}>
           <ArrowLeft size={14} /> All projects
@@ -168,7 +150,25 @@ export function ProjectWorkspace({
       <div className="px-8 pb-10 flex gap-6 items-start">
         {/* ── left: composer + chat list ── */}
         <div className="flex-1 min-w-0">
-          <div className="rounded-2xl p-3" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
+          <div
+            className="rounded-2xl p-3 relative"
+            style={{ background: C.panel, border: `1px solid ${composerDrag ? C.accent : C.border}` }}
+            onDragEnter={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); e.stopPropagation(); setComposerDrag(true); } }}
+            onDragOver={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); e.stopPropagation(); } }}
+            onDragLeave={(e) => { e.stopPropagation(); setComposerDrag(false); }}
+            onDrop={(e) => {
+              if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+              e.preventDefault();
+              e.stopPropagation(); // attach to THIS chat, not project knowledge
+              setComposerDrag(false);
+              addAttachments(e.dataTransfer.files);
+            }}
+          >
+            {composerDrag && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl pointer-events-none" style={{ background: 'rgba(20,18,16,0.7)' }}>
+                <span className="text-sm font-medium" style={{ color: C.accent, fontFamily: sans }}>Drop to attach to this chat</span>
+              </div>
+            )}
             <textarea
               rows={2}
               value={draft}
@@ -183,10 +183,34 @@ export function ProjectWorkspace({
               className="w-full bg-transparent px-2 pt-1.5 text-sm outline-none resize-none"
               style={{ color: C.text, fontFamily: sans }}
             />
-            <div className="flex items-center justify-end px-1 pb-0.5">
+            {atts.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-1 pt-1 pb-1.5">
+                {atts.map((a) => (
+                  <span key={a.id} className="relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-6 py-1 text-xs" style={{ background: C.bg, border: `1px solid ${C.borderSoft}`, color: C.sub, fontFamily: sans }}>
+                    {a.thumb ? <img src={a.thumb} alt="" className="rounded" style={{ width: 24, height: 24, objectFit: 'cover' }} /> : <FileText size={13} style={{ color: C.accent }} />}
+                    <span className="max-w-[150px] truncate">{a.name}</span>
+                    {a.uploading ? <Loader2 size={11} className="animate-spin" /> : null}
+                    <button onClick={() => setAtts((l) => l.filter((x) => x.id !== a.id))} className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5" style={{ color: C.mute }}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center px-1 pb-0.5">
+              <button onClick={() => attInputRef.current?.click()} className="p-1.5 rounded-lg" style={{ color: C.mute }} title="Attach files to this chat">
+                <Paperclip size={16} />
+              </button>
+              <input
+                ref={attInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => { if (e.target.files) addAttachments(e.target.files); e.target.value = ''; }}
+              />
               <button
                 onClick={startChat}
-                className="flex items-center justify-center rounded-lg"
+                className="ml-auto flex items-center justify-center rounded-lg"
                 style={{ width: 30, height: 30, background: C.accent, color: '#fff' }}
                 title="Start chat"
               >
@@ -284,8 +308,20 @@ export function ProjectWorkspace({
             )}
           </Card>
 
-          {/* Files (Knowledge) */}
-          <Card>
+          {/* Files (Knowledge) — drop target for project-wide documents */}
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: C.panel, border: `1px solid ${knowledgeDrag ? C.accent : C.border}` }}
+            onDragEnter={(e) => { if (hasFiles(e)) { e.preventDefault(); setKnowledgeDrag(true); } }}
+            onDragOver={(e) => { if (hasFiles(e)) e.preventDefault(); }}
+            onDragLeave={() => setKnowledgeDrag(false)}
+            onDrop={(e) => {
+              if (!hasFiles(e)) return;
+              e.preventDefault();
+              setKnowledgeDrag(false);
+              for (const f of Array.from(e.dataTransfer.files)) uploadFile(f);
+            }}
+          >
             <div className="flex items-center mb-2">
               <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>Files</span>
               <button onClick={() => fileRef.current?.click()} className="ml-auto p-0.5" style={{ color: C.mute }} title="Add a document">
@@ -299,7 +335,7 @@ export function ProjectWorkspace({
               />
             </div>
             <p className="text-[11px] mb-2.5" style={{ color: C.mute, fontFamily: sans }}>
-              Documents here inform every chat in this project — Atlas cites the relevant passages automatically.
+              {knowledgeDrag ? 'Drop to add to project knowledge…' : 'Documents here inform every chat in this project — drag files here or use +. Atlas cites the relevant passages automatically.'}
             </p>
             {files && files.length > 0 ? (
               <div className="flex flex-col gap-1.5">
@@ -334,7 +370,7 @@ export function ProjectWorkspace({
                 + Add a document
               </button>
             )}
-          </Card>
+          </div>
         </div>
       </div>
 
