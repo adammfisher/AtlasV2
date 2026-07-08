@@ -49,9 +49,12 @@ async function compact(convId: string, prior: SummaryState | null, uncovered: Ro
           role: 'system',
           content:
             'You maintain a running summary of an ongoing conversation so the assistant keeps full context. ' +
-            'Merge the prior summary with the new exchanges into ONE updated summary: decisions, facts, names, ' +
-            'numbers, open questions, and what the user is trying to accomplish. Plain prose, under 250 words, ' +
-            'no preamble, no markdown.',
+            'Merge the prior summary with the new exchanges into ONE updated summary. ' +
+            'CRITICAL: carry forward EVERY specific detail already in the prior summary — proper names, dates, ' +
+            'numbers, identifiers, codenames, and decisions — verbatim. Never drop a specific fact just because ' +
+            'later messages were routine or repetitive. Only ADD new specifics or UPDATE ones the user changed. ' +
+            'Routine/filler exchanges can be compressed to a single clause; specific facts must survive intact. ' +
+            'Plain prose, no preamble, no markdown.',
         },
         {
           role: 'user',

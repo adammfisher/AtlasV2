@@ -249,8 +249,13 @@ chatRouter.post('/:id/messages', async (req, res) => {
       // enabled for this project; chips surface each execution in the UI.
       const connectorTools: BedrockTool[] = [];
       const byMangled = new Map<string, ChatTool>();
+      // atlas-memory and sqlite are the retired SQLite MCP peers — their tools
+      // (memory_upsert, graph_add_fact, …) write to a dead database and shadow
+      // the native remember/forget + DynamoDB recall. Never expose them.
+      const SHADOW_CONNECTORS = new Set(['atlas-memory', 'memory', 'sqlite']);
       try {
         for (const t of await toolsForProject(conv.project_id)) {
+          if (SHADOW_CONNECTORS.has(t.connectorId)) continue;
           const name = mangle(t);
           byMangled.set(name, t);
           connectorTools.push({
