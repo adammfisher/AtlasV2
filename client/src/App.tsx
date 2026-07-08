@@ -14,9 +14,15 @@ import { PluginsView } from './views/Plugins/PluginsView';
 import { SkillsView } from './views/Skills/SkillsView';
 import { ProjectsView } from './views/Projects/ProjectsView';
 
+/** deep-link: /c/<convId> restores that chat on refresh. */
+function convFromUrl(): string | null {
+  const m = /^\/c\/([A-Za-z0-9_-]+)/.exec(window.location.pathname);
+  return m ? m[1]! : null;
+}
+
 export default function App() {
   const [view, setView] = useState<View>('chat');
-  const [activeConv, setActiveConv] = useState<string | null>(null);
+  const [activeConv, setActiveConv] = useState<string | null>(convFromUrl());
   const [rightPanel, setRightPanel] = useState<
     { kind: 'detail'; artifactId: string } | { kind: 'list' } | { kind: 'live' } | null
   >(null);
@@ -53,6 +59,22 @@ export default function App() {
 
   // Open the most recent conversation on first load (mockup parity)
   const effectiveConv = activeConv ?? conversations?.[0]?.id ?? null;
+
+  // keep the URL in sync so a refresh restores the current chat (/c/<id>)
+  useEffect(() => {
+    const path = view === 'chat' && effectiveConv ? `/c/${effectiveConv}` : '/';
+    if (window.location.pathname !== path) window.history.replaceState({}, '', path);
+  }, [effectiveConv, view]);
+  // back/forward navigation
+  useEffect(() => {
+    const onPop = () => {
+      const id = convFromUrl();
+      setActiveConv(id);
+      setView('chat');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   const activeProjectId = settings?.activeProjectId ?? 'p1';
   const userName = settings?.userName ?? 'Adam';
