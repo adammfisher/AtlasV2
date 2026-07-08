@@ -33,7 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C, sans, serif } from '../../theme/tokens';
+import { C, sans, serif, mono } from '../../theme/tokens';
 import {
   api,
   type ModelsRegistry,
@@ -253,9 +253,38 @@ export function ChatView({
     );
   };
   const [attachments, setAttachments] = useState<
-    Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean }>
+    Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean; pasted?: string }>
   >([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // auto-grow the composer with content (claude.ai parity) — grows a little,
+  // then scrolls past a cap so it never dominates the view
+  const growTextarea = (): void => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  };
+  useEffect(growTextarea, [input]);
+
+  // large paste → a "PASTED" chip (claude.ai parity) instead of flooding the box
+  const addPastedText = (text: string): void => {
+    const tempId = `pending-pasted-${Math.random()}`;
+    setAttachments((a) => [...a, { id: tempId, name: 'Pasted text', kind: 'document', uploading: true, pasted: text }]);
+    const b64 = btoa(unescape(encodeURIComponent(text)));
+    void api
+      .uploadAttachment('pasted.txt', b64)
+      .then((meta) => setAttachments((a) => a.map((x) => (x.id === tempId ? { ...meta, pasted: text, uploading: false } : x))))
+      .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
+  };
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>): void => {
+    const text = e.clipboardData.getData('text');
+    if (text && (text.length > 600 || text.split('\n').length > 12)) {
+      e.preventDefault();
+      addPastedText(text);
+    }
+  };
 
   const addFiles = (files: FileList | null): void => {
     if (!files) return;
@@ -785,9 +814,11 @@ export function ChatView({
       <div className="px-6 pb-5">
         <div className="max-w-2xl mx-auto relative rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
           <textarea
-            rows={2}
+            ref={taRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onPaste={onPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -796,32 +827,58 @@ export function ChatView({
             }}
             placeholder="Message Atlas…"
             className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
-            style={{ color: C.text, fontFamily: sans }}
+            style={{ color: C.text, fontFamily: sans, minHeight: 52, maxHeight: 200, overflowY: 'auto' }}
           />
           {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 px-3 pt-1 pb-0.5">
-              {attachments.map((a) => (
-                <span
-                  key={a.id}
-                  className="relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-6 py-1 text-xs"
-                  style={{ background: C.panel, border: `1px solid ${C.borderSoft}`, color: C.sub, fontFamily: sans }}
-                >
-                  {a.thumb ? (
-                    <img src={a.thumb} alt="" className="rounded" style={{ width: 28, height: 28, objectFit: 'cover' }} />
-                  ) : (
-                    <FileText size={14} style={{ color: C.accent }} />
-                  )}
-                  <span className="max-w-[160px] truncate">{a.name}</span>
-                  {a.uploading ? <Loader2 size={11} className="animate-spin" /> : null}
-                  <button
-                    onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded"
-                    style={{ color: C.mute }}
+            <div className="flex flex-wrap gap-2 px-3 pt-2 pb-0.5">
+              {attachments.map((a) =>
+                a.pasted ? (
+                  <span
+                    key={a.id}
+                    className="relative rounded-lg px-2.5 py-2 text-xs w-44"
+                    style={{ background: C.bg, border: `1px solid ${C.borderSoft}`, color: C.mute, fontFamily: mono }}
                   >
-                    <X size={11} />
-                  </button>
-                </span>
-              ))}
+                    <span
+                      className="block overflow-hidden"
+                      style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', lineHeight: 1.35 }}
+                    >
+                      {a.pasted.slice(0, 220)}
+                    </span>
+                    <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold" style={{ background: C.borderSoft, color: C.sub, fontFamily: sans }}>
+                      PASTED
+                    </span>
+                    {a.uploading ? <Loader2 size={11} className="animate-spin absolute right-6 top-2" /> : null}
+                    <button
+                      onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
+                      className="absolute right-1.5 top-1.5 p-0.5 rounded"
+                      style={{ color: C.mute }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    key={a.id}
+                    className="relative flex items-center gap-1.5 rounded-lg pl-1.5 pr-6 py-1 text-xs"
+                    style={{ background: C.panel, border: `1px solid ${C.borderSoft}`, color: C.sub, fontFamily: sans }}
+                  >
+                    {a.thumb ? (
+                      <img src={a.thumb} alt="" className="rounded" style={{ width: 28, height: 28, objectFit: 'cover' }} />
+                    ) : (
+                      <FileText size={14} style={{ color: C.accent }} />
+                    )}
+                    <span className="max-w-[160px] truncate">{a.name}</span>
+                    {a.uploading ? <Loader2 size={11} className="animate-spin" /> : null}
+                    <button
+                      onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded"
+                      style={{ color: C.mute }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ),
+              )}
             </div>
           )}
           <div className="flex items-center gap-1.5 px-3 pb-2.5">
