@@ -89,6 +89,30 @@ projectsRouter.patch('/:id', (req, res) => {
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/** Delete a project and everything scoped to it: conversations+messages,
+ * memory (items + vectors + queued extractions), and knowledge files.
+ * Artifacts keep their rows (browsable in the gallery) but their project is
+ * gone. Irreversible. Refuses the last remaining project. */
+projectsRouter.delete('/:id', (req, res) => {
+  const id = req.params.id;
+  void (async () => {
+    const { deleteProject, listConversations, deleteConversation } = await import('../db/appdb.js');
+    const { wipeScope } = await import('../memory/store.js');
+    const { cancelPending } = await import('../memory/engine.js');
+    const { listKnowledge, removeKnowledge } = await import('../memory/knowledge.js');
+    if ((await listProjects()).length <= 1) {
+      res.status(400).json({ error: 'cannot delete the last project' });
+      return;
+    }
+    for (const c of await listConversations(id)) await deleteConversation(c.id);
+    for (const k of await listKnowledge(id).catch(() => [])) await removeKnowledge(id, k.id).catch(() => undefined);
+    cancelPending(id);
+    await wipeScope(id).catch(() => undefined);
+    await deleteProject(id);
+    res.json({ ok: true });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
 /* ---------- holistic memory (browse/edit) ----------
  * :id is a projectId or the literal 'user' for the cross-project user scope. */
 

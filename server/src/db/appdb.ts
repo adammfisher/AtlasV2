@@ -163,6 +163,10 @@ export async function putConversation(c: ConversationRow): Promise<void> {
   await putItem({ pk: 'CONV', sk: c.id, ...c });
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  await deleteItem('PROJECTS', id);
+}
+
 export async function touchConversation(id: string, fields: Partial<Pick<ConversationRow, 'title' | 'updated_at'>>): Promise<void> {
   const sets: string[] = [];
   const vals: Record<string, unknown> = {};

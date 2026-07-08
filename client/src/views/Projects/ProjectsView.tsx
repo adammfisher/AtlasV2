@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Brain, BookOpen, FolderKanban, Lock, Globe } from 'lucide-react';
+import { Plus, Brain, BookOpen, FolderKanban, Lock, Globe, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
 import { api, type Project } from '../../lib/api';
@@ -55,7 +55,7 @@ export function ProjectsView({
               key={p.id}
               onClick={() => setActiveProject(p.id)}
               role="button"
-              className="rounded-xl p-4 flex flex-col gap-2.5 cursor-pointer transition-colors"
+              className="group/proj rounded-xl p-4 flex flex-col gap-2.5 cursor-pointer transition-colors"
               style={{ background: C.panel, border: `1px solid ${active ? C.accent : C.border}` }}
               onMouseEnter={(e) => (e.currentTarget.style.background = C.panelHover)}
               onMouseLeave={(e) => (e.currentTarget.style.background = C.panel)}
@@ -116,6 +116,22 @@ export function ProjectsView({
                   title="View and edit this project's memory"
                 >
                   <Brain size={11} /> Memory
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm(`Delete project "${p.name}" and all its chats, memory, and knowledge? This cannot be undone.`)) {
+                      void api.deleteProject(p.id).then(() => {
+                        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                        void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+                      });
+                    }
+                  }}
+                  className="p-0.5 rounded-md opacity-0 group-hover/proj:opacity-60 hover:!opacity-100 transition-opacity"
+                  style={{ color: C.mute }}
+                  title="Delete project"
+                >
+                  <Trash2 size={12} />
                 </button>
               </div>
             </div>
