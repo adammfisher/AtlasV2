@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText, Share2, ExternalLink } from 'lucide-react';
+import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText, Share2, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon } from '../theme/tokens';
 import { api, type ProjectionRow } from '../lib/api';
@@ -49,6 +49,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
   const [notice, setNotice] = useState<string | null>(null);
   const [busyKind, setBusyKind] = useState<string | null>(null);
   const [promoteNote, setPromoteNote] = useState('');
+  const [fullscreen, setFullscreen] = useState(false);
 
   if (!a) return null;
   const Icon = namedIcon(KIND_ICONS[a.kind] ?? 'file-text');
@@ -75,8 +76,12 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
 
   return (
     <div
-      className="flex flex-col h-full flex-shrink-0"
-      style={{ width: 'min(52vw, 880px)', minWidth: 480, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }}
+      className={fullscreen ? 'flex flex-col fixed inset-0 z-50' : 'flex flex-col h-full flex-shrink-0'}
+      style={
+        fullscreen
+          ? { background: '#21201e' }
+          : { width: 'min(52vw, 880px)', minWidth: 480, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }
+      }
     >
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
         <Icon size={15} style={{ color: C.accent }} />
@@ -107,6 +112,14 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
               </button>
             ))}
         </span>
+        <button
+          onClick={() => setFullscreen((f) => !f)}
+          className="p-1 rounded-md"
+          style={{ color: C.mute }}
+          title={fullscreen ? 'Exit full screen' : 'Full screen'}
+        >
+          {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+        </button>
         <button onClick={onClose} className="p-1 rounded-md" style={{ color: C.mute }}>
           <X size={15} />
         </button>
