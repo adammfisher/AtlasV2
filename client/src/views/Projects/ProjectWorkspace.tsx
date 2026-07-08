@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp } from 'lucide-react';
+import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp, Upload } from 'lucide-react';
 import { C, sans, serif, mono } from '../../theme/tokens';
 import { api, type Project, type Conversation } from '../../lib/api';
 import { MemoryModal } from '../../components/MemoryModal';
@@ -78,6 +78,32 @@ export function ProjectWorkspace({
     reader.readAsDataURL(file);
   };
 
+  // drag-and-drop files anywhere on the workspace → project knowledge
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const hasFiles = (e: React.DragEvent): boolean => Array.from(e.dataTransfer.types).includes('Files');
+  const onDragEnter = (e: React.DragEvent): void => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragging(true);
+  };
+  const onDragOver = (e: React.DragEvent): void => {
+    if (hasFiles(e)) e.preventDefault();
+  };
+  const onDragLeave = (e: React.DragEvent): void => {
+    if (!hasFiles(e)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragging(false);
+  };
+  const onDrop = (e: React.DragEvent): void => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragging(false);
+    for (const f of Array.from(e.dataTransfer.files)) uploadFile(f);
+  };
+
   const startChat = (): void => {
     const text = draft.trim();
     setDraft('');
@@ -91,7 +117,32 @@ export function ProjectWorkspace({
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto">
+    <div
+      className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto relative"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {dragging && (
+        <div
+          className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"
+          style={{ background: 'rgba(20,18,16,0.72)', backdropFilter: 'blur(2px)' }}
+        >
+          <div
+            className="flex flex-col items-center gap-3 rounded-2xl px-10 py-8"
+            style={{ border: `2px dashed ${C.accent}`, background: C.panel }}
+          >
+            <Upload size={28} style={{ color: C.accent }} />
+            <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>
+              Drop files to add to {project.name}
+            </span>
+            <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
+              PDFs, Office docs, text, and code — added to project knowledge
+            </span>
+          </div>
+        </div>
+      )}
       <div className="px-8 pt-6 pb-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm mb-4" style={{ color: C.mute, fontFamily: sans }}>
           <ArrowLeft size={14} /> All projects
