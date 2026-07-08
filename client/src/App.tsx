@@ -21,6 +21,7 @@ export default function App() {
     { kind: 'detail'; artifactId: string } | { kind: 'list' } | { kind: 'live' } | null
   >(null);
   const [liveGen, setLiveGen] = useState<{ text: string; label: string } | null>(null);
+  const [autoSend, setAutoSend] = useState<{ convId: string; text: string } | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(currentTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const queryClient = useQueryClient();
@@ -68,7 +69,7 @@ export default function App() {
       .finally(() => void queryClient.invalidateQueries({ queryKey: ['settings'] }));
   };
 
-  const newChat = (projectId?: string) => {
+  const newChat = (projectId?: string, message?: string) => {
     // explicit project scoping (no reliance on the async activeProjectId
     // setting) so a new chat's project — and thus its memory scope — is
     // never ambiguous.
@@ -76,6 +77,7 @@ export default function App() {
     void api.createConversation(pid).then((c) => {
       void queryClient.invalidateQueries({ queryKey: ['conversations'] });
       if (projectId) setActiveProject(projectId);
+      if (message?.trim()) setAutoSend({ convId: c.id, text: message.trim() });
       setActiveConv(c.id);
       setView('chat');
     });
@@ -155,6 +157,8 @@ export default function App() {
             onOpenArtifactList={() => setRightPanel({ kind: 'list' })}
             onGenStream={onGenStream}
             onArtifactReady={onArtifactReady}
+            autoSend={autoSend}
+            onAutoSendConsumed={() => setAutoSend(null)}
           />
         ) : null}
         {view === 'plugins' ? (
@@ -168,7 +172,7 @@ export default function App() {
             activeProject={activeProjectId}
             setActiveProject={setActiveProject}
             openConversation={(id) => openConv(id)}
-            newChatInProject={(pid) => newChat(pid)}
+            newChatInProject={(pid, message) => newChat(pid, message)}
           />
         ) : null}
         {view === 'chat' && rightPanel?.kind === 'detail' ? (

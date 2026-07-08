@@ -211,6 +211,8 @@ export function ChatView({
   onOpenArtifactList,
   onGenStream,
   onArtifactReady,
+  autoSend,
+  onAutoSendConsumed,
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
@@ -220,6 +222,8 @@ export function ChatView({
   onOpenArtifactList: () => void;
   onGenStream: (text: string | null, label: string) => void;
   onArtifactReady: (a: ArtifactRef) => void;
+  autoSend?: { convId: string; text: string } | null;
+  onAutoSendConsumed?: () => void;
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
@@ -301,6 +305,17 @@ export function ChatView({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, live?.assistantText]);
+
+  // auto-send a message the project workspace composer started a chat with
+  const autoSentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (autoSend && convId === autoSend.convId && autoSentRef.current !== autoSend.convId && !busy) {
+      autoSentRef.current = autoSend.convId;
+      void send(autoSend.text);
+      onAutoSendConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSend, convId]);
 
   const busy = live !== null;
 
