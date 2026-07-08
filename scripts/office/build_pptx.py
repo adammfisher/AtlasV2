@@ -1,176 +1,289 @@
 #!/usr/bin/env python3
-"""Compile slides-JSON (skills/pptx/schema.json) onto a .potx template."""
+"""
+Master PPTX designer (skills/pptx/schema.json → a designed 16:9 deck).
+
+Rather than filling a template's weak built-in layouts, this draws every slide
+from scratch with a cohesive, premium theme (Anthropic-style warm palette,
+strong type hierarchy, generous whitespace, accent details). Layouts: title,
+section divider, bullets, two-column, stat/metrics, quote, chart, closing.
+Self-contained — no template or exemplar library dependency.
+"""
 from pathlib import Path
 
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
-from pptx.enum.chart import XL_CHART_TYPE
-from pptx.enum.shapes import PP_PLACEHOLDER
-from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
+from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.oxml.ns import qn
+from pptx.util import Inches, Pt, Emu
 
 import validate_common as vc
-from exemplar_engine import ExemplarDeck
 
-CHART_TYPES = {
-    "line": XL_CHART_TYPE.LINE_MARKERS,
-    "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
-    "pie": XL_CHART_TYPE.PIE,
+# ── theme (warm, premium — the Atlas/Claude palette) ──────────────────────
+INK = RGBColor(0x1A, 0x19, 0x17)      # near-black warm text
+MUTE = RGBColor(0x73, 0x71, 0x6B)     # warm gray
+BG = RGBColor(0xFA, 0xF9, 0xF5)       # warm off-white
+PANEL = RGBColor(0xF1, 0xEE, 0xE7)    # subtle panel
+LINE = RGBColor(0xE3, 0xDF, 0xD5)     # hairline
+ACCENT = RGBColor(0xC9, 0x62, 0x42)   # clay/coral accent
+ACCENT_SOFT = RGBColor(0xE8, 0xD5, 0xCB)
+DARK = RGBColor(0x26, 0x24, 0x22)     # warm dark (section / closing)
+DARK_MUTE = RGBColor(0xA8, 0xA2, 0x97)
+WHITE = RGBColor(0xFA, 0xF9, 0xF5)
+CHART_PALETTE = [
+    RGBColor(0xC9, 0x62, 0x42), RGBColor(0x37, 0x5A, 0x5A),
+    RGBColor(0xD1, 0xA0, 0x54), RGBColor(0x6B, 0x7A, 0x8F),
+    RGBColor(0x8A, 0x5A, 0x44),
+]
+HEAD = "Poppins"
+BODY = "Poppins"
+
+EMU_IN = 914400
+W = 13.333
+H = 7.5
+MARGIN = 0.92
+
+
+def _slide(prs, bg=BG):
+    s = prs.slides.add_slide(prs.slide_layouts[6])  # blank
+    r = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    r.fill.solid(); r.fill.fore_color.rgb = bg
+    r.line.fill.background()
+    r.shadow.inherit = False
+    # push background to back
+    sp = r._element
+    sp.getparent().remove(sp)
+    s.shapes._spTree.insert(2, sp)
+    return s
+
+
+def _rect(slide, x, y, w, h, color, shape=MSO_SHAPE.RECTANGLE, line=None):
+    sh = slide.shapes.add_shape(shape, Inches(x), Inches(y), Inches(w), Inches(h))
+    sh.fill.solid(); sh.fill.fore_color.rgb = color
+    if line is None:
+        sh.line.fill.background()
+    else:
+        sh.line.color.rgb = line; sh.line.width = Pt(1)
+    sh.shadow.inherit = False
+    return sh
+
+
+def _text(slide, x, y, w, h, runs, size=18, color=INK, bold=False, font=BODY,
+          align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, spacing=1.0, italic=False):
+    """runs: a string, or list of (text, {overrides}) for mixed styling."""
+    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = anchor
+    tf.margin_left = 0; tf.margin_right = 0; tf.margin_top = 0; tf.margin_bottom = 0
+    lines = runs if isinstance(runs, list) else [runs]
+    for i, ln in enumerate(lines):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.alignment = align
+        if spacing != 1.0:
+            p.line_spacing = spacing
+        segs = ln if isinstance(ln, list) else [(ln, {})]
+        for text, ov in segs:
+            r = p.add_run(); r.text = str(text)
+            f = r.font
+            f.size = Pt(ov.get("size", size))
+            f.bold = ov.get("bold", bold)
+            f.italic = ov.get("italic", italic)
+            f.name = ov.get("font", font)
+            f.color.rgb = ov.get("color", color)
+    return tb
+
+
+def _footer(slide, title, idx, total, dark=False):
+    c = DARK_MUTE if dark else MUTE
+    _rect(slide, MARGIN, H - 0.62, 0.28, 0.02, ACCENT)
+    _text(slide, MARGIN + 0.36, H - 0.74, 8, 0.3, title, size=9.5, color=c, font=BODY)
+    _text(slide, W - MARGIN - 2, H - 0.74, 2, 0.3, f"{idx} / {total}", size=9.5,
+          color=c, align=PP_ALIGN.RIGHT, font=BODY)
+
+
+def _title_block(slide, heading, y=0.95):
+    """Section title with an accent underline — used on content slides."""
+    _rect(slide, MARGIN, y, 0.5, 0.09, ACCENT)
+    _text(slide, MARGIN, y + 0.22, W - 2 * MARGIN, 1.1, heading, size=30, bold=True,
+          font=HEAD, color=INK, spacing=1.02)
+
+
+# ── layouts ───────────────────────────────────────────────────────────────
+def slide_title(prs, spec, idx, total):
+    s = _slide(prs, BG)
+    _rect(s, 0, 0, 0.32, H, ACCENT)                      # left accent spine
+    _rect(s, MARGIN, 2.35, 0.9, 0.11, ACCENT)
+    _text(s, MARGIN, 2.7, W - 2 * MARGIN, 2.4, spec["heading"], size=46, bold=True,
+          font=HEAD, color=INK, spacing=1.03)
+    sub = spec.get("subtitle") or (spec.get("bullets") or [None])[0]
+    if sub:
+        _text(s, MARGIN, 5.05, W - 2 * MARGIN, 1.0, str(sub), size=18, color=MUTE, font=BODY)
+    # geometric accent, bottom-right
+    _rect(s, W - 2.1, H - 1.5, 1.1, 1.1, ACCENT_SOFT, shape=MSO_SHAPE.OVAL)
+    return s
+
+
+def slide_section(prs, spec, idx, total):
+    s = _slide(prs, DARK)
+    _text(s, MARGIN - 0.05, 1.35, 4, 2.0, f"{idx:02d}", size=104, bold=True, font=HEAD,
+          color=RGBColor(0x35, 0x32, 0x2E))
+    _text(s, MARGIN, 3.35, W - 2 * MARGIN, 1.4, spec["heading"], size=40, bold=True,
+          font=HEAD, color=WHITE, spacing=1.03)
+    _rect(s, MARGIN, 4.55, 0.7, 0.1, ACCENT)
+    sub = spec.get("subtitle")
+    if sub:
+        _text(s, MARGIN, 4.8, W - 2 * MARGIN, 1.0, str(sub), size=16, color=DARK_MUTE, font=BODY)
+    return s
+
+
+def slide_bullets(prs, spec, idx, total):
+    s = _slide(prs, BG)
+    _title_block(s, spec["heading"])
+    items = [str(b) for b in (spec.get("bullets") or [])][:7]
+    top = 2.35
+    avail = H - top - 0.9
+    row = min(0.92, avail / max(1, len(items)))
+    fs = 18 if len(items) <= 5 else 15
+    for i, it in enumerate(items):
+        y = top + i * row
+        _rect(s, MARGIN, y + 0.08, 0.16, 0.16, ACCENT, shape=MSO_SHAPE.OVAL)
+        _text(s, MARGIN + 0.42, y, W - 2 * MARGIN - 0.42, row, it, size=fs,
+              color=INK, font=BODY, anchor=MSO_ANCHOR.TOP, spacing=1.05)
+    _footer(s, spec.get("_deck", ""), idx, total)
+    return s
+
+
+def slide_two_col(prs, spec, idx, total):
+    s = _slide(prs, BG)
+    _title_block(s, spec["heading"])
+    cols = [
+        (spec.get("col_left") or [], spec.get("col_left_head") or spec.get("subtitle")),
+        (spec.get("col_right") or [], spec.get("col_right_head")),
+    ]
+    cw = (W - 2 * MARGIN - 0.5) / 2
+    for c, (items, head) in enumerate(cols):
+        x = MARGIN + c * (cw + 0.5)
+        _rect(s, x, 2.35, cw, H - 2.35 - 0.9, PANEL, shape=MSO_SHAPE.ROUNDED_RECTANGLE)
+        yy = 2.7
+        if head:
+            _text(s, x + 0.35, yy, cw - 0.7, 0.5, str(head), size=15, bold=True,
+                  font=HEAD, color=ACCENT)
+            yy += 0.6
+        for it in [str(i) for i in items][:6]:
+            _rect(s, x + 0.35, yy + 0.09, 0.12, 0.12, ACCENT, shape=MSO_SHAPE.OVAL)
+            _text(s, x + 0.62, yy, cw - 0.95, 0.7, it, size=13.5, color=INK, font=BODY, spacing=1.03)
+            yy += 0.62
+    _footer(s, spec.get("_deck", ""), idx, total)
+    return s
+
+
+def slide_stat(prs, spec, idx, total):
+    s = _slide(prs, BG)
+    _title_block(s, spec["heading"])
+    stats = spec.get("stats") or []
+    if not stats:  # derive from bullets if the model didn't fill stats
+        stats = [{"value": "•", "label": b} for b in (spec.get("bullets") or [])[:3]]
+    stats = stats[:3]
+    n = max(1, len(stats))
+    gap = 0.5
+    cw = (W - 2 * MARGIN - gap * (n - 1)) / n
+    for i, st in enumerate(stats):
+        x = MARGIN + i * (cw + gap)
+        _rect(s, x, 2.7, cw, 3.2, PANEL, shape=MSO_SHAPE.ROUNDED_RECTANGLE)
+        _rect(s, x + 0.4, 3.1, 0.5, 0.08, ACCENT)
+        _text(s, x + 0.35, 3.35, cw - 0.7, 1.5, str(st.get("value", "")), size=54,
+              bold=True, font=HEAD, color=ACCENT)
+        _text(s, x + 0.4, 4.85, cw - 0.8, 0.9, str(st.get("label", "")), size=14,
+              color=MUTE, font=BODY, spacing=1.05)
+    _footer(s, spec.get("_deck", ""), idx, total)
+    return s
+
+
+def slide_quote(prs, spec, idx, total):
+    s = _slide(prs, DARK)
+    _text(s, MARGIN - 0.1, 1.4, 3, 2, "“", size=140, bold=True, font=HEAD,
+          color=ACCENT)
+    q = spec.get("quote") or spec["heading"]
+    _text(s, MARGIN + 0.1, 2.7, W - 2 * MARGIN - 0.2, 2.6, str(q), size=30, font=HEAD,
+          color=WHITE, spacing=1.12, italic=True)
+    who = spec.get("attribution") or spec.get("subtitle")
+    if who:
+        _rect(s, MARGIN + 0.1, 5.5, 0.5, 0.06, ACCENT)
+        _text(s, MARGIN + 0.75, 5.32, W - 3, 0.5, str(who), size=15, color=DARK_MUTE, font=BODY)
+    return s
+
+
+def slide_chart(prs, spec, idx, total):
+    s = _slide(prs, BG)
+    _title_block(s, spec["heading"])
+    cs = spec.get("chart") or {}
+    if cs.get("series"):
+        data = CategoryChartData()
+        data.categories = [str(c) for c in (cs.get("labels") or [])] or ["—"]
+        n = len(data.categories)
+        for ser in cs["series"]:
+            vals = (list(ser.get("values") or []) + [0] * n)[:n]
+            data.add_series(str(ser.get("name", "series")), vals)
+        ctype = {"line": XL_CHART_TYPE.LINE_MARKERS, "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
+                 "pie": XL_CHART_TYPE.PIE}.get(cs.get("kind", "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED)
+        gf = s.shapes.add_chart(ctype, Inches(MARGIN), Inches(2.45),
+                                Inches(W - 2 * MARGIN), Inches(3.9), data)
+        chart = gf.chart
+        chart.has_title = False
+        try:
+            for i, plot_ser in enumerate(chart.series):
+                plot_ser.format.fill.solid()
+                plot_ser.format.fill.fore_color.rgb = CHART_PALETTE[i % len(CHART_PALETTE)]
+        except Exception:
+            pass
+        if cs.get("kind") == "pie" or len(list(chart.series)) > 1:
+            chart.has_legend = True
+            chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+            chart.legend.include_in_layout = False
+    _footer(s, spec.get("_deck", ""), idx, total)
+    return s
+
+
+def slide_closing(prs, spec, idx, total):
+    s = _slide(prs, DARK)
+    _rect(s, W / 2 - 0.45, 2.5, 0.9, 0.11, ACCENT)
+    _text(s, MARGIN, 2.95, W - 2 * MARGIN, 1.6, spec["heading"], size=40, bold=True,
+          font=HEAD, color=WHITE, align=PP_ALIGN.CENTER, spacing=1.03)
+    sub = spec.get("subtitle") or (spec.get("bullets") or [None])[0]
+    if sub:
+        _text(s, MARGIN, 4.5, W - 2 * MARGIN, 1.0, str(sub), size=17, color=DARK_MUTE,
+              font=BODY, align=PP_ALIGN.CENTER)
+    return s
+
+
+LAYOUTS = {
+    "title": slide_title, "section": slide_section, "bullets": slide_bullets,
+    "summary": slide_bullets, "two_col": slide_two_col, "stat": slide_stat,
+    "quote": slide_quote, "chart": slide_chart, "closing": slide_closing,
 }
 
 
-def pick_layout(prs, names, fallback_idx):
-    for layout in prs.slide_layouts:
-        if layout.name in names:
-            return layout
-    return prs.slide_layouts[fallback_idx]
-
-
-def fill_bullets(body, items):
-    tf = body.text_frame
-    tf.clear()
-    for i, item in enumerate(items):
-        para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        para.text = str(item)
-        para.level = 0
-
-
 def build(payload: dict, template: str, out: Path) -> dict:
-    prs = Presentation(template)
-    title_layout = pick_layout(prs, ("Title Slide",), 0)
-    bullets_layout = pick_layout(prs, ("Title and Content",), 1)
-    two_col_layout = pick_layout(prs, ("Two Content",), 3)
-    blank_layout = pick_layout(prs, ("Title Only",), 5)
-
-    # DFS exemplar engine: designed library slides are copied + filled when the
-    # curated manifest is present; layout-based building is the fallback.
-    exemplars = None
-    try:
-        exemplars = ExemplarDeck(prs)
-    except Exception:
-        exemplars = None
-
-    for slide_spec in payload["slides"]:
-        layout_kind = slide_spec["layout"]
-
-        if exemplars is not None and layout_kind in ("title", "section", "closing", "bullets", "two_col", "summary", "chart"):
-            heading = slide_spec["heading"]
-            if layout_kind == "title":
-                items = [str(b) for b in (slide_spec.get("bullets") or [])][:1]
-                category = "title"
-            elif layout_kind in ("section", "closing"):
-                items = []
-                category = layout_kind
-            elif layout_kind in ("bullets", "summary"):
-                items = [str(b) for b in (slide_spec.get("bullets") or [])]
-                category = "bullets"
-            elif layout_kind == "two_col":
-                items = [str(x) for x in (slide_spec.get("col_left") or [])] + [
-                    str(x) for x in (slide_spec.get("col_right") or [])
-                ]
-                category = "two_col"
-            else:
-                category = "chart"
-                items = [str(b) for b in (slide_spec.get("bullets") or [])]
-            chart_kind = (slide_spec.get("chart") or {}).get("kind") if layout_kind == "chart" else None
-            # the model may request a specific style (the 24-slide library); else capacity-pick
-            requested = slide_spec.get("style")
-            if requested and requested in exemplars.exemplars:
-                name = requested
-            else:
-                name = exemplars.pick(category, len(items), chart_kind=chart_kind) if exemplars.has(category) else None
-            if name is not None:
-                exemplars.build_slide(
-                    name,
-                    heading,
-                    items,
-                    chart_spec=slide_spec.get("chart"),
-                    notes=slide_spec.get("notes"),
-                )
-                continue
-
-        if layout_kind == "title":
-            slide = prs.slides.add_slide(title_layout)
-            slide.shapes.title.text = slide_spec["heading"]
-            # long deck titles shrink so they never clip the title band
-            heading_len = len(slide_spec["heading"])
-            if heading_len > 38:
-                title_size = Pt(28) if heading_len > 60 else Pt(36)
-                for para in slide.shapes.title.text_frame.paragraphs:
-                    for run in para.runs:
-                        run.font.size = title_size
-            subtitle = slide_spec.get("bullets") or []
-            placeholders = [p for p in slide.placeholders if p.placeholder_format.idx != 0]
-            if subtitle and placeholders:
-                placeholders[0].text = str(subtitle[0])
-        elif layout_kind in ("bullets", "summary"):
-            slide = prs.slides.add_slide(bullets_layout)
-            slide.shapes.title.text = slide_spec["heading"]
-            bodies = [p for p in slide.placeholders if p.placeholder_format.idx != 0]
-            if bodies:
-                fill_bullets(bodies[0], slide_spec.get("bullets") or [])
-        elif layout_kind == "two_col":
-            slide = prs.slides.add_slide(two_col_layout)
-            slide.shapes.title.text = slide_spec["heading"]
-            bodies = [p for p in slide.placeholders if p.placeholder_format.idx != 0]
-            cols = [slide_spec.get("col_left") or [], slide_spec.get("col_right") or []]
-            for body, col in zip(bodies[:2], cols):
-                fill_bullets(body, col)
-        elif layout_kind == "chart":
-            # chart goes INTO the content placeholder of Title-and-Content so it
-            # lands where the branded layout intends (no title overlap)
-            slide = prs.slides.add_slide(bullets_layout)
-            if slide.shapes.title is not None:
-                slide.shapes.title.text = slide_spec["heading"]
-            chart_spec = slide_spec.get("chart")
-            if chart_spec and chart_spec.get("series"):
-                data = CategoryChartData()
-                data.categories = [str(c) for c in chart_spec.get("labels") or []] or ["—"]
-                for series in chart_spec["series"]:
-                    values = list(series.get("values") or [])
-                    # pad/trim to category count so python-pptx accepts it
-                    n = len(data.categories)
-                    values = (values + [0] * n)[:n]
-                    data.add_series(series.get("name", "series"), values)
-                chart_type = CHART_TYPES.get(chart_spec.get("kind", "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED)
-                body = next(
-                    (p for p in slide.placeholders if p.placeholder_format.idx != 0
-                     and p.placeholder_format.type in (PP_PLACEHOLDER.OBJECT, PP_PLACEHOLDER.BODY)),
-                    None,
-                )
-                if body is not None:
-                    # take the placeholder's box, then replace it with the chart
-                    left, top, width, height = body.left, body.top, body.width, body.height
-                    body._element.getparent().remove(body._element)
-                    slide.shapes.add_chart(chart_type, left, top, width, height, data)
-                else:
-                    # safe region below a standard title band on 13.33x7.5 widescreen
-                    slide.shapes.add_chart(chart_type, Inches(0.9), Inches(1.9), Inches(11.5), Inches(4.9), data)
-        else:  # defensive: unknown layout renders as bullets
-            slide = prs.slides.add_slide(bullets_layout)
-            slide.shapes.title.text = slide_spec["heading"]
-        notes = slide_spec.get("notes")
+    prs = Presentation()
+    prs.slide_width = Emu(int(W * EMU_IN))
+    prs.slide_height = Emu(int(H * EMU_IN))
+    deck_title = payload.get("title", "")
+    slides = payload["slides"]
+    total = len(slides)
+    for i, spec in enumerate(slides, start=1):
+        spec = dict(spec)
+        spec["_deck"] = deck_title
+        fn = LAYOUTS.get(spec.get("layout"), slide_bullets)
+        s = fn(prs, spec, i, total)
+        notes = spec.get("notes")
         if notes:
-            slide.notes_slide.notes_text_frame.text = str(notes)
-
-    # brand font: every run renders in Poppins (the DFS standard)
-    for slide in prs.slides:
-        _apply_font(slide.shapes)
-
+            s.notes_slide.notes_text_frame.text = str(notes)
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
-    return {"slides": len(payload["slides"]), "bytes": out.stat().st_size}
-
-
-def _apply_font(shapes):
-    for shape in shapes:
-        if shape.shape_type == 6 and hasattr(shape, "shapes"):
-            _apply_font(shape.shapes)
-            continue
-        if getattr(shape, "has_text_frame", False):
-            for para in shape.text_frame.paragraphs:
-                for run in para.runs:
-                    if not run.font.name or not run.font.name.startswith("Poppins"):
-                        run.font.name = "Poppins"
+    return {"slides": total, "bytes": out.stat().st_size}
 
 
 def extract_texts(path: Path) -> list:
@@ -187,17 +300,13 @@ def main() -> None:
     args = vc.cli("pptx builder")
     payload = vc.load_payload(args.payload)
     out = Path(args.out)
-    template = args.template or "skills/pptx/templates/atlas_default.potx"
-    meta = build(payload, template, out)
+    meta = build(payload, args.template or "", out)
 
     checks = [vc.openxml_audit(out), vc.zip_sanity(out)]
     reopened = Presentation(str(out))
     texts = extract_texts(out)
     checks.append(
-        vc.check(
-            "Round-trip",
-            len(list(reopened.slides)) == meta["slides"] and any(t.strip() for t in texts),
-        )
+        vc.check("Round-trip", len(list(reopened.slides)) == meta["slides"] and any(t.strip() for t in texts))
     )
     checks.append(vc.placeholder_grep(texts))
     checks.append(vc.soffice_convert(out, "soffice open/convert", vc.THUMBS_SKIP))
