@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { config } from '../config.js';
+import { mirrorArtifactPath } from '../storage/artifacts-s3.js';
 import { newId, now } from '../db/db.js';
 import {
   getArtifactRow,
@@ -59,6 +60,12 @@ export async function addVersion(artifactId: string, input: VersionInput): Promi
     created_at: now(),
   });
   await setArtifactCurrentVersion(artifactId, version);
+  // durable copy — reads hydrate from S3 when the local build dir is gone
+  try {
+    await mirrorArtifactPath(input.filePath);
+  } catch (err) {
+    console.error(`[artifacts] s3 mirror failed: ${err instanceof Error ? err.message : err}`);
+  }
   return version;
 }
 

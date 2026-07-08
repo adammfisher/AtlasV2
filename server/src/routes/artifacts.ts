@@ -37,6 +37,7 @@ import {
   type LocalKind,
 } from '../pipeline/projections.js';
 import { latestPayload } from '../pipeline/artifacts.js';
+import { hydrateArtifactPath } from '../storage/artifacts-s3.js';
 import { logTo } from '../log.js';
 
 const execFileAsync = promisify(execFile);
@@ -141,6 +142,7 @@ artifactsRouter.get('/:id/versions/:v/download', (req, res) => {
   void (async () => {
     const row = await getArtifact(req.params.id);
     const version = await getVersion(req.params.id, Number(req.params.v));
+    if (version?.file_path) await hydrateArtifactPath(version.file_path);
     if (!row || !version?.file_path || !existsSync(version.file_path)) {
       res.status(404).json({ error: 'no file for this version' });
       return;
@@ -172,6 +174,7 @@ artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
   void (async () => {
     const row = await getArtifact(req.params.id);
     const version = await getVersion(req.params.id, Number(req.params.v));
+    if (version?.file_path) await hydrateArtifactPath(version.file_path);
     if (!row || !version?.file_path || !existsSync(version.file_path)) {
       res.status(404).json({ error: 'no file for this version' });
       return;
@@ -236,6 +239,7 @@ artifactsRouter.get('/:id/versions/:v/content', (req, res) => {
       res.json({ kind: row.kind, files: payload.files ?? {}, entry: payload.entry ?? '/index.html' });
       return;
     }
+    if (version.file_path) await hydrateArtifactPath(version.file_path);
     if (version.file_path && existsSync(version.file_path) && !statSync(version.file_path).isDirectory()) {
       res.json({ kind: row.kind, source: readFileSync(version.file_path, 'utf8') });
       return;
@@ -253,6 +257,7 @@ artifactsRouter.get('/:id/versions/:v/render.pdf', (req, res) => {
   void (async () => {
     const row = await getArtifact(req.params.id);
     const version = await getVersion(req.params.id, Number(req.params.v));
+    if (version?.file_path) await hydrateArtifactPath(version.file_path);
     if (!row || !version?.file_path || !existsSync(version.file_path) || statSync(version.file_path).isDirectory()) {
       res.status(404).json({ error: 'no renderable file for this version' });
       return;
@@ -307,6 +312,7 @@ artifactsRouter.get('/:id/versions/:v/preview', (req, res) => {
   void (async () => {
     const row = await getArtifact(req.params.id);
     const version = await getVersion(req.params.id, Number(req.params.v));
+    if (version?.file_path) await hydrateArtifactPath(version.file_path);
     if (!row || !version?.file_path || !existsSync(version.file_path)) {
       res.status(404).json({ error: 'no file for this version' });
       return;
