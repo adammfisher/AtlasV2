@@ -46,18 +46,19 @@ export const MODEL_KEYS = Object.keys(BEDROCK_MODELS);
 
 /** Sonnet 5's model agreement is ACTIVE on this account but AWS runtime can
  * still refuse it while activation propagates (or pending a manual AWS grant).
- * Until it clears, the sonnet slot binds to Sonnet 4.5 — honestly labeled —
+ * Until it clears, the sonnet slot binds to Sonnet 4.6 — honestly labeled —
  * and auto-upgrades to Sonnet 5 once a probe succeeds. */
-const SONNET_45 = {
-  id: 'us.anthropic.claude-sonnet-4-5-20250929-v1:0',
-  name: 'Claude Sonnet 4.5',
+const SONNET_46 = {
+  id: 'us.anthropic.claude-sonnet-4-6',
+  name: 'Claude Sonnet 4.6',
   sub: 'Most capable available · Amazon Bedrock (Sonnet 5 pending AWS activation)',
 };
 
 /** The live catalog: BEDROCK_MODELS with the sonnet slot resolved to whatever
- * this account can actually invoke (probed at connect time). */
+ * this account can actually invoke (probed at connect time). Any non-'5'
+ * resolution serves Sonnet 4.6 (covers the legacy '4.5' stored value too). */
 export function modelCatalog(): Record<string, { id: string; name: string; sub: string }> {
-  if (getSetting('sonnetResolved') === '4.5') return { ...BEDROCK_MODELS, sonnet: SONNET_45 };
+  if (getSetting('sonnetResolved') !== '5') return { ...BEDROCK_MODELS, sonnet: SONNET_46 };
   return BEDROCK_MODELS;
 }
 
@@ -80,10 +81,10 @@ export async function probeSonnet(): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (/not available for this account/i.test(msg)) {
-      if (getSetting('sonnetResolved') !== '4.5') {
-        logTo('app', 'Sonnet 5 refused by AWS runtime — sonnet slot bound to Sonnet 4.5 until activation clears');
+      if (getSetting('sonnetResolved') !== '4.6') {
+        logTo('app', 'Sonnet 5 refused by AWS runtime — sonnet slot bound to Sonnet 4.6 until activation clears');
       }
-      setSetting('sonnetResolved', '4.5');
+      setSetting('sonnetResolved', '4.6');
     }
     // other errors (throttle, network) leave the current binding untouched
   }

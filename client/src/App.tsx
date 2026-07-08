@@ -68,9 +68,14 @@ export default function App() {
       .finally(() => void queryClient.invalidateQueries({ queryKey: ['settings'] }));
   };
 
-  const newChat = () => {
-    void api.createConversation().then((c) => {
+  const newChat = (projectId?: string) => {
+    // explicit project scoping (no reliance on the async activeProjectId
+    // setting) so a new chat's project — and thus its memory scope — is
+    // never ambiguous.
+    const pid = projectId ?? activeProjectId;
+    void api.createConversation(pid).then((c) => {
       void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      if (projectId) setActiveProject(projectId);
       setActiveConv(c.id);
       setView('chat');
     });
@@ -159,8 +164,11 @@ export default function App() {
         {view === 'projects' ? (
           <ProjectsView
             projects={projects ?? []}
+            conversations={conversations ?? []}
             activeProject={activeProjectId}
             setActiveProject={setActiveProject}
+            openConversation={(id) => openConv(id)}
+            newChatInProject={(pid) => newChat(pid)}
           />
         ) : null}
         {view === 'chat' && rightPanel?.kind === 'detail' ? (

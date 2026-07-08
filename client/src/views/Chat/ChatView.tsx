@@ -456,16 +456,17 @@ export function ChatView({
         </div>
       )}
       <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-        <span className="text-sm" style={{ color: C.mute, fontFamily: sans }}>
-          {activeProjectName}
+        <span
+          className="flex items-center gap-1.5 text-sm px-2 py-0.5 rounded-md"
+          style={{ color: C.purple, background: C.purpleDim, fontFamily: sans }}
+          title={`This chat lives in "${activeProjectName}". Its memory and knowledge are scoped to this project.`}
+        >
+          <FolderKanban size={13} /> {activeProjectName || 'No project'}
         </span>
         <ChevronRight size={13} style={{ color: C.mute }} />
         <span className="text-sm font-medium truncate" style={{ color: C.text, fontFamily: sans }}>
           {conv?.title ?? 'New chat'}
         </span>
-        <Badge color={C.purple} dim={C.purpleDim} icon={FolderKanban}>
-          Project
-        </Badge>
         <span className="ml-auto" />
         <button
           onClick={() => {

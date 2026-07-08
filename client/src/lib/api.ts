@@ -208,9 +208,11 @@ export const api = {
   createProject: (name: string, instructions: string) =>
     request<Project>('/projects', { method: 'POST', body: JSON.stringify({ name, instructions }) }),
   deleteProject: (id: string) => request<{ ok: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
+  updateProject: (id: string, patch: { name?: string; instructions?: string }) =>
+    request<Project>(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   conversations: () => request<Conversation[]>('/conversations'),
-  createConversation: () =>
-    request<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({}) }),
+  createConversation: (projectId?: string) =>
+    request<Conversation>('/conversations', { method: 'POST', body: JSON.stringify(projectId ? { projectId } : {}) }),
   conversation: (id: string) => request<ConversationDetail>(`/conversations/${id}`),
   deleteConversations: (ids: string[]) =>
     request<{ ok: boolean; deleted: number }>('/conversations/delete', {
