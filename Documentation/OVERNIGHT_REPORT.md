@@ -60,8 +60,11 @@ Empty message → 400 · unknown conversation → 404 · malformed JSON → 4xx 
 1. **"I'll search the project files" still flakes ~1 in N** when a project has heavily accumulated memory noise AND a named-document question. Underlying data is recalled correctly; it's model phrasing. Mitigated, not eliminated.
 2. **Forget within 75s of stating a fact** can be re-added by the idle extractor (which fires on a 75s debounce, after the forget). Rare; the durable path otherwise works. Noted for a follow-up (forget could tombstone-suppress re-extraction).
 3. **Cloud E2E** has latency-driven flakiness (each test makes many CloudFront→Lambda cold-start round-trips inside one timeout). Manual + scenario coverage confirms cloud parity; the suite just needs cloud-tuned timeouts.
-4. **Office upload extraction in cloud** (reading an uploaded pptx/pdf) uses markitdown, which isn't in the app Lambda — text/code uploads work; office-file *uploads* would need the office Lambda's extractor path (generation already routes there). Follow-up.
+4. **Office upload extraction in cloud** (reading an *uploaded* pptx/pdf via markitdown) still needs the office Lambda path — text/code uploads work today. (The artifact *preview* pane now uses the office Lambda's structured extractor — see below.) Follow-up for uploads.
 5. Sonnet 5 remains AWS-agreement-gated; the slot auto-serves Sonnet 4.5 and upgrades when AWS clears it.
+
+## Post-report fix: artifact preview pane (cloud)
+The right-pane preview for office docs was stuck on "extracting…" in the cloud (it called Python `markitdown`, which the app Lambda doesn't have). Added a structured **extract** op to the office Lambda (python-pptx/docx/openpyxl/pdfplumber) — the preview now renders **pptx as slide cards, xlsx as sheet tables, docx as styled blocks**, and pdf inline — all scale-to-zero, no LibreOffice. Verified live: a generated deck shows titled slide cards in the pane. (The "PowerPoint won't open" report was a local machine issue — the downloaded file is byte-identical across S3/CloudFront/Function-URL and opens in python-pptx.)
 
 ---
 

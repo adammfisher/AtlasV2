@@ -322,6 +322,32 @@ artifactsRouter.get('/:id/versions/:v/preview', (req, res) => {
       return;
     }
     try {
+      if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+        // cloud: no python — the office Lambda extracts structured content
+        const { readFileSync } = await import('node:fs');
+        const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
+        const { config } = await import('../config.js');
+        const client = new LambdaClient({ region: config.bedrock.region || 'us-east-1' });
+        const out = await client.send(
+          new InvokeCommand({
+            FunctionName: 'atlasv2-office',
+            Payload: Buffer.from(
+              JSON.stringify({ op: 'extract', kind: row.kind, file_b64: readFileSync(version.file_path).toString('base64') }),
+            ),
+          }),
+        );
+        const r = JSON.parse(Buffer.from(out.Payload ?? new Uint8Array()).toString('utf8')) as {
+          ok?: boolean;
+          error?: string;
+          text?: string;
+          slides?: unknown;
+          sheets?: unknown;
+          blocks?: unknown;
+        };
+        if (!r.ok) throw new Error(r.error ?? 'extract failed');
+        res.json({ kind: row.kind, label: 'preview', text: (r.text ?? '').slice(0, 20_000), slides: r.slides, sheets: r.sheets, blocks: r.blocks });
+        return;
+      }
       const { repoRoot } = await import('../config.js');
       const { stdout } = await execFileAsync(
         path.join(repoRoot, 'runtimes/python/venv/bin/python'),
@@ -330,7 +356,7 @@ artifactsRouter.get('/:id/versions/:v/preview', (req, res) => {
       );
       res.json({ kind: row.kind, label: 'text preview', text: stdout.slice(0, 20_000) });
     } catch (err) {
-      res.status(500).json({ error: `markitdown extraction failed: ${err instanceof Error ? err.message : err}` });
+      res.status(500).json({ error: `extraction failed: ${err instanceof Error ? err.message : err}` });
     }
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });

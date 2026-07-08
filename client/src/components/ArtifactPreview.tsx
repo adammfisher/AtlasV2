@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { C, sans, mono } from '../theme/tokens';
+import type { CSSProperties } from 'react';
+import { C, sans, mono, serif } from '../theme/tokens';
 import { Badge } from './Badge';
 import {
   buildReactSrcdoc,
@@ -11,6 +12,126 @@ import {
 } from '../lib/sandbox';
 
 const SANDBOX_KINDS = ['md', 'mermaid', 'svg', 'react', 'site'];
+
+interface OfficePreview {
+  text: string;
+  label: string;
+  slides?: Array<{ title: string; bullets: string[] }>;
+  sheets?: Array<{ name: string; rows: string[][] }>;
+  blocks?: Array<{ style: string; text?: string; rows?: string[][] }>;
+}
+
+/** Rich structured preview for office docs in the scale-to-zero cloud (no
+ * LibreOffice): pptx → slide cards, xlsx → sheet tables, docx → styled blocks. */
+function StructuredOffice({ p, height }: { p: OfficePreview; height: number | string }) {
+  const box: CSSProperties = {
+    maxHeight: height,
+    overflow: 'auto',
+    padding: 14,
+    background: C.bg,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  };
+  if (p.slides?.length) {
+    return (
+      <div style={box}>
+        {p.slides.map((s, i) => (
+          <div
+            key={i}
+            className="rounded-lg"
+            style={{ border: `1px solid ${C.border}`, background: C.panel, padding: 14, aspectRatio: '16 / 9', display: 'flex', flexDirection: 'column' }}
+          >
+            <div className="text-xs mb-1" style={{ color: C.mute, fontFamily: mono }}>
+              slide {i + 1}
+            </div>
+            <div style={{ color: C.text, fontFamily: sans, fontWeight: 600, fontSize: 15, marginBottom: 8 }}>
+              {s.title || '—'}
+            </div>
+            <ul style={{ color: C.sub, fontFamily: sans, fontSize: 12.5, lineHeight: 1.6, listStyle: 'disc', paddingLeft: 18 }}>
+              {s.bullets.map((b, j) => (
+                <li key={j}>{b}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (p.sheets?.length) {
+    return (
+      <div style={box}>
+        {p.sheets.map((sh, i) => (
+          <div key={i}>
+            <div className="text-xs mb-1.5" style={{ color: C.accent, fontFamily: mono }}>
+              {sh.name}
+            </div>
+            <div className="rounded-lg overflow-auto" style={{ border: `1px solid ${C.border}` }}>
+              <table style={{ borderCollapse: 'collapse', fontFamily: sans, fontSize: 12 }}>
+                <tbody>
+                  {sh.rows.map((row, r) => (
+                    <tr key={r}>
+                      {row.map((cell, c) => (
+                        <td
+                          key={c}
+                          style={{ border: `1px solid ${C.borderSoft}`, padding: '3px 8px', color: r === 0 ? C.text : C.sub, fontWeight: r === 0 ? 600 : 400, whiteSpace: 'nowrap' }}
+                        >
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (p.blocks?.length) {
+    return (
+      <div style={{ ...box, gap: 6 }}>
+        {p.blocks.map((b, i) => {
+          if (b.rows) {
+            return (
+              <table key={i} style={{ borderCollapse: 'collapse', fontFamily: sans, fontSize: 12, margin: '6px 0' }}>
+                <tbody>
+                  {b.rows.map((row, r) => (
+                    <tr key={r}>
+                      {row.map((cell, c) => (
+                        <td key={c} style={{ border: `1px solid ${C.borderSoft}`, padding: '3px 8px', color: C.sub }}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          }
+          const heading = /Heading|Title/i.test(b.style);
+          return (
+            <div
+              key={i}
+              style={{ color: heading ? C.text : C.sub, fontFamily: heading ? serif : sans, fontSize: heading ? 16 : 13, fontWeight: heading ? 600 : 400, lineHeight: 1.55, marginTop: heading ? 8 : 0 }}
+            >
+              {b.text}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  return (
+    <pre
+      className="px-3 py-3 overflow-auto whitespace-pre-wrap"
+      style={{ background: C.bg, color: C.sub, fontFamily: mono, fontSize: 11, maxHeight: height, margin: 0 }}
+    >
+      {p.text || 'no extractable content'}
+    </pre>
+  );
+}
 
 interface ContentResponse {
   kind: string;
@@ -110,7 +231,7 @@ export function ArtifactPreview({
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? 'preview unavailable');
       }
-      return res.json() as Promise<{ text: string; label: string }>;
+      return res.json() as Promise<OfficePreview>;
     },
     enabled: office && renderable === false,
     staleTime: 60_000,
@@ -221,15 +342,16 @@ export function ArtifactPreview({
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-2 px-3 py-2" style={{ background: C.raised }}>
         <span className="text-xs" style={{ color: C.mute, fontFamily: mono }}>
-          {textPreview?.label ?? 'text preview'} · extraction-based
+          {kind === 'pptx' ? 'slide preview' : kind === 'xlsx' ? 'sheet preview' : 'document preview'}
         </span>
       </div>
-      <pre
-        className="px-3 py-3 overflow-auto whitespace-pre-wrap"
-        style={{ background: C.bg, color: C.sub, fontFamily: mono, fontSize: 11, maxHeight: height, margin: 0 }}
-      >
-        {textPreview?.text ?? 'extracting…'}
-      </pre>
+      {textPreview ? (
+        <StructuredOffice p={textPreview} height={height} />
+      ) : (
+        <div className="text-xs px-3 py-4" style={{ color: C.mute, fontFamily: sans }}>
+          building preview…
+        </div>
+      )}
     </div>
   );
 }

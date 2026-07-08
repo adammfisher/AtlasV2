@@ -21,7 +21,88 @@ SKILLS = {"pptx", "docx", "xlsx", "pdf"}
 TEMPLATES = {"pptx": "dfs_default.potx", "docx": "atlas_default.dotx"}
 
 
+def extract_preview(kind, file_bytes):
+    """Structured preview extraction (pure-python, no LibreOffice). Returns
+    {text, slides?, sheets?} so the client can render a readable preview in the
+    scale-to-zero cloud where soffice/markitdown aren't available."""
+    tmp = Path(tempfile.mkdtemp(prefix="preview-"))
+    fp = tmp / f"in.{kind}"
+    fp.write_bytes(file_bytes)
+    out = {"kind": kind}
+    if kind == "pptx":
+        from pptx import Presentation
+
+        prs = Presentation(str(fp))
+        slides = []
+        for s in prs.slides:
+            title, bullets = None, []
+            for shape in s.shapes:
+                if not shape.has_text_frame:
+                    continue
+                for i, para in enumerate(shape.text_frame.paragraphs):
+                    txt = "".join(r.text for r in para.runs).strip()
+                    if not txt:
+                        continue
+                    if title is None and shape == s.shapes.title:
+                        title = txt
+                    else:
+                        bullets.append(txt)
+            slides.append({"title": title or "", "bullets": bullets[:12]})
+        out["slides"] = slides
+        out["text"] = "\n\n".join(
+            f"# {sl['title']}\n" + "\n".join(f"- {b}" for b in sl["bullets"]) for sl in slides
+        )
+    elif kind == "docx":
+        from docx import Document
+
+        doc = Document(str(fp))
+        blocks = []
+        for p in doc.paragraphs:
+            if p.text.strip():
+                blocks.append({"style": p.style.name if p.style else "Normal", "text": p.text.strip()})
+        for t in doc.tables:
+            rows = [[c.text.strip() for c in r.cells] for r in t.rows]
+            blocks.append({"style": "Table", "rows": rows[:20]})
+        out["blocks"] = blocks[:200]
+        out["text"] = "\n".join(b.get("text", "[table]") for b in blocks)
+    elif kind == "xlsx":
+        from openpyxl import load_workbook
+
+        wb = load_workbook(str(fp), data_only=True, read_only=True)
+        sheets = []
+        for ws in wb.worksheets:
+            rows = []
+            for r in ws.iter_rows(values_only=True):
+                rows.append(["" if c is None else str(c) for c in r])
+                if len(rows) >= 50:
+                    break
+            sheets.append({"name": ws.title, "rows": rows})
+        out["sheets"] = sheets
+        out["text"] = "\n\n".join(
+            f"[{sh['name']}]\n" + "\n".join(" | ".join(r) for r in sh["rows"][:20]) for sh in sheets
+        )
+    elif kind == "pdf":
+        import pdfplumber
+
+        with pdfplumber.open(str(fp)) as pdf:
+            out["text"] = "\n\n".join((pg.extract_text() or "") for pg in pdf.pages[:30])
+    else:
+        out["text"] = ""
+    return {"ok": True, **out}
+
+
 def handler(event, _context):
+    # preview extraction path (no build)
+    if event.get("op") == "extract":
+        kind = event.get("kind")
+        b64 = event.get("file_b64")
+        if kind not in {"pptx", "docx", "xlsx", "pdf"} or not b64:
+            return {"ok": False, "error": f"cannot preview kind: {kind}"}
+        try:
+            return extract_preview(kind, base64.b64decode(b64))
+        except Exception as err:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(err).__name__}: {err}"}
+
     skill = event.get("skill")
     payload = event.get("payload")
     if skill not in SKILLS or payload is None:
