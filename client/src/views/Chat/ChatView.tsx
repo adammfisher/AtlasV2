@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { marked } from 'marked';
 import {
   ChevronRight,
   ChevronDown,
@@ -60,30 +61,39 @@ const SUGGESTIONS = [
   'Define a product — auto loan payment calculator',
 ];
 
-/** Assistant text with knowledge citations rendered as badges: the model cites
- * project-document passages inline as [source: filename] (FR-5.5). */
+marked.setOptions({ gfm: true, breaks: true });
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+/** strip anything script-y from model-produced markdown HTML (defense in depth) */
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/ on\w+="[^"]*"/gi, '')
+    .replace(/ on\w+='[^']*'/gi, '')
+    .replace(/javascript:/gi, '');
+}
+
+/** Assistant text rendered as markdown (headings, tables, lists, code, bold),
+ * with knowledge citations [source: filename] kept as accent badges (FR-5.5). */
 function RichText({ text }: { text: string }) {
-  const parts = text.split(/(\[source: [^\]]+\])/g);
-  return (
-    <>
-      {parts.map((p, i) => {
-        const m = /^\[source: ([^\]]+)\]$/.exec(p);
-        if (m) {
-          return (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1 text-xs rounded px-1.5 py-0.5 mx-0.5 align-middle"
-              style={{ background: C.accentDim, color: C.accent, fontFamily: sans }}
-              title={`From project knowledge: ${m[1]}`}
-            >
-              <BookOpen size={10} /> {m[1]}
-            </span>
-          );
-        }
-        return <span key={i}>{p}</span>;
-      })}
-    </>
-  );
+  const html = useMemo(() => {
+    const cites: string[] = [];
+    const withTokens = text.replace(/\[source: ([^\]]+)\]/g, (_m, f: string) => {
+      cites.push(f);
+      return `%%CITE${cites.length - 1}%%`;
+    });
+    let out = marked.parse(withTokens, { async: false }) as string;
+    out = out.replace(/%%CITE(\d+)%%/g, (_m, i: string) => {
+      const f = cites[Number(i)] ?? '';
+      return `<span class="chat-cite" title="From project knowledge: ${escapeHtml(f)}">${escapeHtml(f)}</span>`;
+    });
+    return sanitizeHtml(out);
+  }, [text]);
+  return <div className="chat-md" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** Uploaded-file chip: hover reveals a download action that pulls the original
@@ -672,12 +682,9 @@ export function ChatView({
               ) : (
                 <Msg key={m.id} who="assistant">
                   {m.kind === 'text' && m.toolCalls ? <ToolChips chips={m.toolCalls} /> : null}
-                  <p
-                    className="leading-relaxed whitespace-pre-wrap"
-                    style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
-                  >
+                  <div style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
                     <RichText text={m.text ?? ''} />
-                  </p>
+                  </div>
                   <span className="flex items-center gap-2 mt-1.5">
                     <button
                       title="Copy"
@@ -794,12 +801,9 @@ export function ChatView({
                         </div>
                       ) : null}
                       <ToolChips chips={live.toolChips} />
-                      <p
-                        className="leading-relaxed whitespace-pre-wrap"
-                        style={{ color: C.text, fontFamily: serif, fontSize: 15 }}
-                      >
+                      <div style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
                         <RichText text={live.assistantText} />
-                      </p>
+                      </div>
                     </>
                   ) : null}
                 </Msg>
