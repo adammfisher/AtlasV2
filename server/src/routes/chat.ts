@@ -229,7 +229,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
       const system = [
         PERSONA,
         memEnabled
-          ? 'When the user asks you to remember or forget something, use the remember/forget tools — do not just acknowledge.'
+          ? 'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".'
           : '',
         instructions ? `Project instructions: ${instructions}` : '',
         convSummary ? `Earlier in this conversation (running summary):\n${convSummary}` : '',

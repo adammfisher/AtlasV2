@@ -445,12 +445,29 @@ export async function putNote(scope: Scope, content: string, category: string, s
     const near = (
       await probeCandidates(scope, embedding, (h) => h.type === 'note' && h.score >= ADJUDICATE_FLOOR)
     )[0];
-    const dup =
-      near &&
-      (near.score >= AUTO_MERGE || (await adjudicate(near.content, content)) !== 'different')
-        ? near
-        : undefined;
+    const verdict = near
+      ? near.score >= AUTO_MERGE
+        ? await adjudicate(near.content, content)
+        : await adjudicate(near.content, content)
+      : 'different';
+    const dup = near && verdict !== 'different' ? near : undefined;
     if (dup) {
+      if (verdict === 'contradicts') {
+        // audit trail: preserve what was believed before the flip (mirrors KV)
+        await ddb().send(
+          new PutCommand({
+            TableName: TABLE,
+            Item: {
+              pk: scopePk(scope),
+              sk: `TOMB#${now}#${dup.key}`,
+              old_value: dup.content,
+              new_value: content,
+              superseded_at: now,
+              source: source ?? 'manual',
+            },
+          }),
+        );
+      }
       const updated = await ddb().send(
         new UpdateCommand({
           TableName: TABLE,
