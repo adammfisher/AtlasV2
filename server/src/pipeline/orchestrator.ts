@@ -49,6 +49,7 @@ interface Ctx {
   text: string;
   projectId: string;
   instructions: string;
+  context?: string;
   send: PipelineSend;
   signal: AbortSignal;
   steps: CheckStep[];
@@ -100,12 +101,16 @@ const UNITS: Record<string, string> = {
   product: 'fields',
 };
 
-function officePrompt(skill: LoadedSkill, instructions: string, text: string): string {
+function officePrompt(skill: LoadedSkill, instructions: string, text: string, context?: string): string {
   return `You are a document-generation backend. You produce ONLY a raw JSON object conforming exactly
 to the schema described below. No markdown, no code fences, no prose, no extra keys.
 SCHEMA (described): ${JSON.stringify(skill.schema)}
 DESIGN GUIDANCE: ${skill.guidance}
-PROJECT INSTRUCTIONS: ${instructions || '(none)'}
+PROJECT INSTRUCTIONS: ${instructions || '(none)'}${
+    context
+      ? `\n\nCONVERSATION CONTEXT — the request refers to this discussion; use its specifics (names, numbers, structure, any content already drafted) to fill the document. Do NOT ignore it and do NOT emit a generic placeholder document:\n${context}`
+      : ''
+  }
 USER REQUEST: ${text}`;
 }
 
@@ -294,6 +299,7 @@ export async function runCreateDoc(opts: {
   text: string;
   projectId: string;
   instructions: string;
+  context?: string;
   routerMs: number;
   routerModel: string;
   send: PipelineSend;
@@ -335,7 +341,7 @@ export async function runCreateDoc(opts: {
         ? (payload: unknown) =>
             validateFileMap(((payload as Record<string, unknown>).files ?? {}) as Record<string, string>)
         : undefined;
-    const { payload, firstPass } = await generateJson(ctx, officePrompt(skill, opts.instructions, opts.text), maxTokens, fileMapCheck);
+    const { payload, firstPass } = await generateJson(ctx, officePrompt(skill, opts.instructions, opts.text, opts.context), maxTokens, fileMapCheck);
     pushStep(ctx, {
       state: 'ok',
       label: genLabel,
@@ -427,7 +433,11 @@ export async function runCreateDoc(opts: {
     const messages = [
       {
         role: 'system' as const,
-        content: `${skill.guidance}\n\nPROJECT INSTRUCTIONS: ${opts.instructions || '(none)'}`,
+        content: `${skill.guidance}\n\nPROJECT INSTRUCTIONS: ${opts.instructions || '(none)'}${
+          opts.context
+            ? `\n\nCONVERSATION CONTEXT — build the output from this discussion (names, numbers, any drafted content); do not emit a generic placeholder:\n${opts.context}`
+            : ''
+        }`,
       },
       { role: 'user' as const, content: opts.text },
       ...(attempt > 0

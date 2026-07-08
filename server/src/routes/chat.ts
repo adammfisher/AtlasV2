@@ -369,11 +369,21 @@ chatRouter.post('/:id/messages', async (req, res) => {
         signal: abort.signal,
       });
     } else {
+      // pass the conversation so far so "create a deck", "make it a doc", etc.
+      // build on what was already discussed instead of a generic placeholder
+      const priorContext = [
+        convSummary ? `Running summary:\n${convSummary}` : '',
+        ...history.slice(0, -1).map((m) => `${m.role === 'assistant' ? 'ASSISTANT' : 'USER'}: ${m.content}`),
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(-9000);
       payload = await runCreateDoc({
         skillId,
         text: `${text.trim()}${attachedDocs}`,
         projectId: conv.project_id,
         instructions,
+        context: priorContext || undefined,
         routerMs,
         routerModel,
         send,
