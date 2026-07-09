@@ -19,7 +19,14 @@ mermaid: ALL diagrams — architecture, AWS/cloud/network, flowcharts, sequence,
 When the conversation already contains a generated artifact and the message asks to add, change, fix, or log something on it, the intent is edit_doc.
 If intent is edit_doc, skill is the skill of the artifact being edited.
 Messages asking to remember, memorize, note, or forget information (preferences, facts, context) are ALWAYS intent chat — never create_doc.
-IMPORTANT: any request to create, make, build, generate, draft, or put together a deck, presentation, slides, document, report, brief, memo, spreadsheet, model, PDF, diagram, page, or component is create_doc (pick the skill) — even when phrased conversationally ("build me a deck on X", "turn this into slides", "make that a doc"). Do NOT route these to chat. "deck"/"presentation"/"slides" → pptx; "document"/"report"/"memo"/"brief"/"letter" → docx; "spreadsheet"/"model"/"budget" → xlsx.`;
+
+create_doc requires an EXPLICIT request to produce an artifact — an imperative creation verb (create, make, build, generate, draft, write, put together, turn X into) applied to a deliverable (deck/presentation/slides→pptx; document/report/memo/brief/letter→docx; spreadsheet/model/budget→xlsx; PDF→pdf; diagram→mermaid; icon/logo→svg; landing page/site→site; interactive component/app/widget→react; product/concept→product). Route these to create_doc even when phrased conversationally ("build me a deck on X", "turn this into slides").
+
+But a message that merely STATES, UPDATES, or DISCUSSES something — a decision, requirement, fact, change, question, or opinion — is intent chat, EVEN IF it names a document, deck, calculator, tool, feature, or app. Examples that are CHAT, not create_doc:
+- "Update: we're raising the max term to 96 months" · "the refinance tool will now support cash-out"
+- "New requirement: add a GAP insurance toggle" · "we decided to use React" · "note that the default tax state is Texas"
+- "what does the spec say about X?" · "tell me about Y" · "is this a good approach?"
+Only the presence of an explicit creation verb aimed at producing the artifact itself makes it create_doc. When unsure between chat and create_doc, choose chat.`;
 
 const ROUTER_SCHEMA = {
   type: 'object',
