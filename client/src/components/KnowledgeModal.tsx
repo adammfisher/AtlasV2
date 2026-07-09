@@ -26,12 +26,7 @@ export function KnowledgeModal({
   const refresh = (): void => void queryClient.invalidateQueries({ queryKey: ['knowledge', projectId] });
 
   const upload = (file: File): void => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = String(reader.result).split(',')[1] ?? '';
-      void api.uploadKnowledge(projectId, file.name, b64).then(refresh);
-    };
-    reader.readAsDataURL(file);
+    void api.uploadKnowledgeFile(projectId, file).then(refresh); // size-aware: presigned S3 for large files
   };
 
   return (

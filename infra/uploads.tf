@@ -26,3 +26,15 @@ resource "aws_s3_bucket_public_access_block" "uploads" {
 output "uploads_bucket_name" {
   value = aws_s3_bucket.uploads.bucket
 }
+
+# browser presigned-PUT uploads (large files bypass the 6MB Lambda request cap)
+resource "aws_s3_bucket_cors_configuration" "uploads" {
+  bucket = "atlasv2-uploads-683032473658"
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "GET", "HEAD"]
+    allowed_origins = ["https://d3jokv6laueeqx.cloudfront.net", "http://localhost:5173", "http://127.0.0.1:5173"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}

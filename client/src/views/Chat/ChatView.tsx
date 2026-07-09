@@ -303,17 +303,10 @@ export function ChatView({
       const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name);
       const thumb = isImage ? URL.createObjectURL(file) : undefined;
       setAttachments((a) => [...a, { id: tempId, name: file.name, kind: isImage ? 'image' : 'document', thumb, uploading: true }]);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = String(reader.result).split(',')[1] ?? '';
-        void api
-          .uploadAttachment(file.name, base64, conv?.projectId)
-          .then((meta) =>
-            setAttachments((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))),
-          )
-          .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
-      };
-      reader.readAsDataURL(file);
+      void api
+        .uploadAttachmentFile(file, conv?.projectId) // size-aware: presigned S3 for large files
+        .then((meta) => setAttachments((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))))
+        .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
     }
   };
   const genRef = useRef<{ text: string | null; label: string }>({ text: null, label: '' });

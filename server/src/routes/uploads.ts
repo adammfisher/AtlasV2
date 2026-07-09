@@ -14,6 +14,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { fromIni } from '@aws-sdk/credential-providers';
 import { config, repoRoot } from '../config.js';
 import { bedrockSettings } from '../providers/bedrock.js';
@@ -152,6 +153,76 @@ uploadsRouter.post('/', json({ limit: '40mb' }), (req, res) => {
     }
     logTo('app', `attachment uploaded: ${id} (${kind}, ${buf.length}B)`);
     res.json(meta);
+  })().catch((err: Error) => {
+    if (!res.headersSent) res.status(502).json({ error: err.message });
+  });
+});
+
+/** Large-file uploads bypass the ~6MB Lambda request cap: the browser PUTs the
+ * file straight to S3 via a presigned URL, then calls /finalize to register it.
+ * presign → { id, name, url }. Client PUTs bytes to `url`, then POSTs /finalize. */
+uploadsRouter.post('/presign', json(), (req, res) => {
+  const { name } = req.body as { name?: string };
+  if (!name) {
+    res.status(400).json({ error: 'name is required' });
+    return;
+  }
+  const ext = path.extname(name).toLowerCase();
+  if (!IMAGE_EXTS.has(ext) && !DOC_EXTS.has(ext)) {
+    res.status(400).json({ error: `unsupported file type: ${ext || '(none)'}` });
+    return;
+  }
+  const safe = name.replace(/[^A-Za-z0-9._ -]/g, '_').slice(-80);
+  const id = `${randomUUID().slice(0, 8)}-${safe}`;
+  void getSignedUrl(s3(), new PutObjectCommand({ Bucket: UPLOADS_BUCKET, Key: `uploads/${id}` }), { expiresIn: 600 })
+    .then((url) => res.json({ id, name: safe, url }))
+    .catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Register a file already PUT to S3 (from /presign). Downloads it into the
+ * attachment store + (in a project) indexes it as project knowledge. */
+uploadsRouter.post('/finalize', json(), (req, res) => {
+  const { id, name, projectId, forKnowledge } = req.body as {
+    id?: string;
+    name?: string;
+    projectId?: string;
+    forKnowledge?: boolean;
+  };
+  if (!id || !name) {
+    res.status(400).json({ error: 'id and name are required' });
+    return;
+  }
+  if (id.includes('/') || id.includes('..')) {
+    res.status(400).json({ error: 'bad id' });
+    return;
+  }
+  const ext = path.extname(name).toLowerCase();
+  const kind: AttachmentKind = IMAGE_EXTS.has(ext) ? 'image' : 'document';
+  void (async () => {
+    const out = await s3().send(new GetObjectCommand({ Bucket: UPLOADS_BUCKET, Key: `uploads/${id}` }));
+    const buf = Buffer.from(await out.Body!.transformToByteArray());
+    // knowledge-only upload (Files panel): index and return the knowledge row
+    if (forKnowledge && projectId) {
+      const { addKnowledge } = await import('../memory/knowledge.js');
+      res.json(await addKnowledge(projectId, name, buf));
+      return;
+    }
+    // chat attachment: stage locally for extraction, extract office docs, and
+    // (in a project) promote to project knowledge
+    writeFileSync(attachmentPath(id), buf);
+    if (kind === 'document' && OFFICE_EXTS.includes(ext)) {
+      extract(attachmentPath(id)).catch(() => undefined);
+    }
+    if (kind === 'document' && projectId) {
+      try {
+        const { addKnowledge, listKnowledge } = await import('../memory/knowledge.js');
+        const existing = await listKnowledge(projectId).catch(() => []);
+        if (!existing.some((f) => f.name === name)) await addKnowledge(projectId, name, buf);
+      } catch (err) {
+        logTo('app', `finalize→knowledge failed for ${name}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    res.json({ id, name: name.replace(/[^A-Za-z0-9._ -]/g, '_').slice(-80), kind, size: buf.length } satisfies AttachmentMeta);
   })().catch((err: Error) => {
     if (!res.headersSent) res.status(502).json({ error: err.message });
   });

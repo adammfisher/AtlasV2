@@ -28,7 +28,7 @@ import { putKnowledgeChunk, deleteKnowledgeChunks } from './store.js';
 const execFileAsync = promisify(execFile);
 const BUCKET = 'atlasv2-uploads-683032473658';
 const CHUNK_CHARS = 1000;
-const MAX_CHUNKS = 200;
+const MAX_CHUNKS = 120;
 
 const OFFICE = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.rtf', '.odt', '.epub'];
 
@@ -139,8 +139,13 @@ export async function addKnowledge(projectId: string, name: string, buf: Buffer)
   try {
     const text = await extractText(local, ext);
     const chunks = chunkText(text);
-    for (let n = 0; n < chunks.length; n++) {
-      await putKnowledgeChunk(projectId, id, n, `[${safe}] ${chunks[n]!}`, safe);
+    // embed + write chunks in parallel batches (sequential was the bottleneck
+    // that blew the CloudFront timeout on large files)
+    const CONCURRENCY = 6;
+    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+      await Promise.all(
+        chunks.slice(i, i + CONCURRENCY).map((c, j) => putKnowledgeChunk(projectId, id, i + j, `[${safe}] ${c}`, safe)),
+      );
     }
     const done = { ...row, status: 'ready' as const, chunks: chunks.length };
     await putKnowledgeRow(done as KnowledgeRow);

@@ -100,14 +100,9 @@ export function ProjectWorkspace({
   };
 
   const uploadFile = (file: File): void => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const b64 = String(reader.result).split(',')[1] ?? '';
-      void api.uploadKnowledge(project.id, file.name, b64).then(() =>
-        queryClient.invalidateQueries({ queryKey: ['knowledge', project.id] }),
-      );
-    };
-    reader.readAsDataURL(file);
+    void api
+      .uploadKnowledgeFile(project.id, file) // size-aware: presigned S3 for large files
+      .then(() => queryClient.invalidateQueries({ queryKey: ['knowledge', project.id] }));
   };
 
   // drop onto the Files card → project knowledge (distinct from the composer,
@@ -122,15 +117,10 @@ export function ProjectWorkspace({
       const isImage = /\.(png|jpe?g|gif|webp)$/i.test(file.name);
       const thumb = isImage ? URL.createObjectURL(file) : undefined;
       setAtts((a) => [...a, { id: tempId, name: file.name, kind: isImage ? 'image' : 'document', thumb, uploading: true }]);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const b64 = String(reader.result).split(',')[1] ?? '';
-        void api
-          .uploadAttachment(file.name, b64, project.id)
-          .then((meta) => setAtts((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))))
-          .catch(() => setAtts((a) => a.filter((x) => x.id !== tempId)));
-      };
-      reader.readAsDataURL(file);
+      void api
+        .uploadAttachmentFile(file, project.id) // size-aware: presigned S3 for large files
+        .then((meta) => setAtts((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))))
+        .catch(() => setAtts((a) => a.filter((x) => x.id !== tempId)));
     }
   };
 

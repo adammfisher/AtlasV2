@@ -186,6 +186,18 @@ export interface Health {
 
 export type Settings = Record<string, string>;
 
+/** Files above this go through a presigned S3 PUT (base64-in-JSON would exceed
+ * the ~6MB Lambda request payload cap once inflated ~1.37x). */
+const PRESIGN_LIMIT = 3.5 * 1024 * 1024;
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+    r.onerror = () => reject(new Error('file read failed'));
+    r.readAsDataURL(file);
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -281,6 +293,34 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, dataBase64, projectId }),
     }),
+  presignUpload: (name: string) =>
+    request<{ id: string; name: string; url: string }>('/uploads/presign', { method: 'POST', body: JSON.stringify({ name }) }),
+  finalizeUpload: (id: string, name: string, projectId?: string, forKnowledge?: boolean) =>
+    request<{ id: string; name: string; kind: 'image' | 'document'; size: number }>('/uploads/finalize', {
+      method: 'POST',
+      body: JSON.stringify({ id, name, projectId, forKnowledge }),
+    }),
+  /** size-aware attachment upload: files over ~3.5MB go straight to S3 via a
+   * presigned URL (past the ~6MB Lambda request cap); smaller ones inline. */
+  uploadAttachmentFile: async (file: File, projectId?: string) => {
+    if (file.size > PRESIGN_LIMIT) {
+      const { id, name, url } = await api.presignUpload(file.name);
+      const put = await fetch(url, { method: 'PUT', body: file });
+      if (!put.ok) throw new Error(`upload to storage failed (${put.status})`);
+      return api.finalizeUpload(id, name, projectId, false);
+    }
+    return api.uploadAttachment(file.name, await fileToBase64(file), projectId);
+  },
+  /** size-aware project-knowledge upload (Files panel / drag). */
+  uploadKnowledgeFile: async (projectId: string, file: File) => {
+    if (file.size > PRESIGN_LIMIT) {
+      const { id, name, url } = await api.presignUpload(file.name);
+      const put = await fetch(url, { method: 'PUT', body: file });
+      if (!put.ok) throw new Error(`upload to storage failed (${put.status})`);
+      return api.finalizeUpload(id, name, projectId, true);
+    }
+    return api.uploadKnowledge(projectId, file.name, await fileToBase64(file));
+  },
   projectMemory: (projectId: string) =>
     request<{
       kv: Array<{ key: string; value: string }>;
