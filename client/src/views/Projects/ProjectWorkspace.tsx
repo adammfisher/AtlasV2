@@ -99,7 +99,7 @@ export function ProjectWorkspace({
       reader.onload = () => {
         const b64 = String(reader.result).split(',')[1] ?? '';
         void api
-          .uploadAttachment(file.name, b64)
+          .uploadAttachment(file.name, b64, project.id)
           .then((meta) => setAtts((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))))
           .catch(() => setAtts((a) => a.filter((x) => x.id !== tempId)));
       };

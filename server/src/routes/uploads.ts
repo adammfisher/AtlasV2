@@ -104,7 +104,7 @@ export const uploadsRouter = Router();
 
 // attachments are base64 JSON — own parser with a bigger limit than the app default
 uploadsRouter.post('/', json({ limit: '40mb' }), (req, res) => {
-  const { name, dataBase64 } = req.body as { name?: string; dataBase64?: string };
+  const { name, dataBase64, projectId } = req.body as { name?: string; dataBase64?: string; projectId?: string };
   if (!name || !dataBase64) {
     res.status(400).json({ error: 'name and dataBase64 are required' });
     return;
@@ -121,20 +121,40 @@ uploadsRouter.post('/', json({ limit: '40mb' }), (req, res) => {
   writeFileSync(attachmentPath(id), buf);
   const meta: AttachmentMeta = { id, name: safe, kind, size: buf.length };
 
-  // durable copy in S3 — best-effort so uploads never block on connectivity
-  s3()
-    .send(new PutObjectCommand({ Bucket: UPLOADS_BUCKET, Key: `uploads/${id}`, Body: buf }))
-    .then(() => logTo('app', `attachment mirrored to s3://${UPLOADS_BUCKET}/uploads/${id}`))
-    .catch((err: Error) => logTo('app', `attachment s3 mirror failed for ${id}: ${err.message}`));
+  void (async () => {
+    // durable copy in S3 — best-effort so uploads never block on connectivity
+    s3()
+      .send(new PutObjectCommand({ Bucket: UPLOADS_BUCKET, Key: `uploads/${id}`, Body: buf }))
+      .then(() => logTo('app', `attachment mirrored to s3://${UPLOADS_BUCKET}/uploads/${id}`))
+      .catch((err: Error) => logTo('app', `attachment s3 mirror failed for ${id}: ${err.message}`));
 
-  if (kind === 'document' && OFFICE_EXTS.includes(ext)) {
-    // extraction is best-effort and async — chat falls back to the filename if missing
-    extract(attachmentPath(id)).catch((err: Error) =>
-      logTo('app', `attachment extraction failed for ${id}: ${err.message}`),
-    );
-  }
-  logTo('app', `attachment uploaded: ${id} (${kind}, ${buf.length}B)`);
-  res.json(meta);
+    if (kind === 'document' && OFFICE_EXTS.includes(ext)) {
+      // extraction is best-effort and async — chat falls back to the filename if missing
+      extract(attachmentPath(id)).catch((err: Error) =>
+        logTo('app', `attachment extraction failed for ${id}: ${err.message}`),
+      );
+    }
+
+    // claude.ai parity: a document attached inside a PROJECT becomes project
+    // knowledge, so every chat in the project can recall it. Indexing is awaited
+    // here (Lambda-safe) and deduped by name. Skipped for scratch (no project).
+    if (kind === 'document' && projectId) {
+      try {
+        const { addKnowledge, listKnowledge } = await import('../memory/knowledge.js');
+        const existing = await listKnowledge(projectId).catch(() => []);
+        if (!existing.some((f) => f.name === safe)) {
+          const row = await addKnowledge(projectId, safe, buf);
+          logTo('app', `attachment ${safe} → project ${projectId} knowledge (${row.status})`);
+        }
+      } catch (err) {
+        logTo('app', `attachment→knowledge failed for ${safe}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    logTo('app', `attachment uploaded: ${id} (${kind}, ${buf.length}B)`);
+    res.json(meta);
+  })().catch((err: Error) => {
+    if (!res.headersSent) res.status(502).json({ error: err.message });
+  });
 });
 
 /** Project knowledge upload — lives on this router because it carries base64
@@ -151,7 +171,8 @@ uploadsRouter.post('/knowledge', json({ limit: '40mb' }), (req, res) => {
     return;
   }
   import('../memory/knowledge.js')
-    .then(({ addKnowledge }) => res.json(addKnowledge(projectId, name, Buffer.from(dataBase64, 'base64'))))
+    .then(({ addKnowledge }) => addKnowledge(projectId, name, Buffer.from(dataBase64, 'base64')))
+    .then((row) => res.json(row))
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

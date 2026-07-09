@@ -275,10 +275,10 @@ export const api = {
   models: () => request<ModelsRegistry>('/models'),
   selectModel: (id: string) =>
     request<{ ok: boolean }>('/models/select', { method: 'POST', body: JSON.stringify({ id }) }),
-  uploadAttachment: (name: string, dataBase64: string) =>
+  uploadAttachment: (name: string, dataBase64: string, projectId?: string) =>
     request<{ id: string; name: string; kind: 'image' | 'document'; size: number }>('/uploads', {
       method: 'POST',
-      body: JSON.stringify({ name, dataBase64 }),
+      body: JSON.stringify({ name, dataBase64, projectId }),
     }),
   projectMemory: (projectId: string) =>
     request<{

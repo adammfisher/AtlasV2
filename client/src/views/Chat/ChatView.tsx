@@ -284,7 +284,7 @@ export function ChatView({
     setAttachments((a) => [...a, { id: tempId, name: 'Pasted text', kind: 'document', uploading: true, pasted: text }]);
     const b64 = btoa(unescape(encodeURIComponent(text)));
     void api
-      .uploadAttachment('pasted.txt', b64)
+      .uploadAttachment('pasted.txt', b64, conv?.projectId)
       .then((meta) => setAttachments((a) => a.map((x) => (x.id === tempId ? { ...meta, pasted: text, uploading: false } : x))))
       .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
   };
@@ -307,7 +307,7 @@ export function ChatView({
       reader.onload = () => {
         const base64 = String(reader.result).split(',')[1] ?? '';
         void api
-          .uploadAttachment(file.name, base64)
+          .uploadAttachment(file.name, base64, conv?.projectId)
           .then((meta) =>
             setAttachments((a) => a.map((x) => (x.id === tempId ? { ...meta, thumb, uploading: false } : x))),
           )

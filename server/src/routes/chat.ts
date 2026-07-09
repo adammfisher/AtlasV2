@@ -16,7 +16,7 @@ import { webSearch, webFetch } from '../tools/web.js';
 import { bedrockSettings, activeModel, type BedrockTool } from '../providers/bedrock.js';
 import { streamWithTools } from '../providers/dispatch.js';
 import { attachmentDataUrl, attachmentTextWait } from './uploads.js';
-import { recallContext, scheduleExtraction, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
+import { recallContext, scheduleExtraction, flushProjectPending, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
 
 const MEMORY_TOOLS: BedrockTool[] = [
   {
@@ -218,6 +218,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
       let recall = '';
       if (memEnabled) {
         try {
+          // just-in-time: fold in anything said in OTHER chats of this project
+          // that's still queued, so cross-chat recall is current
+          await flushProjectPending(conv.project_id, conv.id);
           recall = await recallContext(conv.project_id, text.trim().slice(0, 200));
         } catch (err) {
           logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);

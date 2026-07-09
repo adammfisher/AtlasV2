@@ -91,16 +91,24 @@ extract ONLY durable facts worth remembering across future conversations.
 Categories:
 - user_preference / user_fact: stable facts about the USER themselves (role, preferences,
   working style) — these persist across ALL projects.
-- project_context / decision / learned_fact: facts about THIS project's work.
+- project_context / decision / learned_fact: durable facts about THIS project's work —
+  requirements, specifications, scope, decisions, constraints, key people/entities and their
+  attributes, and conclusions reached in the discussion.
 
-Use graph_facts for entity relationships (X depends-on Y, A owns B).
+Use graph_facts for entity relationships (X depends-on Y, A owns B, Person has-role R).
 
-Extract only NEW STANDING FACTS the user asserts about themselves or the project.
+DO extract durable, specific facts that would matter to a future chat — INCLUDING conclusions,
+decisions, requirements, and attributes of people/products/features that emerged in the
+discussion, even when they were informed by an uploaded document or the assistant's analysis.
+Turn each into a self-contained declarative sentence (e.g. "The loan calculator must support
+terms of 24–72 months", "Jackie's key strength is data modeling; recommended for a technical
+role"). Prefer specifics (names, numbers, decisions) over vague summaries.
 
 Do NOT extract (these pollute memory):
 - Questions the user asked ("User asked about X", "User wants to know Y") — a question is not a fact.
 - Requests to remember, forget, or delete memory, or any statement about the memory system itself.
-- The assistant's own answers, tool results, or restatements of retrieved knowledge/documents.
+- Verbatim passages copied from a document (those already live in project knowledge) — capture the
+  CONCLUSION or DECISION, not a raw excerpt.
 - Conversational ephemera, pleasantries, or things true only for today.
 - Sensitive attributes (health, politics, religion, sexuality, precise location, financial account details).
 
@@ -306,6 +314,28 @@ export async function sweepPendingNow(): Promise<number> {
 
 export function startExtractionQueue(): void {
   setInterval(() => void sweepPendingNow(), SWEEP_MS);
+}
+
+/** Just-in-time cross-chat memory: before recalling for a message, extract any
+ * pending exchanges from OTHER chats in the same project NOW (ignoring the idle
+ * debounce) so a follow-up chat sees what was just said elsewhere. The current
+ * conversation is excluded (its own turn is still in the live context). */
+export async function flushProjectPending(projectId: string, excludeConvId?: string): Promise<void> {
+  try {
+    // include not-yet-due rows (scheduled within the debounce window)
+    const rows = await duePending(Date.now() + IDLE_MS + 1000).catch(() => []);
+    for (const row of rows) {
+      if (row.project_id !== projectId || row.conv_id === excludeConvId) continue;
+      try {
+        await extract(row.conv_id, row.project_id);
+        await deletePending(row.conv_id);
+      } catch {
+        /* leave it for the periodic sweep */
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 /** Wiping a scope's memory also cancels its queued learning — otherwise a

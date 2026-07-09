@@ -85,6 +85,22 @@ export function chunkText(text: string): string[] {
 
 async function extractText(file: string, ext: string): Promise<string> {
   if (!OFFICE.includes(ext)) return readFileSync(file, 'utf8');
+  // cloud: no python — the office Lambda extracts office/pdf text
+  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const kind = { '.pptx': 'pptx', '.docx': 'docx', '.xlsx': 'xlsx', '.pdf': 'pdf' }[ext];
+    if (!kind) return readFileSync(file, 'utf8'); // legacy .doc/.ppt/.xls — best effort
+    const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
+    const client = new LambdaClient({ region: process.env.AWS_REGION || 'us-east-1' });
+    const out = await client.send(
+      new InvokeCommand({
+        FunctionName: 'atlasv2-office',
+        Payload: Buffer.from(JSON.stringify({ op: 'extract', kind, file_b64: readFileSync(file).toString('base64') })),
+      }),
+    );
+    const r = JSON.parse(Buffer.from(out.Payload ?? new Uint8Array()).toString('utf8')) as { text?: string; error?: string };
+    if (!r.text) throw new Error(r.error ?? 'office extract returned no text');
+    return r.text.slice(0, 400_000);
+  }
   const venv = path.join(repoRoot, 'runtimes/python/venv/bin/python');
   const { stdout } = await execFileAsync(venv, ['-m', 'markitdown', file], {
     timeout: 180_000,
@@ -93,9 +109,10 @@ async function extractText(file: string, ext: string): Promise<string> {
   return stdout.slice(0, 400_000);
 }
 
-/** Register + index a knowledge file. Returns immediately with status
- * 'indexing'; chunk embedding runs async and flips status when done. */
-export function addKnowledge(projectId: string, name: string, buf: Buffer): KnowledgeFile {
+/** Register + index a knowledge file. Indexing is AWAITED (extract → chunk →
+ * embed) so it actually completes — in Lambda, fire-and-forget work after the
+ * response is frozen and never finishes, which left files stuck "indexing". */
+export async function addKnowledge(projectId: string, name: string, buf: Buffer): Promise<KnowledgeFile> {
   const safe = name.replace(/[^A-Za-z0-9._ -]/g, '_').slice(-80);
   const id = randomUUID().slice(0, 12);
   const ext = path.extname(safe).toLowerCase();
@@ -111,31 +128,31 @@ export function addKnowledge(projectId: string, name: string, buf: Buffer): Know
     error: null,
     created_at: Date.now(),
   };
-  void putKnowledgeRow(row as KnowledgeRow).catch((err: Error) =>
+  await putKnowledgeRow(row as KnowledgeRow).catch((err: Error) =>
     logTo('memory', `knowledge registry write failed ${id}: ${err.message}`),
   );
-
-  // durable copy + async indexing
+  // durable copy (fire-and-forget mirror is fine — the row/chunks are what matter)
   void s3()
     .send(new PutObjectCommand({ Bucket: BUCKET, Key: `knowledge/${projectId}/${id}${ext}`, Body: buf }))
     .catch((err: Error) => logTo('memory', `knowledge s3 mirror failed ${id}: ${err.message}`));
 
-  void (async () => {
-    try {
-      const text = await extractText(local, ext);
-      const chunks = chunkText(text);
-      for (let n = 0; n < chunks.length; n++) {
-        await putKnowledgeChunk(projectId, id, n, `[${safe}] ${chunks[n]!}`, safe);
-      }
-      await putKnowledgeRow({ ...row, status: 'ready', chunks: chunks.length } as KnowledgeRow);
-      logTo('memory', `knowledge indexed: ${safe} → ${chunks.length} chunks (project ${projectId})`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      await putKnowledgeRow({ ...row, status: 'error', error: msg.slice(0, 300) } as KnowledgeRow).catch(() => undefined);
-      logTo('memory', `knowledge indexing failed ${safe}: ${msg}`);
+  try {
+    const text = await extractText(local, ext);
+    const chunks = chunkText(text);
+    for (let n = 0; n < chunks.length; n++) {
+      await putKnowledgeChunk(projectId, id, n, `[${safe}] ${chunks[n]!}`, safe);
     }
-  })();
-  return row;
+    const done = { ...row, status: 'ready' as const, chunks: chunks.length };
+    await putKnowledgeRow(done as KnowledgeRow);
+    logTo('memory', `knowledge indexed: ${safe} → ${chunks.length} chunks (project ${projectId})`);
+    return done;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const errRow = { ...row, status: 'error' as const, error: msg.slice(0, 300) };
+    await putKnowledgeRow(errRow as KnowledgeRow).catch(() => undefined);
+    logTo('memory', `knowledge indexing failed ${safe}: ${msg}`);
+    return errRow;
+  }
 }
 
 export async function removeKnowledge(projectId: string, id: string): Promise<void> {
