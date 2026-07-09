@@ -289,6 +289,17 @@ export function ChatView({
       .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
   };
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>): void => {
+    // pasted images (screenshots) → attach as image files with a thumbnail
+    const imgs = Array.from(e.clipboardData.items || [])
+      .filter((it) => it.kind === 'file' && it.type.startsWith('image/'))
+      .map((it) => it.getAsFile())
+      .filter((f): f is File => !!f)
+      .map((f, i) => new File([f], f.name || `pasted-image-${Date.now()}-${i}.png`, { type: f.type || 'image/png' }));
+    if (imgs.length) {
+      e.preventDefault();
+      addFiles(imgs);
+      return;
+    }
     const text = e.clipboardData.getData('text');
     if (text && (text.length > 600 || text.split('\n').length > 12)) {
       e.preventDefault();
@@ -296,7 +307,7 @@ export function ChatView({
     }
   };
 
-  const addFiles = (files: FileList | null): void => {
+  const addFiles = (files: FileList | File[] | null): void => {
     if (!files) return;
     for (const file of Array.from(files)) {
       const tempId = `pending-${file.name}-${Date.now()}`;

@@ -190,6 +190,17 @@ export function ProjectWorkspace({
               rows={2}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onPaste={(e) => {
+                const imgs = Array.from(e.clipboardData.items || [])
+                  .filter((it) => it.kind === 'file' && it.type.startsWith('image/'))
+                  .map((it) => it.getAsFile())
+                  .filter((f): f is File => !!f)
+                  .map((f, i) => new File([f], f.name || `pasted-image-${Date.now()}-${i}.png`, { type: f.type || 'image/png' }));
+                if (imgs.length) {
+                  e.preventDefault();
+                  addAttachments(imgs);
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
