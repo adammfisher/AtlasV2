@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp, Paperclip } from 'lucide-react';
+import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp, Paperclip, ChevronDown, Check } from 'lucide-react';
 import { C, sans, serif, mono } from '../../theme/tokens';
 import { api, type Project, type Conversation } from '../../lib/api';
 import { MemoryModal } from '../../components/MemoryModal';
@@ -58,6 +58,33 @@ export function ProjectWorkspace({
     queryFn: () => api.projectKnowledge(project.id),
     refetchInterval: (q) => (q.state.data?.some((f) => f.status === 'indexing') ? 2000 : false),
   });
+
+  // per-project model — remembered on the project and applied when you enter it
+  const { data: registry } = useQuery({ queryKey: ['models'], queryFn: api.models });
+  const models = registry?.bedrockModels ?? [];
+  const activeModelKey = project.model || registry?.selected || 'haiku';
+  const activeModelName = models.find((m) => m.id === activeModelKey)?.name ?? 'Model';
+  const [modelMenu, setModelMenu] = useState(false);
+  useEffect(() => {
+    if (project.model && registry && registry.selected !== project.model) {
+      void api.selectModel(project.model).then(() => queryClient.invalidateQueries({ queryKey: ['models'] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.model, registry?.selected]);
+  const setModel = (key: string): void => {
+    setModelMenu(false);
+    void Promise.all([api.updateProject(project.id, { model: key }), api.selectModel(key)]).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+      void queryClient.invalidateQueries({ queryKey: ['models'] });
+    });
+  };
+  const deleteChat = (id: string): void => {
+    if (!window.confirm('Delete this chat? This cannot be undone.')) return;
+    void api.deleteConversations([id]).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+    });
+  };
 
   const memorySummary =
     memory?.profile?.text ??
@@ -208,9 +235,39 @@ export function ProjectWorkspace({
                 className="hidden"
                 onChange={(e) => { if (e.target.files) addAttachments(e.target.files); e.target.value = ''; }}
               />
+              <span className="relative ml-auto mr-1.5">
+                <button
+                  onClick={() => setModelMenu((v) => !v)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs"
+                  style={{ color: C.sub, fontFamily: sans }}
+                  title="Model for chats in this project (remembered)"
+                >
+                  {activeModelName} <ChevronDown size={12} />
+                </button>
+                {modelMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setModelMenu(false)} />
+                    <div className="absolute bottom-full mb-2 right-0 z-50 rounded-xl py-1 min-w-[220px]" style={{ background: C.raised, border: `1px solid ${C.border}`, boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}>
+                      {models.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => m.available !== false && setModel(m.id)}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left"
+                          style={{ color: m.available === false ? C.mute : C.text, opacity: m.available === false ? 0.5 : 1, fontFamily: sans }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <span className="flex-1 min-w-0 truncate">{m.name}</span>
+                          {activeModelKey === m.id ? <Check size={13} style={{ color: C.accent }} /> : null}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </span>
               <button
                 onClick={startChat}
-                className="ml-auto flex items-center justify-center rounded-lg"
+                className="flex items-center justify-center rounded-lg"
                 style={{ width: 30, height: 30, background: C.accent, color: '#fff' }}
                 title="Start chat"
               >
@@ -230,17 +287,26 @@ export function ProjectWorkspace({
             ) : (
               <div className="flex flex-col">
                 {chats.map((c) => (
-                  <button
+                  <div
                     key={c.id}
-                    onClick={() => openConversation(c.id)}
-                    className="text-left py-3 px-1 transition-colors"
-                    style={{ borderBottom: `1px solid ${C.borderSoft}`, fontFamily: sans }}
+                    className="group/chat flex items-center transition-colors"
+                    style={{ borderBottom: `1px solid ${C.borderSoft}` }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = C.panelHover)}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <div className="text-sm" style={{ color: C.text }}>{c.title || 'New chat'}</div>
-                    <div className="text-xs mt-0.5" style={{ color: C.mute }}>Last message {timeAgo(c.updated_at)}</div>
-                  </button>
+                    <button onClick={() => openConversation(c.id)} className="flex-1 min-w-0 text-left py-3 px-1" style={{ fontFamily: sans }}>
+                      <div className="text-sm truncate" style={{ color: C.text }}>{c.title || 'New chat'}</div>
+                      <div className="text-xs mt-0.5" style={{ color: C.mute }}>Last message {timeAgo(c.updated_at)}</div>
+                    </button>
+                    <button
+                      onClick={() => deleteChat(c.id)}
+                      className="p-1.5 mr-1 rounded-md opacity-0 group-hover/chat:opacity-60 hover:!opacity-100 transition-opacity"
+                      style={{ color: C.mute }}
+                      title="Delete chat"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

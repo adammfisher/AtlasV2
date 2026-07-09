@@ -27,7 +27,7 @@ import { wipeScope, listTombstones } from '../memory/store.js';
 async function withStats(p: ProjectRow) {
   const [convs, arts, installs] = await Promise.all([listConversations(p.id), listArtifacts([p.id]), listInstalls()]);
   const plugins = installs.filter((r) => (JSON.parse(r.enabled_projects) as string[]).includes(p.id)).length;
-  const shared = Boolean((JSON.parse(p.settings || '{}') as { shared?: boolean }).shared);
+  const settings = JSON.parse(p.settings || '{}') as { shared?: boolean; model?: string };
   return {
     id: p.id,
     name: p.name,
@@ -37,7 +37,8 @@ async function withStats(p: ProjectRow) {
     // template libraries are post-v1 — artifact count stands in (PRD A47)
     templates: arts.length,
     plugins,
-    shared,
+    shared: Boolean(settings.shared),
+    model: settings.model, // per-project preferred model key (remembered)
   };
 }
 
@@ -72,17 +73,24 @@ projectsRouter.post('/', (req, res) => {
 });
 
 projectsRouter.patch('/:id', (req, res) => {
-  const { name, instructions } = req.body as { name?: string; instructions?: string };
+  const { name, instructions, model } = req.body as { name?: string; instructions?: string; model?: string };
   void (async () => {
     const existing = await getProject(req.params.id);
     if (!existing) {
       res.status(404).json({ error: 'project not found' });
       return;
     }
+    let settings = existing.settings || '{}';
+    if (model !== undefined) {
+      const s = JSON.parse(settings || '{}') as Record<string, unknown>;
+      s.model = model || undefined;
+      settings = JSON.stringify(s);
+    }
     const row: ProjectRow = {
       ...existing,
       name: name ?? existing.name,
       instructions: instructions ?? existing.instructions,
+      settings,
     };
     await putProject(row);
     res.json(await withStats(row));

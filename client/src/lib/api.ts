@@ -9,6 +9,7 @@ export interface Project {
   templates: number;
   plugins: number;
   shared: boolean;
+  model?: string;
 }
 
 export interface Conversation {
@@ -208,7 +209,7 @@ export const api = {
   createProject: (name: string, instructions: string) =>
     request<Project>('/projects', { method: 'POST', body: JSON.stringify({ name, instructions }) }),
   deleteProject: (id: string) => request<{ ok: boolean }>(`/projects/${id}`, { method: 'DELETE' }),
-  updateProject: (id: string, patch: { name?: string; instructions?: string }) =>
+  updateProject: (id: string, patch: { name?: string; instructions?: string; model?: string }) =>
     request<Project>(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   conversations: () => request<Conversation[]>('/conversations'),
   createConversation: (projectId?: string) =>

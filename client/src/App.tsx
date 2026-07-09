@@ -97,6 +97,14 @@ export default function App() {
       .finally(() => void queryClient.invalidateQueries({ queryKey: ['settings'] }));
   };
 
+  // apply a project's remembered model when working in it
+  const applyProjectModel = (pid?: string) => {
+    const proj = projects?.find((p) => p.id === pid);
+    if (proj?.model && registry && registry.selected !== proj.model) {
+      void api.selectModel(proj.model).then(() => queryClient.invalidateQueries({ queryKey: ['models'] }));
+    }
+  };
+
   const newChat = (
     projectId?: string,
     message?: string,
@@ -122,6 +130,7 @@ export default function App() {
     setActiveProject(pid);
     setOpenProjectId(pid);
     setView('projects');
+    applyProjectModel(pid);
   };
 
   const openConv = (id: string | null) => {
@@ -130,6 +139,7 @@ export default function App() {
     if (id === null) return;
     const conv = conversations?.find((c) => c.id === id);
     if (conv && conv.projectId !== activeProjectId) setActiveProject(conv.projectId);
+    applyProjectModel(conv?.projectId);
   };
 
   const onOpenArtifact = (ref: ArtifactRef) => {
