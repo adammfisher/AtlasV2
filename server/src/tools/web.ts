@@ -40,6 +40,8 @@ export async function webSearch(query: string): Promise<string> {
   return results.length ? results.join('\n\n') : 'no results found';
 }
 
+const FETCH_CAP = 24_000;
+
 export async function webFetch(url: string): Promise<string> {
   if (!/^https?:\/\//i.test(url)) return 'only http(s) URLs are supported';
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(12_000), redirect: 'follow' });
@@ -47,6 +49,20 @@ export async function webFetch(url: string): Promise<string> {
   const type = res.headers.get('content-type') ?? '';
   if (!/text\/html|text\/plain|application\/json|xml/.test(type)) return `unsupported content-type: ${type}`;
   const raw = await res.text();
+
+  // API/JSON endpoints: return the data verbatim (SPAs often serve their numbers here)
+  if (/application\/json/.test(type)) return raw.slice(0, FETCH_CAP);
+
+  // Data-heavy SPAs (Next.js etc.) render their content client-side but embed the
+  // source data in <script> JSON blobs — extract those so the model sees the real
+  // numbers instead of just the shell/nav text.
+  const embedded: string[] = [];
+  const nextData = /<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i.exec(raw);
+  if (nextData?.[1]) embedded.push(nextData[1].trim());
+  for (const m of raw.matchAll(/<script[^>]*type="application\/(?:ld\+)?json"[^>]*>([\s\S]*?)<\/script>/gi)) {
+    if (m[1] && m[1].trim().length > 40) embedded.push(m[1].trim());
+  }
+
   const text = decodeEntities(
     raw
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -54,5 +70,10 @@ export async function webFetch(url: string): Promise<string> {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' '),
   ).trim();
-  return text.slice(0, 8000) || 'page contained no readable text';
+
+  const dataBlob = embedded.join('\n').slice(0, FETCH_CAP - 4000);
+  const combined = [dataBlob ? `EMBEDDED PAGE DATA (JSON):\n${dataBlob}` : '', text ? `PAGE TEXT:\n${text}` : '']
+    .filter(Boolean)
+    .join('\n\n');
+  return combined.slice(0, FETCH_CAP) || 'page contained no readable text';
 }

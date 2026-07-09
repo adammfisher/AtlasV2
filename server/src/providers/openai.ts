@@ -45,7 +45,9 @@ export async function* streamWithTools(
     function: { name: t.name, description: t.description, parameters: t.schema },
   }));
 
-  for (let iter = 0; iter < 3; iter++) {
+  const MAX_TOOL_ROUNDS = 6;
+  for (let iter = 0; iter <= MAX_TOOL_ROUNDS; iter++) {
+    const offerTools = iter < MAX_TOOL_ROUNDS && oaiTools.length > 0;
     const res = await post(
       '/chat/completions',
       {
@@ -54,7 +56,7 @@ export async function* streamWithTools(
         stream: true,
         temperature: opts.temperature ?? 0.7,
         max_tokens: opts.maxTokens ?? 4096,
-        ...(oaiTools.length ? { tools: oaiTools, tool_choice: 'auto' } : {}),
+        ...(offerTools ? { tools: oaiTools, tool_choice: 'auto' } : {}),
       },
       opts.signal,
     );
@@ -99,7 +101,7 @@ export async function* streamWithTools(
         }
       }
     }
-    if (finish !== 'tool_calls' || toolCalls.length === 0) return;
+    if (!offerTools || finish !== 'tool_calls' || toolCalls.length === 0) return;
 
     // execute tools, append the assistant turn + tool results, loop
     convo.push({

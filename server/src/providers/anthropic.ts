@@ -49,7 +49,9 @@ export async function* streamWithTools(
   const { system, msgs } = split(messages);
   const aTools = tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.schema }));
 
-  for (let iter = 0; iter < 3; iter++) {
+  const MAX_TOOL_ROUNDS = 6;
+  for (let iter = 0; iter <= MAX_TOOL_ROUNDS; iter++) {
+    const offerTools = iter < MAX_TOOL_ROUNDS && aTools.length > 0;
     const res = await post(
       {
         model,
@@ -58,7 +60,7 @@ export async function* streamWithTools(
         max_tokens: opts.maxTokens ?? 4096,
         temperature: opts.temperature ?? 0.7,
         stream: true,
-        ...(aTools.length ? { tools: aTools } : {}),
+        ...(offerTools ? { tools: aTools } : {}),
       },
       opts.signal,
     );
@@ -101,7 +103,7 @@ export async function* streamWithTools(
       }
     }
     const toolUses = blocks.filter((b) => b && b.type === 'tool_use');
-    if (stopReason !== 'tool_use' || toolUses.length === 0) return;
+    if (!offerTools || stopReason !== 'tool_use' || toolUses.length === 0) return;
 
     // append assistant tool_use turn + tool_result turn, loop
     msgs.push({

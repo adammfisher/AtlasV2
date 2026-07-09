@@ -466,13 +466,18 @@ export async function* bedrockStreamWithTools(
   // thinking applies to the first pass only — tool continuations would need
   // the reasoning blocks replayed verbatim, which buys nothing here
   let think = opts.thinking ?? false;
-  for (let iteration = 0; iteration < 3; iteration++) {
+  // up to N tool-executing rounds, then a final round WITHOUT tools that forces
+  // the model to synthesize an answer from what it gathered — so a multi-step
+  // research task (fetch → search → fetch → …) never ends mid-process with no reply.
+  const MAX_TOOL_ROUNDS = 6;
+  for (let iteration = 0; iteration <= MAX_TOOL_ROUNDS; iteration++) {
+    const offerTools = iteration < MAX_TOOL_ROUNDS;
     const out = await client.send(
       new ConverseStreamCommand({
         modelId: activeModelId(),
         system,
         messages: convo,
-        toolConfig,
+        ...(offerTools ? { toolConfig } : {}),
         // extended thinking requires temperature 1 and headroom over the budget
         inferenceConfig: think
           ? { maxTokens: Math.max(opts.maxTokens ?? 2048, 6000), temperature: 1 }
@@ -509,7 +514,8 @@ export async function* bedrockStreamWithTools(
       if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
     }
 
-    if (stopReason !== 'tool_use' || toolUses.size === 0) return;
+    // final (no-tools) round, or the model is done → stop
+    if (!offerTools || stopReason !== 'tool_use' || toolUses.size === 0) return;
 
     // execute the requested tools, append the exchange, and continue
     const assistantBlocks: ContentBlock[] = [];
