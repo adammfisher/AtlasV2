@@ -4,11 +4,14 @@
  * extraction AND mirror to S3 (atlasv2-uploads) for durability; the chat chip
  * offers a hover-download that streams the original back from S3 (local
  * fallback when S3 is unreachable). Document kinds are text-extracted at
- * upload time (markitdown) so chat can inject contents without re-parsing.
+ * upload time so chat can inject contents without re-parsing.
+ *
+ * Extraction is AWAITED before the upload responds and its result is cached in
+ * S3 beside the file. Both matter in Lambda: work started after the response is
+ * frozen and never finishes, and dataDir is /tmp — per-container, so a later
+ * message on a fresh instance would find no extraction at all.
  */
 import { Router, json } from 'express';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -16,11 +19,10 @@ import { Readable } from 'node:stream';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { fromIni } from '@aws-sdk/credential-providers';
-import { config, repoRoot } from '../config.js';
+import { config } from '../config.js';
 import { bedrockSettings } from '../providers/bedrock.js';
 import { logTo } from '../log.js';
-
-const execFileAsync = promisify(execFile);
+import { extractOffice, OFFICE_EXTS, type OfficeExtract } from '../office/extract.js';
 
 const UPLOADS_BUCKET = 'atlasv2-uploads-683032473658';
 
@@ -35,7 +37,6 @@ function s3(): S3Client {
 
 const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp']);
 // claude.ai-parity document set: office (incl. legacy), data, ebooks, and code
-const OFFICE_EXTS = ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.rtf', '.odt', '.epub'];
 const TEXT_EXTS = ['.csv', '.tsv', '.md', '.txt', '.json', '.html', '.xml', '.yaml', '.yml', '.log', '.ipynb'];
 const CODE_EXTS = ['.py', '.js', '.ts', '.tsx', '.jsx', '.java', '.c', '.cpp', '.h', '.cs', '.go', '.rb', '.rs', '.php', '.swift', '.kt', '.sql', '.sh', '.css'];
 const DOC_EXTS = new Set([...OFFICE_EXTS, ...TEXT_EXTS, ...CODE_EXTS]);
@@ -61,44 +62,119 @@ export function attachmentPath(id: string): string {
   return path.join(uploadDir(), id);
 }
 
-/** Wait briefly for an in-flight extraction — a user who attaches a large
- * office file and asks about it immediately shouldn't get "still running". */
-export async function attachmentTextWait(id: string, maxMs = 15_000): Promise<string | null> {
-  const deadline = Date.now() + maxMs;
-  for (;;) {
-    const text = attachmentText(id);
-    if (text !== null) return text;
-    const ext = path.extname(id).toLowerCase();
-    if (!OFFICE_EXTS.includes(ext)) return null; // nothing will ever appear
-    if (Date.now() >= deadline) return null;
-    await new Promise((r) => setTimeout(r, 500));
+/** Ensure the original bytes exist locally, pulling them back from S3 when this
+ * container never saw the upload (Lambda /tmp is per-instance). */
+export async function hydrateAttachment(id: string): Promise<boolean> {
+  const local = attachmentPath(id);
+  if (existsSync(local)) return true;
+  try {
+    const out = await s3().send(new GetObjectCommand({ Bucket: UPLOADS_BUCKET, Key: `uploads/${id}` }));
+    writeFileSync(local, Buffer.from(await out.Body!.transformToByteArray()));
+    logTo('app', `attachment hydrated from s3: ${id}`);
+    return true;
+  } catch (err) {
+    logTo('app', `attachment hydrate failed ${id}: ${err instanceof Error ? err.message : err}`);
+    return false;
   }
 }
 
-export function attachmentText(id: string): string | null {
-  const extracted = `${attachmentPath(id)}.extracted.txt`;
-  if (existsSync(extracted)) return readFileSync(extracted, 'utf8');
+/** Cached extraction lives beside the upload in S3 so it survives the container
+ * that produced it; the local copy is just a fast path for repeat reads. */
+function cacheKey(id: string): string {
+  return `uploads/${id}.extract.json`;
+}
+function cachePath(id: string): string {
+  return `${attachmentPath(id)}.extract.json`;
+}
+
+/** What an attachment's content came out as — an explicit failure rather than a
+ * null, so callers can tell the user WHY a file couldn't be read. */
+export type AttachmentContent =
+  | { ok: true; text: string; extract: OfficeExtract | null }
+  | { ok: false; error: string };
+
+type CachedExtract = { ok: true; extract: OfficeExtract } | { ok: false; error: string };
+
+async function readCache(id: string): Promise<CachedExtract | null> {
+  const local = cachePath(id);
+  if (existsSync(local)) return JSON.parse(readFileSync(local, 'utf8')) as CachedExtract;
+  try {
+    const out = await s3().send(new GetObjectCommand({ Bucket: UPLOADS_BUCKET, Key: cacheKey(id) }));
+    const raw = await out.Body!.transformToString();
+    writeFileSync(local, raw); // warm this container for the rest of the conversation
+    return JSON.parse(raw) as CachedExtract;
+  } catch {
+    return null;
+  }
+}
+
+/** Only SUCCESS is cached durably. A failure is cached on this container alone,
+ * so one message doesn't re-parse a broken file repeatedly, but a later message
+ * gets a real retry — mirroring failures to S3 would make a transient blip
+ * (throttle, cold start, S3 hiccup) permanent for the life of the upload. */
+async function writeCache(id: string, value: CachedExtract): Promise<void> {
+  const raw = JSON.stringify(value);
+  writeFileSync(cachePath(id), raw);
+  if (!value.ok) return;
+  await s3()
+    .send(new PutObjectCommand({ Bucket: UPLOADS_BUCKET, Key: cacheKey(id), Body: raw, ContentType: 'application/json' }))
+    .catch((err: Error) => logTo('app', `extract cache mirror failed for ${id}: ${err.message}`));
+}
+
+/**
+ * Extract an office attachment and cache the result (success OR failure — a
+ * cached failure is what stops every later message re-running a parse that
+ * cannot work). Awaited by the upload routes: in Lambda, work kicked off after
+ * the response is frozen and never runs.
+ */
+async function extract(id: string, ext: string): Promise<CachedExtract> {
+  try {
+    await hydrateAttachment(id); // no-op right after upload; matters on a re-read
+    const result = await extractOffice({
+      file: attachmentPath(id),
+      ext,
+      s3: { bucket: UPLOADS_BUCKET, key: `uploads/${id}` },
+    });
+    const value: CachedExtract = { ok: true, extract: result };
+    await writeCache(id, value);
+    return value;
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    logTo('app', `attachment extraction failed for ${id}: ${error}`);
+    const value: CachedExtract = { ok: false, error };
+    await writeCache(id, value);
+    return value;
+  }
+}
+
+/** Full structured extraction for an attachment (slides/sheets/blocks), from
+ * cache when present, extracting on demand when it isn't. */
+export async function attachmentExtract(id: string): Promise<CachedExtract | null> {
+  const ext = path.extname(id).toLowerCase();
+  if (!OFFICE_EXTS.includes(ext)) return null;
+  return (await readCache(id)) ?? (await extract(id, ext));
+}
+
+/** An attachment's readable content, or an honest reason it has none. */
+export async function attachmentContent(id: string): Promise<AttachmentContent> {
   const ext = path.extname(id).toLowerCase();
   // plain-text kinds (incl. code) read directly — no extraction pass needed
   if (TEXT_EXTS.includes(ext) || CODE_EXTS.includes(ext)) {
-    return readFileSync(attachmentPath(id), 'utf8');
+    if (!(await hydrateAttachment(id))) {
+      return { ok: false, error: 'the file is no longer available to read — upload it again' };
+    }
+    return { ok: true, text: readFileSync(attachmentPath(id), 'utf8'), extract: null };
   }
-  return null;
+  const cached = await attachmentExtract(id);
+  if (!cached) return { ok: false, error: `${ext || 'this file type'} can't be read as text` };
+  return cached.ok ? { ok: true, text: cached.extract.text, extract: cached.extract } : cached;
 }
 
-export function attachmentDataUrl(id: string): string {
+export async function attachmentDataUrl(id: string): Promise<string> {
+  if (!(await hydrateAttachment(id))) throw new Error(`image ${id} is no longer available`);
   const ext = path.extname(id).toLowerCase().replace('.', '');
   const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
   return `data:${mime};base64,${readFileSync(attachmentPath(id)).toString('base64')}`;
-}
-
-async function extract(file: string): Promise<void> {
-  const venv = path.join(repoRoot, 'runtimes/python/venv/bin/python');
-  const { stdout } = await execFileAsync(venv, ['-m', 'markitdown', file], {
-    timeout: 120_000,
-    maxBuffer: 16 * 1024 * 1024,
-  });
-  writeFileSync(`${file}.extracted.txt`, stdout.slice(0, 200_000));
 }
 
 export const uploadsRouter = Router();
@@ -123,17 +199,16 @@ uploadsRouter.post('/', json({ limit: '40mb' }), (req, res) => {
   const meta: AttachmentMeta = { id, name: safe, kind, size: buf.length };
 
   void (async () => {
-    // durable copy in S3 — best-effort so uploads never block on connectivity
-    s3()
+    // durable copy in S3 — AWAITED: it is what hydration and the extract cache
+    // read back on a later container, and post-response work never runs here
+    await s3()
       .send(new PutObjectCommand({ Bucket: UPLOADS_BUCKET, Key: `uploads/${id}`, Body: buf }))
       .then(() => logTo('app', `attachment mirrored to s3://${UPLOADS_BUCKET}/uploads/${id}`))
       .catch((err: Error) => logTo('app', `attachment s3 mirror failed for ${id}: ${err.message}`));
 
     if (kind === 'document' && OFFICE_EXTS.includes(ext)) {
-      // extraction is best-effort and async — chat falls back to the filename if missing
-      extract(attachmentPath(id)).catch((err: Error) =>
-        logTo('app', `attachment extraction failed for ${id}: ${err.message}`),
-      );
+      // awaited, and it caches its own failure — chat reports the real reason
+      await extract(id, ext);
     }
 
     // claude.ai parity: a document attached inside a PROJECT becomes project
@@ -211,7 +286,7 @@ uploadsRouter.post('/finalize', json(), (req, res) => {
     // (in a project) promote to project knowledge
     writeFileSync(attachmentPath(id), buf);
     if (kind === 'document' && OFFICE_EXTS.includes(ext)) {
-      extract(attachmentPath(id)).catch(() => undefined);
+      await extract(id, ext);
     }
     if (kind === 'document' && projectId) {
       try {

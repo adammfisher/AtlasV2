@@ -6,12 +6,10 @@
  * embedded into the project's vector index — recall surfaces the relevant
  * chunks semantically on every message. Deleting the file removes its chunks.
  */
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { mkdirSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { fromIni } from '@aws-sdk/credential-providers';
 import {
   listKnowledgeRows,
@@ -20,12 +18,12 @@ import {
   deleteKnowledgeRow,
   type KnowledgeRow,
 } from '../db/appdb.js';
-import { config, repoRoot } from '../config.js';
+import { config } from '../config.js';
 import { bedrockSettings } from '../providers/bedrock.js';
 import { logTo } from '../log.js';
+import { extractOffice, type OfficeExtract } from '../office/extract.js';
 import { putKnowledgeChunk, deleteKnowledgeChunks } from './store.js';
 
-const execFileAsync = promisify(execFile);
 const BUCKET = 'atlasv2-uploads-683032473658';
 const CHUNK_CHARS = 1000;
 const MAX_CHUNKS = 120;
@@ -83,30 +81,10 @@ export function chunkText(text: string): string[] {
   return chunks.slice(0, MAX_CHUNKS);
 }
 
-async function extractText(file: string, ext: string): Promise<string> {
+async function extractText(file: string, ext: string, s3Key: string): Promise<string> {
   if (!OFFICE.includes(ext)) return readFileSync(file, 'utf8');
-  // cloud: no python — the office Lambda extracts office/pdf text
-  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    const kind = { '.pptx': 'pptx', '.docx': 'docx', '.xlsx': 'xlsx', '.pdf': 'pdf' }[ext];
-    if (!kind) return readFileSync(file, 'utf8'); // legacy .doc/.ppt/.xls — best effort
-    const { LambdaClient, InvokeCommand } = await import('@aws-sdk/client-lambda');
-    const client = new LambdaClient({ region: process.env.AWS_REGION || 'us-east-1' });
-    const out = await client.send(
-      new InvokeCommand({
-        FunctionName: 'atlasv2-office',
-        Payload: Buffer.from(JSON.stringify({ op: 'extract', kind, file_b64: readFileSync(file).toString('base64') })),
-      }),
-    );
-    const r = JSON.parse(Buffer.from(out.Payload ?? new Uint8Array()).toString('utf8')) as { text?: string; error?: string };
-    if (!r.text) throw new Error(r.error ?? 'office extract returned no text');
-    return r.text.slice(0, 400_000);
-  }
-  const venv = path.join(repoRoot, 'runtimes/python/venv/bin/python');
-  const { stdout } = await execFileAsync(venv, ['-m', 'markitdown', file], {
-    timeout: 180_000,
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  return stdout.slice(0, 400_000);
+  const { text } = await extractOffice({ file, ext, s3: { bucket: BUCKET, key: s3Key } });
+  return text;
 }
 
 /** Register + index a knowledge file. Indexing is AWAITED (extract → chunk →
@@ -131,13 +109,15 @@ export async function addKnowledge(projectId: string, name: string, buf: Buffer)
   await putKnowledgeRow(row as KnowledgeRow).catch((err: Error) =>
     logTo('memory', `knowledge registry write failed ${id}: ${err.message}`),
   );
-  // durable copy (fire-and-forget mirror is fine — the row/chunks are what matter)
-  void s3()
-    .send(new PutObjectCommand({ Bucket: BUCKET, Key: `knowledge/${projectId}/${id}${ext}`, Body: buf }))
+  // durable copy — AWAITED: extraction hands this key to the office function for
+  // files past the invoke cap, and in Lambda post-response work never runs
+  const key = `knowledge/${projectId}/${id}${ext}`;
+  await s3()
+    .send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buf }))
     .catch((err: Error) => logTo('memory', `knowledge s3 mirror failed ${id}: ${err.message}`));
 
   try {
-    const text = await extractText(local, ext);
+    const text = await extractText(local, ext, key);
     const chunks = chunkText(text);
     // embed + write chunks in parallel batches (sequential was the bottleneck
     // that blew the CloudFront timeout on large files)
@@ -184,6 +164,22 @@ export async function knowledgeSource(
   const file = path.join(knowledgeDir(), `${id}${ext}`);
   if (existsSync(file)) return { name: row.name, file };
   return { name: row.name, s3Key: `knowledge/${projectId}/${id}${ext}` };
+}
+
+/** Full structured extraction of a knowledge file (slides/sheets/blocks), for
+ * on-demand reads. Hydrates the bytes from S3 when this container never staged
+ * them — recall gives chunks, this gives the whole document. */
+export async function knowledgeExtract(projectId: string, id: string): Promise<OfficeExtract | null> {
+  const row = await getKnowledgeRow(projectId, id);
+  if (!row) return null;
+  const ext = path.extname(row.name).toLowerCase();
+  const key = `knowledge/${projectId}/${id}${ext}`;
+  const local = path.join(knowledgeDir(), `${id}${ext}`);
+  if (!existsSync(local)) {
+    const out = await s3().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+    writeFileSync(local, Buffer.from(await out.Body!.transformToByteArray()));
+  }
+  return await extractOffice({ file: local, ext, s3: { bucket: BUCKET, key } });
 }
 
 export function knowledgeBucket(): string {

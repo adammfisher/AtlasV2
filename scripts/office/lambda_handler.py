@@ -111,6 +111,23 @@ def _slide_to_svg(slide, w_emu, h_emu):
     return "".join(parts)
 
 
+def _slide_text(i, sl):
+    """One slide as readable markdown — numbered so a reader can cite 'slide 4'."""
+    head = f"## Slide {i + 1}" + (f": {sl['title']}" if sl["title"] else "")
+    parts = [head]
+    parts += [f"- {b}" for b in sl["bullets"]]
+    for tbl in sl.get("tables", []):
+        parts += [" | ".join(row) for row in tbl]
+    for ch in sl.get("charts", []):
+        parts.append(f"[{ch['type']} chart] categories: {', '.join(ch['categories'])}")
+        for sr in ch["series"]:
+            vals = ", ".join("—" if v is None else f"{v:g}" for v in sr["values"])
+            parts.append(f"  {sr['name'] or 'series'}: {vals}")
+    if sl.get("notes"):
+        parts.append(f"Speaker notes: {sl['notes']}")
+    return "\n".join(parts)
+
+
 def extract_preview(kind, file_bytes):
     """Structured preview extraction (pure-python, no LibreOffice). Returns
     {text, slides?, sheets?} so the client can render a readable preview in the
@@ -137,16 +154,47 @@ def extract_preview(kind, file_bytes):
                         title = txt
                     else:
                         bullets.append(txt)
-            slides.append({"title": title or "", "bullets": bullets[:12]})
+            # tables and charts carry the substance on data slides — a deck read
+            # without them comes back empty exactly where it matters most
+            tables, charts = [], []
+            for shape in s.shapes:
+                if getattr(shape, "has_table", False):
+                    tables.append([[c.text.strip() for c in row.cells] for row in shape.table.rows][:20])
+                if getattr(shape, "has_chart", False):
+                    try:
+                        ch = shape.chart
+                        cats = [str(c) for c in ch.plots[0].categories]
+                        charts.append({
+                            "type": str(ch.chart_type).split(" ")[0].lower(),
+                            "categories": cats,
+                            "series": [
+                                {"name": sr.name or "", "values": [None if v is None else float(v) for v in sr.values]}
+                                for sr in ch.series
+                            ],
+                        })
+                    except Exception:
+                        pass
+            notes = ""
+            try:
+                if s.has_notes_slide:
+                    notes = s.notes_slide.notes_text_frame.text.strip()
+            except Exception:
+                notes = ""
+            slide = {"title": title or "", "bullets": bullets[:12]}
+            if tables:
+                slide["tables"] = tables
+            if charts:
+                slide["charts"] = charts
+            if notes:
+                slide["notes"] = notes
+            slides.append(slide)
             try:
                 svgs.append(_slide_to_svg(s, prs.slide_width, prs.slide_height))
             except Exception:
                 svgs.append(None)
         out["slides"] = slides
         out["svgs"] = svgs  # visual preview (rendered from shapes, no LibreOffice)
-        out["text"] = "\n\n".join(
-            f"# {sl['title']}\n" + "\n".join(f"- {b}" for b in sl["bullets"]) for sl in slides
-        )
+        out["text"] = "\n\n".join(_slide_text(i, sl) for i, sl in enumerate(slides))
     elif kind == "docx":
         from docx import Document
 
@@ -186,15 +234,35 @@ def extract_preview(kind, file_bytes):
     return {"ok": True, **out}
 
 
+def _source_bytes(event):
+    """Extract source: inline base64, or an S3 object. A synchronous invoke caps
+    the request at 6MB and base64 inflates by 4/3, so callers hand anything
+    larger over as a key — this function shares the app's role and can read the
+    uploads bucket itself."""
+    if event.get("file_b64"):
+        return base64.b64decode(event["file_b64"])
+    src = event.get("s3")
+    if src and src.get("bucket") and src.get("key"):
+        import boto3
+
+        return boto3.client("s3").get_object(Bucket=src["bucket"], Key=src["key"])["Body"].read()
+    return None
+
+
 def handler(event, _context):
     # preview extraction path (no build)
     if event.get("op") == "extract":
         kind = event.get("kind")
-        b64 = event.get("file_b64")
-        if kind not in {"pptx", "docx", "xlsx", "pdf"} or not b64:
+        if kind not in {"pptx", "docx", "xlsx", "pdf"}:
             return {"ok": False, "error": f"cannot preview kind: {kind}"}
         try:
-            return extract_preview(kind, base64.b64decode(b64))
+            data = _source_bytes(event)
+        except Exception as err:  # noqa: BLE001
+            return {"ok": False, "error": f"source unreadable: {type(err).__name__}: {err}"}
+        if not data:
+            return {"ok": False, "error": "no file_b64 or s3 source given"}
+        try:
+            return extract_preview(kind, data)
         except Exception as err:  # noqa: BLE001
             return {"ok": False, "error": f"{type(err).__name__}: {err}"}
 

@@ -15,8 +15,10 @@ import { installFor, toolsForProject, callTool, type ChatTool } from '../mcp/man
 import { webSearch, webFetch } from '../tools/web.js';
 import { bedrockSettings, activeModel, type BedrockTool } from '../providers/bedrock.js';
 import { streamWithTools } from '../providers/dispatch.js';
-import { attachmentDataUrl, attachmentTextWait } from './uploads.js';
+import { attachmentDataUrl, attachmentContent } from './uploads.js';
+import { readDocument, listDocuments } from '../tools/documents.js';
 import { recallContext, scheduleExtraction, flushProjectPending, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
+import { listKnowledge } from '../memory/knowledge.js';
 
 const MEMORY_TOOLS: BedrockTool[] = [
   {
@@ -45,6 +47,28 @@ const MEMORY_TOOLS: BedrockTool[] = [
         scope: { type: 'string', enum: ['user', 'project'] },
       },
     },
+  },
+];
+
+const DOC_TOOLS: BedrockTool[] = [
+  {
+    name: 'read_document',
+    description:
+      'Open a document attached to this message or stored in this project and read its real contents — for a deck, numbered slides with their bullets, tables, chart data and speaker notes. Use this whenever the user asks about a specific slide, section or number, or when the injected file text looks truncated. Never guess at a document\'s contents: read it.',
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name'],
+      properties: {
+        name: { type: 'string', description: 'the file name, e.g. "knowledge-core-po-flow.pptx"' },
+        slides: { type: 'string', description: 'optional slide range for decks, e.g. "3" or "4-9" (default: all)' },
+      },
+    },
+  },
+  {
+    name: 'list_documents',
+    description: 'List the documents readable right now (this message\'s attachments plus this project\'s knowledge files).',
+    schema: { type: 'object', additionalProperties: false, properties: {} },
   },
 ];
 
@@ -163,19 +187,26 @@ chatRouter.post('/:id/messages', async (req, res) => {
     const project = await getProject(conv.project_id);
     const instructions = project?.instructions ?? '';
 
-    // attachments: documents inject extracted text; images become vision parts
+    // attachments: documents inject extracted text; images become vision parts.
+    // The model relays this text as fact, so a failure must state the real
+    // reason: anything describing work in progress gets reported to the user as
+    // a live status, and nothing here runs in the background.
     let attachedDocs = '';
     const imageParts: Array<{ type: 'image_url'; image_url: { url: string } }> = [];
     for (const att of atts) {
       try {
         if (att.kind === 'image') {
-          imageParts.push({ type: 'image_url', image_url: { url: attachmentDataUrl(att.id) } });
-        } else {
-          const extracted = await attachmentTextWait(att.id);
-          attachedDocs += `\n\n--- Attached file: ${att.name} ---\n${(extracted ?? '(content extraction still running — ask the user to retry if needed)').slice(0, 24_000)}`;
+          imageParts.push({ type: 'image_url', image_url: { url: await attachmentDataUrl(att.id) } });
+          continue;
         }
+        const content = await attachmentContent(att.id);
+        attachedDocs += content.ok
+          ? `\n\n--- Attached file: ${att.name} ---\n${content.text.slice(0, 24_000)}`
+          : `\n\n--- Attached file: ${att.name} — COULD NOT BE READ: ${content.error} ---\nTell the user this file could not be read and why. Do not claim an extraction is still running or that you will retry in the background.`;
       } catch (err) {
-        logTo('app', `attachment ${att.id} unusable: ${err instanceof Error ? err.message : err}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        logTo('app', `attachment ${att.id} unusable: ${msg}`);
+        attachedDocs += `\n\n--- Attached file: ${att.name} — COULD NOT BE READ: ${msg} ---`;
       }
     }
 
@@ -274,7 +305,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
       }
       // web search is on by default; the user can toggle it off in the composer
       const webEnabled = getSetting('webSearchEnabled') !== '0';
-      const tools: BedrockTool[] = [...(memEnabled ? MEMORY_TOOLS : []), ...(webEnabled ? WEB_TOOLS : []), ...connectorTools];
+      // document reads only matter when there is something to read
+      const docsReadable = atts.some((a) => a.kind === 'document') || (await listKnowledge(conv.project_id).catch(() => [])).length > 0;
+      const tools: BedrockTool[] = [
+        ...(memEnabled ? MEMORY_TOOLS : []),
+        ...(webEnabled ? WEB_TOOLS : []),
+        ...(docsReadable ? DOC_TOOLS : []),
+        ...connectorTools,
+      ];
 
       const fullMessages = [{ role: 'system' as const, content: system }, ...(chatHistory as ChatMessage[])];
       const stream = streamWithTools(
@@ -286,16 +324,22 @@ chatRouter.post('/:id/messages', async (req, res) => {
           if (name === 'forget') return forgetFact(scope, String(input.query ?? ''), conv.project_id);
           if (name === 'web_search') return webSearch(String(input.query ?? ''));
           if (name === 'web_fetch') return webFetch(String(input.url ?? ''));
+          if (name === 'read_document') {
+            return readDocument(conv.project_id, atts, String(input.name ?? ''), input.slides ? String(input.slides) : undefined);
+          }
+          if (name === 'list_documents') return listDocuments(conv.project_id, atts);
           const spec = byMangled.get(name);
           if (spec) return callTool(spec.connectorId, conv.project_id, spec.name, input);
           return Promise.resolve(`unknown tool: ${name}`);
         },
         (tool) => {
           const spec = byMangled.get(tool);
-          const chip = {
-            tool: spec?.name ?? tool,
-            connector: spec?.connectorName ?? (tool.startsWith('web_') ? 'web' : 'memory'),
-          };
+          const native = tool.startsWith('web_')
+            ? 'web'
+            : tool === 'read_document' || tool === 'list_documents'
+              ? 'documents'
+              : 'memory';
+          const chip = { tool: spec?.name ?? tool, connector: spec?.connectorName ?? native };
           chips.push(chip);
           sse(res, 'tool', chip);
         },

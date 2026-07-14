@@ -1,9 +1,10 @@
 ---
 name: Presentations
 ext: .pptx
-triggers: presentation · slides · deck · QBR
+triggers: presentation · slides · deck · QBR · read · extract
 tier: office_json
 helper: build_pptx.py
+reads: extract_office.py → numbered slides with bullets, tables, chart series and speaker notes; exposed to chat as the read_document tool. The body below is WRITE guidance only — it is injected into every generation prompt, so read behaviour is documented here rather than costing tokens on each build.
 ---
 
 # Presentation design guidance
