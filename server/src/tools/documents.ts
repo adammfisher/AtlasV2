@@ -99,6 +99,13 @@ function render(name: string, ex: OfficeExtract, range?: string): string {
       .join('\n\n')
       .slice(0, READ_CAP);
   }
+  if (ex.blocks) {
+    const parts = ex.blocks.map((b) => {
+      if (b.rows) return b.rows.map((r) => r.join(' | ')).join('\n');
+      return b.style.startsWith('Heading') || b.style === 'Title' ? `## ${b.text ?? ''}` : (b.text ?? '');
+    });
+    return `${name}\n\n${parts.join('\n')}`.slice(0, READ_CAP);
+  }
   return `${name}\n\n${ex.text}`.slice(0, READ_CAP);
 }
 
