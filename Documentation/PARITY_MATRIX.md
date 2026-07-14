@@ -9,6 +9,12 @@ and untrusted — this file supersedes it.
 
 Statuses: 🔴 RED · 🟡 AMBER · 🟢 GREEN · ⬜ WAIVED (user-granted only)
 
+**Deployment-state warning (2026-07-14):** the deployed Lambda predates commit
+`b07f981` (the upload-extraction overhaul). Every local GREEN in section 1
+holds only after `scripts/deploy/deploy-app.sh` ships that commit — the
+deployed app still has the fire-and-forget/venv extraction bug the user hit.
+GREEN rows note which environment produced the evidence.
+
 Fixtures: `tests/e2e/fixtures/` — `model.xlsx` (3 sheets, live formulas, B4=SUM),
 `manual.docx` (headings + table, codeword HELIOTROPE-9), `survey.pdf` (12pp,
 page-7 table, PDFPAGE-n-LYNX markers), `scanned.pdf` (zero text layer),
@@ -37,18 +43,18 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| C1 | pptx create + edit round-trip, template intact | 🔴 | — | not yet audited |
-| C2 | docx create + edit round-trip | 🔴 | — | not yet audited |
-| C3 | xlsx create with WORKING formulas + edit | 🔴 | — | not yet audited |
-| C4 | pdf create + edit round-trip | 🔴 | — | not yet audited |
-| C5 | react artifact: renders, stateful, error surface + fix affordance | 🔴 | — | not yet audited |
-| C6 | html/site artifact: sandboxed, no cookie access | 🔴 | — | not yet audited |
-| C7 | svg artifact | 🔴 | — | not yet audited |
-| C8 | mermaid artifact + graceful syntax errors | 🔴 | — | not yet audited |
-| C9 | md artifact | 🔴 | — | not yet audited |
-| C10 | artifact versioning: list, browse, restore, per-version download | 🔴 | — | not yet audited |
-| C11 | artifact share link (read-only, logged-out context) | 🔴 | — | not yet audited |
-| C12 | downloads from chat AND panel | 🔴 | — | not yet audited |
+| C1 | pptx create + edit round-trip, template intact | 🔴 | parity/c1-c4-office.spec.ts (rerun in flight) | first run hit my 240s spec cap mid-generation — the deck itself BUILT (~4 min wall-clock: a latency AMBER even once functional). Rerun with 720s budget pending |
+| C2 | docx create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | create→headings→edit→v2, python-docx validated, 34s |
+| C3 | xlsx create with WORKING formulas + edit | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | real =formulas present (not baked values), edit→v2, 31s |
+| C4 | pdf create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | pages+text verified via pdfplumber, edit→v2, 35s |
+| C5 | react artifact: renders, stateful, error surface + fix affordance | 🔴 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | component iframe content never became reachable in 60s — investigate panel auto-open vs nested-frame locator before trusting; fix-affordance half untested as a result |
+| C6 | html/site artifact: sandboxed, no cookie access | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | sandbox attr present, no allow-same-origin |
+| C7 | svg artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
+| C8 | mermaid artifact + graceful syntax errors | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | invalid source surfaced a visible parse error |
+| C9 | md artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
+| C10 | artifact versioning: list, browse, restore, per-version download | 🟡 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | v1+v2 downloads OK, version indicator OK; RESTORE not discoverable from the panel; no full history-list UI |
+| C11 | artifact share link (read-only, logged-out context) | 🟡 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | link works logged-out (presigned S3, 200) but serves an attachment DOWNLOAD, not claude.ai's viewable share page |
+| C12 | downloads from chat AND panel | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
 
 ## 3 · Skills
 
@@ -101,7 +107,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | M1 | recall e2e vs DEPLOYED stack | 🔴 | memory-eval (ported) — local 13/14, DEPLOYED 10/14, 2026-07-14 | eval ported off SQLite introspection to behavioral JIT-flush check (passes both envs). DEPLOYED failures: paraphrase dedup (two keys persist: deploy_target + deployment_platform), contradiction supersede (value stays Fargate), forget leaves a layer (fails locally too). Historical "14/14" not reproducible |
-| M2 | project isolation vs DEPLOYED stack | 🔴 | harness broken 2026-07-14 | isolation.test.ts imports getDb removed by the DynamoDB migration — cannot run against ANY env. Port to API-level asserts, then re-audit both envs |
+| M2 | project isolation vs DEPLOYED stack | 🟢 | scripts/test/parity-m2-isolation.ts 8/8 DEPLOYED 2026-07-14 | new API-level harness (old stage-2 gate is SQLite-bound, kept as historical). Conversation/artifact scoping + memory-recall isolation + cross-project chat probe all hold on DynamoDB/S3 Vectors |
 | M3 | remember/forget tools | 🟡 | memory-eval §4-5, both envs 2026-07-14 | remember: tool fires + fact stores + recalls (✓✓ both envs). forget: tool fires but a storage layer keeps the fact (✗ both envs) — partial |
 | M4 | memory modal browse/edit | 🔴 | — | not yet audited |
 | M5 | deletion propagation: purge derived facts+vectors | 🔴 | — | not yet audited; suspected gap |

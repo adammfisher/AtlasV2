@@ -54,6 +54,9 @@ async function edit(page: import('@playwright/test').Page, prompt: string): Prom
 
 test.describe('C1-C4 office creation', () => {
   test.afterAll(cleanupMarked);
+  // create + edit = two full pipeline rounds; a deck alone runs ~4 min on the
+  // current stack (a latency data point in its own right — matrix C1 note)
+  test.setTimeout(720_000);
 
   test('C1 pptx: create 6 slides → valid, no placeholders → edit slide 3 title → v2', async ({ page }) => {
     const t0 = Date.now();

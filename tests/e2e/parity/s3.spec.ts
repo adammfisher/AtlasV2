@@ -4,12 +4,12 @@ import { composer, waitIdle, pollBody, cleanupMarked, api, MARK } from './helper
 
 test.describe('S3 skills-UI gating', () => {
   test.afterAll(async () => {
-    await api('/skills/pptx/toggle', { method: 'POST', body: JSON.stringify({ enabled: true }) }).catch(() => undefined);
+    await api('/skills/pptx', { method: 'PATCH', body: JSON.stringify({ enabled: true }) }).catch(() => undefined);
     await cleanupMarked();
   });
 
   test('disable pptx → deck request degrades honestly → re-enable restores', async ({ page }) => {
-    await api('/skills/pptx/toggle', { method: 'POST', body: JSON.stringify({ enabled: false }) });
+    await api('/skills/pptx', { method: 'PATCH', body: JSON.stringify({ enabled: false }) });
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
