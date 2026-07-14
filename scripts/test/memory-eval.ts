@@ -159,15 +159,21 @@ check(
   preview2.injected.slice(0, 300),
 );
 
-console.log('7. durable queue row persisted');
-// conv3's chat scheduled an extraction; the pending row must be in SQLite (not
-// a process timer). extract-now already consumed the content, so the sweeper's
-// later run no-ops via the memext marker — no double writes.
-const { default: Database } = await import('better-sqlite3');
-const db = new Database(`${process.env.HOME}/Library/Application Support/AtlasLocal/data/atlas.db`, { readonly: true });
-const pending = db.prepare('SELECT conv_id FROM mem_pending').all() as Array<{ conv_id: string }>;
-check('pending extraction persisted in SQLite', pending.some((r) => r.conv_id === conv3), JSON.stringify(pending));
-db.close();
+console.log('7. durable queue: un-flushed fact surfaces cross-chat via JIT flush');
+// The old check read the mem_pending SQLite row directly — that table moved to
+// DynamoDB and direct introspection can't run against the deployed stack. The
+// behavioral equivalent is stronger: a fact stated in conv4 and NEVER
+// explicitly extracted must be recallable from a different conversation in the
+// same project (flushProjectPending runs the queued extraction just-in-time).
+// In Lambda this proves the queue survived across requests/instances — a
+// process-timer queue would lose it.
+const conv4 = await newConv();
+await chat(conv4, 'Decision: the retention window for audit logs is 400 days. Just acknowledge briefly.');
+// a REAL message in a different conversation drives flushProjectPending —
+// recall-preview is pure observability and does not flush
+const conv5 = await newConv();
+const r7 = await chat(conv5, 'How long do we retain audit logs? Answer with just the duration.');
+check('queued fact recalled cross-chat without explicit extract', /400\s*days?/i.test(r7.text), r7.text.slice(0, 300));
 
 console.log('8. teardown wipe');
 await j(`/projects/${P}/memory/wipe`, { method: 'POST' });

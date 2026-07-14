@@ -100,9 +100,9 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| M1 | recall e2e vs DEPLOYED stack | 🔴 | m1-deployed run crashed 2026-07-14 | the eval harness itself is stale: memory-eval.ts:168 introspects local SQLite (`mem_pending`) which no longer exists post-DynamoDB — the historical "14/14" could not have run against deployed. Port eval to API-level asserts first |
-| M2 | project isolation vs DEPLOYED stack | 🔴 | — | not yet audited |
-| M3 | remember/forget tools | 🔴 | — | not yet audited |
+| M1 | recall e2e vs DEPLOYED stack | 🔴 | memory-eval (ported) — local 13/14, DEPLOYED 10/14, 2026-07-14 | eval ported off SQLite introspection to behavioral JIT-flush check (passes both envs). DEPLOYED failures: paraphrase dedup (two keys persist: deploy_target + deployment_platform), contradiction supersede (value stays Fargate), forget leaves a layer (fails locally too). Historical "14/14" not reproducible |
+| M2 | project isolation vs DEPLOYED stack | 🔴 | harness broken 2026-07-14 | isolation.test.ts imports getDb removed by the DynamoDB migration — cannot run against ANY env. Port to API-level asserts, then re-audit both envs |
+| M3 | remember/forget tools | 🟡 | memory-eval §4-5, both envs 2026-07-14 | remember: tool fires + fact stores + recalls (✓✓ both envs). forget: tool fires but a storage layer keeps the fact (✗ both envs) — partial |
 | M4 | memory modal browse/edit | 🔴 | — | not yet audited |
 | M5 | deletion propagation: purge derived facts+vectors | 🔴 | — | not yet audited; suspected gap |
 | M6 | knowledge citations as rendered chips | 🔴 | — | not yet audited |

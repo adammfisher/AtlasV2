@@ -26,7 +26,8 @@ import {
 } from '../../server/src/db/scoped.js';
 import { config } from '../../server/src/config.js';
 
-const API = 'http://127.0.0.1:5175/api';
+// ATLAS_BASE lets the isolation guarantees run against the DEPLOYED stack (parity M2)
+const API = `${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api`;
 
 async function api<T>(p: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${p}`, {
