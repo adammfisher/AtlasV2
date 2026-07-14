@@ -15,7 +15,7 @@ function bedrockModule(): typeof bedrock {
   return bedrock;
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
-import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences } from './validate.js';
+import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg } from './validate.js';
 import {
   createArtifact,
   addVersion,
@@ -458,6 +458,7 @@ export async function runCreateDoc(opts: {
       okEmit = v.ok;
       lastError = v.ok ? '' : v.error;
     } else if (skill.id === 'svg') {
+      emitted = extractSvg(emitted); // models wrap the element in prose; cut it out
       const v = validateSvg(emitted);
       okEmit = v.ok;
       lastError = v.ok ? '' : v.error;
@@ -584,6 +585,7 @@ export async function runEditDoc(opts: {
         okEmit = v.ok;
         lastError = v.ok ? '' : v.error;
       } else if (skill.id === 'svg') {
+        emitted = extractSvg(emitted);
         const v = validateSvg(emitted);
         okEmit = v.ok;
         lastError = v.ok ? '' : v.error;

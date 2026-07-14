@@ -70,6 +70,18 @@ export function validateMermaid(source: string): { ok: true } | { ok: false; err
   return { ok: true };
 }
 
+/** Cut the <svg>…</svg> span out of an emission. Models intermittently wrap
+ * the element in prose ("Here's your icon: … Let me know!") — that text made
+ * validation fail with "Extra text at the end" even though the SVG inside was
+ * fine. Deterministic extraction, applied before validate AND persist. */
+export function extractSvg(source: string): string {
+  const text = stripFences(source);
+  const start = text.indexOf('<svg');
+  const end = text.lastIndexOf('</svg>');
+  if (start === -1 || end === -1 || end < start) return text;
+  return text.slice(start, end + '</svg>'.length);
+}
+
 export function validateSvg(source: string): { ok: true } | { ok: false; error: string } {
   const text = source.trim().replace(/^```(?:svg|xml)?\n?|```$/g, '').trim();
   if (!text.startsWith('<svg')) return { ok: false, error: 'output must be a single <svg> element' };
