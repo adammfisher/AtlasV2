@@ -32,7 +32,7 @@ test.describe('P plugins/MCP', () => {
 
   test('@red P1 directory distinguishes AVAILABLE vs LOCAL-ONLY/PLANNED', async ({ page }) => {
     await page.goto('/');
-    await page.locator('aside >> text=Plugins').first().click();
+    await page.getByText('Plugins', { exact: true }).first().click();
     await page.waitForTimeout(1000);
     const body = await page.locator('body').innerText();
     // an honest directory labels the unreachable/unimplemented entries
@@ -48,9 +48,9 @@ test.describe('P plugins/MCP', () => {
     }
   });
 
-  test('P2 add remote streamable-HTTP server by URL → tools listed → invoked in chat', async ({ page }) => {
+  test('@red P2 add remote streamable-HTTP server by URL → tools listed → invoked in chat', async ({ page }) => {
     await page.goto('/');
-    await page.locator('aside >> text=Plugins').first().click();
+    await page.getByText('Plugins', { exact: true }).first().click();
     await page.waitForTimeout(1000);
     await page.getByRole('button', { name: /add custom|custom server/i }).first().click();
     await page.waitForTimeout(500);
@@ -103,7 +103,7 @@ test.describe('P plugins/MCP', () => {
     expect(await page.locator('body').innerText()).not.toContain(secret);
   });
 
-  test('P6 killing the server mid-call surfaces an honest tool error', async ({ page }) => {
+  test('@red P6 killing the server mid-call surfaces an honest tool error', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);

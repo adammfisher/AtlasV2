@@ -25,7 +25,7 @@ async function create(page: import('@playwright/test').Page, prompt: string): Pr
 test.describe('C5-C12 artifact surfaces', () => {
   test.afterAll(cleanupMarked);
 
-  test('C5 react: renders, state works; broken code shows error + fix affordance', async ({ page }) => {
+  test('@red C5 react: renders, state works; broken code shows error + fix affordance', async ({ page }) => {
     const t0 = Date.now();
     await create(page, 'Create an interactive React counter component with a button labeled "Increment" and the count shown in an element with id "count".');
     expect(await latest('react', t0), 'react artifact created').toBeTruthy();
@@ -85,7 +85,7 @@ test.describe('C5-C12 artifact surfaces', () => {
     await expect(page.locator('iframe').last()).toBeVisible({ timeout: 30_000 });
   });
 
-  test('C10 versioning: list browsable, restore, per-version download', async ({ page }) => {
+  test('@red C10 versioning: list browsable, restore, per-version download', async ({ page }) => {
     const t0 = Date.now();
     await create(page, 'Create an SVG icon of a lighthouse.');
     await composer(page).fill(`${MARK} Make the lighthouse red.`);

@@ -43,7 +43,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| C1 | pptx create + edit round-trip, template intact | 🔴 | parity/c1-c4-office.spec.ts ✘✘ 2026-07-14 (screenshot archived) | ROOT CAUSE SHARPENED: pptx slides-JSON first pass fails schema on the Bedrock path ("must have required property 'title'", pipeline.log 18:26) → every deck pays a repair round (run 1: ~4 min but built) or dies waiting (run 2: 0 chars, 3+ min, no first-token timeout, no surfaced error — feeds X5). Docx/xlsx/pdf pass first-try in ~30s |
+| C1 | pptx create + edit round-trip, template intact | 🟢 | parity/c1-c4-office.spec.ts ✓ 2026-07-14 (28.4s, was 4min/∞) | FIXED: measured Bedrock json_schema grammar compile at ~188s for the pptx schema vs 5-7s via forced tool-use with shape intact (3/3 probes) — bigSchema gate 2200→1200 routes pptx to tool-use. Plus a 150s abort ceiling on every constrained call (X5). Local; deploy pending |
 | C2 | docx create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | create→headings→edit→v2, python-docx validated, 34s |
 | C3 | xlsx create with WORKING formulas + edit | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | real =formulas present (not baked values), edit→v2, 31s |
 | C4 | pdf create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | pages+text verified via pdfplumber, edit→v2, 35s |
@@ -69,8 +69,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 | browser-confirmed: dead connectors carry no planned/local-only labeling. Plus code audit: github+postgres have NO server files; knowledge-core → 127.0.0.1:7979; sharepoint → mcp.slack.com with SLACK_TOKEN (connectors.json:181,190) |
-| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 | spec timed out on the Plugins NAV CLICK itself (240s) — smells like harness/app-state, needs interactive repro before judging. P6 cascaded from it. First Phase B target in this section |
+| P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | code audit only — browser evidence INVALIDATED 2026-07-14 | the spec's `aside >>` locator matched nothing (sidebar is a div — no <aside> in the client); the "browser-confirmed" claim was wrong. Code audit stands: github+postgres have NO server files; knowledge-core → 127.0.0.1:7979; sharepoint → mcp.slack.com with SLACK_TOKEN. Re-audit with fixed locators |
+| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🔴 | harness bug found 2026-07-14 | the 240s nav-click timeout was the same phantom `aside` locator, NOT app state. Locators fixed; re-run pending. P6 cascades from this |
 | P3 | bundled servers rehosted or marked local-dev-only | 🔴 | code audit 2026-07-14 | filesystem/memory/sqlite = stdio + better-sqlite3 over /tmp SQLite — disjoint from DynamoDB data; chat.ts already hides memory/sqlite as "shadow" connectors writing to a dead DB |
 | P4 | per-server toggles per chat | 🔴 | code audit 2026-07-14 | per-PROJECT toggles exist (enabled_projects, enforced in toolsForProject + callTool); per-chat granularity absent |
 | P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |
@@ -88,7 +88,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | V6 | copy message | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | clipboard content verified |
 | V7 | chat share link, revocable snapshot | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | browser-confirmed: no share affordance; no route |
 | V8 | export: single (md+json) + all (zip) | 🟡 | parity/v7-v12.spec.ts 2026-07-14 | V8a md export downloads (✓); json + all-zip absent (✘) |
-| V9 | rename / search / bulk delete + eval teardown | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | rename/search spec failed (locator vs product — triage); eval pollution CONFIRMED vividly (screenshot: a dozen junk eval conversations in recents, no teardown) |
+| V9 | rename / search / bulk delete + eval teardown | 🔴 | spec locators fixed 2026-07-14, re-run pending | first failure used phantom `aside` locators (no <aside> in the client). Eval pollution stands CONFIRMED regardless (screenshot: a dozen junk eval conversations, no teardown) |
 | V10 | feedback thumbs persist | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | rating persists server-side (settings KV, code-verified) but no active state re-renders after reload in the UI — or my detector missed it; triage then fix |
 | V11 | suggested prompts | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
 | V12 | new-chat affordances | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
@@ -112,7 +112,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | M4 | memory modal browse/edit | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | fact listed in the modal |
 | M5 | deletion propagation: purge derived facts+vectors | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | CONFIRMED: fact learned → conversation deleted → fact still recalls in a new chat. The suspected gap is real |
 | M6 | knowledge citations as rendered chips | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no citation/source chip renders |
-| M7 | project instructions honored | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | HARNESS BUG: spec set instructions on projects[0], chat ran in the ACTIVE project (Org Intelligence) — re-audit with the active project before judging the product |
+| M7 | project instructions honored | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (8.5s re-audit) | first fail was the harness (wrong project targeted); with the ACTIVE project the instruction token appears in the reply |
 | M8 | knowledge upload + RAG page-7 spot check | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | survey.pdf uploaded → page-7 site total answered in a DIFFERENT chat, 25s |
 | M9 | incognito: zero persistence, banner | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no incognito affordance exists (code + browser) |
 
@@ -124,7 +124,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts 2026-07-14 | configured userName known to the model |
 | X3 | markdown torture test (tables, LaTeX, code+copy) | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | markdown TABLES don't render as HTML tables in chat (raw pipes) — failed before even reaching the LaTeX assertion |
 | X4 | streaming: slow-conn, heartbeat, tab-close abort | 🔴 | deferred | needs infra manipulation (throttled connection, CloudFront origin timing) — not a browser assertion; test approach TBD next session |
-| X5 | error recovery: mid-stream kill → retry affordance | 🔴 | observed via C1 run-2 2026-07-14 | a stalled Bedrock stream spins forever: no first-token timeout, no error surface, no retry affordance. Dedicated spec still needed (bad-model-id route) |
+| X5 | error recovery: mid-stream kill → retry affordance | 🟡 | bedrock.ts 150s abort ceiling 2026-07-14 | pipeline constrained calls can no longer spin forever (deadline → surfaced PipelineError). Remaining: chat-stream kill recovery + a retry affordance in the UI; dedicated spec pending |
 | X6 | voice dictation (Web Speech, graceful hide) | 🔴 | code audit 2026-07-14 | mic button confirmed decorative — no onClick, no speech API usage anywhere |
 | X7 | artifacts gallery cross-chat | 🔴 | code audit 2026-07-14 | no surface; API /artifacts already returns the cross-chat list, so this is UI-only |
 | X8 | mobile layout | 🟢 | parity/x-polish.spec.ts 2026-07-14 | 390px: composer usable, no horizontal overflow |

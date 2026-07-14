@@ -33,7 +33,7 @@ test.describe('M3-M9 memory & projects', () => {
     await expect(page.locator('text=cobalt-staging-11').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('M5 deleting a conversation purges its derived facts', async ({ page }) => {
+  test('@red M5 deleting a conversation purges its derived facts', async ({ page }) => {
     await newChat(page);
     await composer(page).fill(`${MARK} Remember for this project: the incident bridge number is 774-PURGE-ME.`);
     await composer(page).press('Enter');
@@ -61,9 +61,11 @@ test.describe('M3-M9 memory & projects', () => {
   });
 
   test('M7 project instructions are honored', async ({ page }) => {
-    const projects = await api<Array<{ id: string; name: string }>>('/projects');
-    const pid = projects[0]?.id;
-    expect(pid, 'a project must exist').toBeTruthy();
+    // the ACTIVE project — a new chat lands there; the first audit run set
+    // instructions on projects[0] (a different project) and judged the wrong thing
+    const settings = await api<Record<string, string>>('/settings');
+    const pid = settings.activeProjectId;
+    expect(pid, 'an active project must exist').toBeTruthy();
     await api(`/projects/${pid}`, {
       method: 'PATCH',
       body: JSON.stringify({ instructions: 'Always end every reply with the token INSTR-FOXTROT.' }),

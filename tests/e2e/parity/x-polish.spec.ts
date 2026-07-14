@@ -29,7 +29,7 @@ test.describe('X polish', () => {
     expect(body, 'configured userName (Adam) should be known').toMatch(/Adam/);
   });
 
-  test('X3 markdown torture: table, nested list, code+copy, LaTeX', async ({ page }) => {
+  test('@red X3 markdown torture: table, nested list, code+copy, LaTeX', async ({ page }) => {
     await newChat(page);
     await composer(page).fill(
       `${MARK} Output exactly this markdown, no commentary: a 2x2 table with headers City|Sites and rows Osaka|17, Turin|9; then a nested bullet list (outer "alpha", inner "beta"); then a python code block containing print("torture-ok"); then the LaTeX equation $E = mc^2$ on its own line.`,
@@ -61,7 +61,7 @@ test.describe('X polish', () => {
 
   test('@red X7 cross-chat artifacts gallery surface', async ({ page }) => {
     await page.goto('/');
-    const nav = page.locator('aside >> text=/artifacts|gallery/i');
+    const nav = page.locator('text=/artifacts|gallery/i');
     expect(await nav.count(), 'no artifacts gallery navigation').toBeGreaterThan(0);
   });
 
@@ -87,7 +87,7 @@ test.describe('X polish', () => {
     await toggle.click(); // restore
   });
 
-  test('X10 keyboard: Enter sends, Shift-Enter newlines, Esc closes modal, Cmd-K new chat', async ({ page }) => {
+  test('@red X10 keyboard: Enter sends, Shift-Enter newlines, Esc closes modal, Cmd-K new chat', async ({ page }) => {
     await newChat(page);
     const c = composer(page);
     await c.fill('line1');

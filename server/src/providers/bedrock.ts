@@ -322,6 +322,13 @@ export async function bedrockCompleteJson(
   const { system, messages: msgs } = toConverse(messages);
   const modelId = activeModelId();
   const inferenceConfig = { maxTokens: opts.maxTokens ?? 3072, temperature: opts.temperature ?? 0.2 };
+  // hard ceiling per constrained call: a wedged call must become a surfaced
+  // pipeline error, never an indefinite "waiting for first tokens" spinner.
+  // 120s is generous — tool-use generations measure 5-7s; the only path that
+  // ever exceeded it was the json_schema grammar compiler (~188s), which the
+  // sizing gate below now routes away from.
+  const deadline = AbortSignal.timeout(150_000);
+  const signal = opts.signal ? AbortSignal.any([opts.signal, deadline]) : deadline;
 
   // forced tool-use path — accepts schemas json_schema can't express (maps) and
   // is the fallback when json_schema's grammar compiler chokes on a big schema.
@@ -345,7 +352,7 @@ export async function bedrockCompleteJson(
           toolChoice: { tool: { name: 'emit' } },
         },
       }),
-      { abortSignal: opts.signal },
+      { abortSignal: signal },
     );
     const toolUse = out.output?.message?.content?.find((c) => c.toolUse)?.toolUse;
     let payload = (toolUse?.input ?? {}) as Record<string, unknown>;
@@ -370,7 +377,7 @@ export async function bedrockCompleteJson(
   const viaPlain = async (): Promise<string> => {
     const out = await client.send(
       new ConverseCommand({ modelId, system, messages: msgs, inferenceConfig }),
-      { abortSignal: opts.signal },
+      { abortSignal: signal },
     );
     const raw = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
     // strip markdown fences the model may add without constrained decoding
@@ -378,10 +385,14 @@ export async function bedrockCompleteJson(
   };
 
   const complex = (msg: string): boolean => /grammar|compilation|timed out|too complex|too large/i.test(msg);
-  // Large/deep schemas reliably blow Bedrock's grammar compiler (which wastes
-  // ~60s before erroring). Skip json_schema for them and go straight to
-  // tool-use — avoids the timeout and generates fast (the product skill).
-  const bigSchema = JSON.stringify(schema).length > 2200;
+  // Schemas past this size make Bedrock's grammar compiler pathological — the
+  // pptx schema (1522 chars, 9-value enum, nested charts) measured ~188s per
+  // json_schema call vs 5-7s via forced tool-use with the shape intact
+  // (2026-07-14, Haiku 4.5, 3/3 runs). Anything that fits json_schema
+  // comfortably is well under 1200 (docx 970, xlsx 707, pdf 688); route the
+  // rest to tool-use, whose rare required-key omissions the ajv repair loop
+  // already handles.
+  const bigSchema = JSON.stringify(schema).length > 1200;
 
   let content: string;
   if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema) && !bigSchema) {
@@ -399,7 +410,7 @@ export async function bedrockCompleteJson(
             },
           },
         }),
-        { abortSignal: opts.signal },
+        { abortSignal: signal },
       );
       content = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
     } catch (err) {

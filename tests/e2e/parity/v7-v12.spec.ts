@@ -40,7 +40,7 @@ test.describe('V7-V12 conversation surfaces', () => {
     expect(jsonExport + zipAll, 'no json/all-zip export surface').toBeGreaterThan(0);
   });
 
-  test('V9 rename, search, bulk delete', async ({ page }) => {
+  test('@red V9 rename, search, bulk delete', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
@@ -50,7 +50,7 @@ test.describe('V7-V12 conversation surfaces', () => {
     // rename via the pencil affordance on the recents row
     const row = page.locator(`text=${MARK} Reply with exactly RENAME-TARGET`).first();
     await row.hover().catch(() => undefined);
-    const pencil = page.locator('aside button[title*="ename"], aside button:has(svg.lucide-pencil)').first();
+    const pencil = page.locator('button[title*="ename"], button:has(svg.lucide-pencil)').first();
     if (await pencil.isVisible().catch(() => false)) {
       await pencil.click();
       const input = page.locator('input:focus, dialog input, [role="dialog"] input').first();
@@ -62,14 +62,14 @@ test.describe('V7-V12 conversation surfaces', () => {
     const search = page.locator('input[placeholder*="Search"]').first();
     await search.fill('AUDIT-RENAMED');
     await page.waitForTimeout(600);
-    await expect(page.locator(`aside >> text=AUDIT-RENAMED`).first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('AUDIT-RENAMED').first()).toBeVisible({ timeout: 5_000 });
     await search.fill('');
     // bulk delete via Edit mode handled by cleanupMarked teardown (API) —
     // assert the affordance exists
-    await expect(page.locator('aside >> text=Edit').first()).toBeVisible();
+    await expect(page.getByText('Edit', { exact: true }).first()).toBeVisible();
   });
 
-  test('V10 feedback thumbs persist across reload', async ({ page }) => {
+  test('@red V10 feedback thumbs persist across reload', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);

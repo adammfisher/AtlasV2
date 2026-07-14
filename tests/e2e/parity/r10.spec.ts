@@ -7,7 +7,7 @@ import { composer, transcript, cleanupMarked, MARK, DFS_DECK } from './helpers';
 test.describe('R10 extraction-status', () => {
   test.afterAll(cleanupMarked);
 
-  test('upload shows progress; ask-during-upload never yields filename-only answers', async ({ page }) => {
+  test('@red upload shows progress; ask-during-upload never yields filename-only answers', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
