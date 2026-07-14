@@ -126,3 +126,11 @@ textarea:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+/* per-code-block copy (claude.ai parity) */
+.chat-md pre .code-copy {
+  position: absolute; top: 6px; right: 8px; font-size: 10px; padding: 2px 7px;
+  border-radius: 6px; background: rgba(255,255,255,0.08); color: inherit;
+  opacity: 0; transition: opacity .15s;
+}
+.chat-md pre:hover .code-copy { opacity: 0.9; }

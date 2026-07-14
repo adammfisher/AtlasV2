@@ -80,6 +80,19 @@ export default function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+  // global keyboard: Cmd/Ctrl-K focuses chat search (claude.ai parity), Esc is
+  // handled per-modal; the focus target carries data-global-search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const search = document.querySelector<HTMLInputElement>('input[placeholder*="Search chats"]');
+        if (search) search.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const activeProjectId = settings?.activeProjectId ?? 'p1';
   const userName = settings?.userName ?? 'Adam';

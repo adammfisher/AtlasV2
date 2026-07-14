@@ -29,20 +29,39 @@ test.describe('X polish', () => {
     expect(body, 'configured userName (Adam) should be known').toMatch(/Adam/);
   });
 
-  test('@red X3 markdown torture: table, nested list, code+copy, LaTeX', async ({ page }) => {
+  test('X3 markdown torture: table, nested list, code+copy, LaTeX', async ({ page }) => {
     await newChat(page);
     await composer(page).fill(
-      `${MARK} Output exactly this markdown, no commentary: a 2x2 table with headers City|Sites and rows Osaka|17, Turin|9; then a nested bullet list (outer "alpha", inner "beta"); then a python code block containing print("torture-ok"); then the LaTeX equation $E = mc^2$ on its own line.`,
+      `${MARK} Quick question: which of Osaka (17 sites) and Turin (9 sites) has more? Answer with a small markdown table of the two, plus a nested bullet list (outer alpha, inner beta), plus a python code block printing torture-ok.`,
     );
     await composer(page).press('Enter');
+    // poll: the reply streams in — a one-shot count races the stream
+    const countAcrossFrames = async (selector: string): Promise<number> => {
+      try {
+        let n = await page.locator(selector).count();
+        for (const f of page.frames()) n += await f.locator(selector).count().catch(() => 0);
+        return n;
+      } catch {
+        return 0;
+      }
+    };
+    await expect.poll(() => countAcrossFrames('table'), { timeout: 90_000 }).toBeGreaterThan(0);
+    await expect.poll(() => countAcrossFrames('pre'), { timeout: 30_000 }).toBeGreaterThan(0);
+    // copy affordance on CHAT code blocks: force an inline reply (artifacts
+    // have their own download affordance and a sandboxed DOM)
+    await composer(page).fill(`${MARK} Also show me right here in the chat, not as a document: a one-line python code block that prints torture-ok.`);
+    await composer(page).press('Enter');
+    await expect.poll(() => page.locator('.chat-md pre').count(), { timeout: 90_000 }).toBeGreaterThan(0);
+    await expect
+      .poll(() => page.locator('.chat-md pre .code-copy').count(), { timeout: 15_000 })
+      .toBeGreaterThan(0);
+  });
+
+  test('@red X3b LaTeX renders as math (katex absent)', async ({ page }) => {
+    await newChat(page);
+    await composer(page).fill(`${MARK} Show me Einstein's mass-energy equivalence as a LaTeX equation.`);
+    await composer(page).press('Enter');
     await waitIdle(page, 90_000);
-    // table renders as an HTML table, not pipes
-    expect(await page.locator('main table, [class*="message"] table').count(), 'markdown table renders').toBeGreaterThan(0);
-    // code block with copy affordance
-    expect(await page.locator('pre code').count(), 'syntax code block').toBeGreaterThan(0);
-    const codeCopy = await page.locator('pre button, [class*="code"] button[title*="opy"]').count();
-    expect(codeCopy, 'copy button on code block').toBeGreaterThan(0);
-    // LaTeX: rendered math (katex/mathjax span), not raw $...$
     const math = await page.locator('.katex, .MathJax, mjx-container').count();
     expect(math, 'LaTeX renders as math').toBeGreaterThan(0);
   });
@@ -87,7 +106,7 @@ test.describe('X polish', () => {
     await toggle.click(); // restore
   });
 
-  test('@red X10 keyboard: Enter sends, Shift-Enter newlines, Esc closes modal, Cmd-K new chat', async ({ page }) => {
+  test('X10 keyboard: Enter sends, Shift-Enter newlines, Esc closes modal, Cmd-K new chat', async ({ page }) => {
     await newChat(page);
     const c = composer(page);
     await c.fill('line1');

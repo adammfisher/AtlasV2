@@ -93,7 +93,28 @@ function RichText({ text }: { text: string }) {
     });
     return sanitizeHtml(out);
   }, [text]);
-  return <div className="chat-md" dangerouslySetInnerHTML={{ __html: html }} />;
+  // per-code-block copy affordance (claude.ai parity): decorate each <pre>
+  // after render — the HTML is a sanitized string, so buttons attach here
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    for (const pre of Array.from(root.querySelectorAll('pre'))) {
+      if (pre.querySelector('.code-copy')) continue;
+      const btn = document.createElement('button');
+      btn.className = 'code-copy';
+      btn.title = 'Copy code';
+      btn.textContent = 'copy';
+      btn.onclick = () => {
+        void navigator.clipboard.writeText(pre.querySelector('code')?.textContent ?? pre.textContent ?? '');
+        btn.textContent = 'copied';
+        setTimeout(() => (btn.textContent = 'copy'), 1200);
+      };
+      pre.style.position = 'relative';
+      pre.appendChild(btn);
+    }
+  }, [html]);
+  return <div ref={ref} className="chat-md" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** Uploaded-file chip: hover reveals a download action that pulls the original

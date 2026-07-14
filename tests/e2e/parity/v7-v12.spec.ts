@@ -68,7 +68,7 @@ test.describe('V7-V12 conversation surfaces', () => {
     await expect(page.getByText('Edit', { exact: true }).first()).toBeVisible();
   });
 
-  test('@red V10 feedback thumbs persist across reload', async ({ page }) => {
+  test('V10 feedback thumbs persist across reload', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
@@ -82,12 +82,16 @@ test.describe('V7-V12 conversation surfaces', () => {
     await page.waitForTimeout(1000);
     await page.reload();
     await page.waitForTimeout(2500);
-    // persisted rating renders in an active state (fill/color class change)
-    const active = await page
-      .locator('button:has(svg.lucide-thumbs-up)')
+    // active state = inline color (C.green) vs mute (ChatView thumb styles)
+    const upColor = await page
+      .locator('button[title="Good response"]')
       .last()
-      .evaluate((el) => el.className + ' ' + (el.querySelector('svg')?.getAttribute('fill') ?? ''));
-    expect(active, 'thumbs-up state must survive reload').toMatch(/fill|active|accent|currentColor/i);
+      .evaluate((el) => getComputedStyle(el).color);
+    const downColor = await page
+      .locator('button[title="Bad response"]')
+      .last()
+      .evaluate((el) => getComputedStyle(el).color);
+    expect(upColor, 'thumbs-up renders active (distinct color) after reload').not.toBe(downColor);
   });
 
   test('V11+V12 suggested prompts on the empty state, and they send', async ({ page }) => {
