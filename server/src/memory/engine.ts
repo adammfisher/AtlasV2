@@ -41,6 +41,7 @@ import {
   getProfile,
   putProfile,
   bumpRecalled,
+  purgeBySource,
   type Scope,
   type Profile,
 } from './store.js';
@@ -522,9 +523,47 @@ export async function forgetFact(scope: Scope, query: string, projectId?: string
       else await deleteNote(s, h.key);
       forgotten.push(h.content.slice(0, 100));
     }
+    // lexical sweep behind the vector pass: an extractor phrasing that lands
+    // under the similarity bar must still die — "forget X" leaving a copy of X
+    // is the one unforgivable failure mode of this tool. Requires ≥2 distinct
+    // content words from the query in the stored text (or its KV key).
+    const words = [...new Set(query.toLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [])].filter(
+      (w) => !['about', 'everything', 'forget', 'remove', 'delete', 'memory', 'that', 'this', 'with'].includes(w),
+    );
+    if (words.length >= 2) {
+      const matches = (text: string): boolean => {
+        const t = text.toLowerCase();
+        return words.filter((w) => t.includes(w)).length >= 2;
+      };
+      for (const kv of await listKv(s).catch(() => [])) {
+        if (matches(`${kv.key.replace(/[._]/g, ' ')} ${kv.value}`)) {
+          await deleteKv(s, kv.key);
+          forgotten.push(kv.value.slice(0, 100));
+        }
+      }
+      for (const note of await listNotes(s).catch(() => [])) {
+        if (matches(note.content)) {
+          await deleteNote(s, note.id);
+          forgotten.push(note.content.slice(0, 100));
+        }
+      }
+    }
   }
   if (forgotten.length === 0) return 'No matching memory found.';
   return `Forgot ${forgotten.length} memor${forgotten.length === 1 ? 'y' : 'ies'}: ${forgotten.join(' | ')}`;
+}
+
+/** M5 deletion propagation: a deleted conversation must not keep whispering.
+ * Purges every note/KV it produced (user + project scope), and clears its
+ * queued extraction so the sweeper can't resurrect the facts afterwards. */
+export async function purgeConversationMemory(projectId: string, convId: string): Promise<number> {
+  await deletePending(convId).catch(() => undefined);
+  let purged = 0;
+  for (const scope of new Set([projectId, 'user'])) {
+    purged += await purgeBySource(scope, convId).catch(() => 0);
+  }
+  if (purged > 0) logTo('memory', `purged ${purged} memories derived from deleted conversation ${convId}`);
+  return purged;
 }
 
 export async function deleteMemory(

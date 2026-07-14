@@ -144,8 +144,20 @@ conversationsRouter.get('/:id/export', (req, res) => {
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/** Delete a conversation AND the memories it produced — a deleted chat must
+ * not keep whispering facts into recall (M5 deletion propagation). */
+async function deleteWithMemory(id: string): Promise<number> {
+  const conv = await getConversation(id);
+  const n = await deleteConversation(id);
+  if (conv) {
+    const { purgeConversationMemory } = await import('../memory/engine.js');
+    await purgeConversationMemory(conv.project_id, id).catch(() => undefined);
+  }
+  return n;
+}
+
 conversationsRouter.delete('/:id', (req, res) => {
-  deleteConversation(req.params.id)
+  deleteWithMemory(req.params.id)
     .then((deleted) => res.json({ ok: true, deleted }))
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
@@ -159,7 +171,7 @@ conversationsRouter.post('/delete', (req, res) => {
   }
   void (async () => {
     let deleted = 0;
-    for (const id of ids) deleted += await deleteConversation(id);
+    for (const id of ids) deleted += await deleteWithMemory(id);
     res.json({ ok: true, deleted });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });

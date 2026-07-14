@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listInstalls, putInstall } from '../db/appdb.js';
+import { listInstalls, putInstall, getSetting } from '../db/appdb.js';
 import {
   directory,
   installConnector,
@@ -173,7 +173,9 @@ pluginsRouter.post('/custom', (req, res) => {
     res.status(400).json({ error: 'name and transport are required' });
     return;
   }
-  addCustom({ name, transport, command, args, url }, projectId || 'p1')
+  // default to the ACTIVE project — 'p1' left freshly-added servers enabled
+  // for a project nobody was in (found adding deepwiki to the deployed app)
+  addCustom({ name, transport, command, args, url }, projectId || getSetting('activeProjectId') || 'p1')
     .then((row) => res.json({ installId: row.id, status: row.status, lastError: row.last_error }))
     .catch((err: Error) => res.status(400).json({ error: err.message }));
 });

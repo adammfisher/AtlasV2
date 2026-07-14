@@ -309,7 +309,11 @@ async function adjudicate(existing: string, candidate: string): Promise<'same' |
         { role: 'user', content: `EXISTING: ${existing}\nCANDIDATE: ${candidate}` },
       ],
       ADJUDICATE_SCHEMA,
-      { maxTokens: 32, temperature: 0 },
+      // 32 tokens starved the forced tool-use path (non-Claude models don't
+      // take json_schema): the tool-call envelope alone exceeded it, the parse
+      // threw, and EVERY deployed adjudication fell to 'different' — dedup and
+      // supersede silently never fired (memory-eval deployed 10/14, 2026-07-14)
+      { maxTokens: 200, temperature: 0 },
     );
     const verdict = (JSON.parse(raw) as { verdict?: string }).verdict;
     return verdict === 'same' || verdict === 'contradicts' ? verdict : 'different';
@@ -543,6 +547,30 @@ export async function deleteNote(scope: Scope, id: string): Promise<void> {
   await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: scopePk(scope), sk: `NOTE#${id}` } }));
   await deleteVectors(scope, [id]);
   evictRecent(scope, id);
+}
+
+/** Delete every note and KV fact a conversation produced (M5 deletion
+ * propagation): rows are stamped with source = conv id at write time; vectors
+ * ride along via deleteNote/deleteKv. Returns how many memories died. */
+export async function purgeBySource(scope: Scope, convId: string): Promise<number> {
+  let purged = 0;
+  for (const prefix of ['NOTE#', 'KV#']) {
+    const out = await ddb().send(
+      new QueryCommand({
+        TableName: TABLE,
+        KeyConditionExpression: 'pk = :pk AND begins_with(sk, :p)',
+        ExpressionAttributeValues: { ':pk': scopePk(scope), ':p': prefix },
+      }),
+    );
+    for (const item of out.Items ?? []) {
+      if (item.source !== convId) continue;
+      const sk = item.sk as string;
+      if (prefix === 'NOTE#') await deleteNote(scope, sk.slice(5));
+      else await deleteKv(scope, sk.slice(3));
+      purged++;
+    }
+  }
+  return purged;
 }
 
 /** Recall-reinforcement: a note that keeps getting recalled shouldn't decay.

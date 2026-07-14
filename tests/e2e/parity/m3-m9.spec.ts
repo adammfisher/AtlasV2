@@ -33,7 +33,7 @@ test.describe('M3-M9 memory & projects', () => {
     await expect(page.locator('text=cobalt-staging-11').first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test('@red M5 deleting a conversation purges its derived facts', async ({ page }) => {
+  test('M5 deleting a conversation purges its derived facts', async ({ page }) => {
     await newChat(page);
     await composer(page).fill(`${MARK} Remember for this project: the incident bridge number is 774-PURGE-ME.`);
     await composer(page).press('Enter');
