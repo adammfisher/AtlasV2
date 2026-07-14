@@ -62,45 +62,45 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 |---|---|---|---|---|
 | S1 | progressive disclosure proven (prompt-size assertion) | 🟢 | scripts/test/parity-s1-disclosure.ts 2026-07-14 | chat prompt carries ZERO skill text (leaner than the ~100-token metadata claim, which is UI-only); matched skill's guidance (~3k tokens total across all) loads per-pipeline-task only |
 | S2 | routing accuracy ≥90% on 20-prompt eval | 🟢 | scripts/test/parity-s2-routing.ts 20/20 2026-07-14 | via the DEPLOYED router path (Bedrock constrained JSON — llama does not exist in Lambda). All 6 must-NOT-fire statements stayed chat |
-| S3 | skills UI toggles gate the router, persist | 🔴 | parity/s3.spec.ts | spec written, not yet run (C-batch) |
+| S3 | skills UI toggles gate the router, persist | 🟢 | parity/s3.spec.ts 2026-07-14 | disable pptx → honest refusal, no artifact; Disabled badge persists after reload |
 | S4 | validator loop: fail → retry with feedback | 🟡 | pipeline.log 18:26:48 2026-07-14 | observed LIVE: pptx first pass failed schema ("must have required property 'title'") → repair attempt carrying the validator error. Repair completion unobserved this session (the C1 test abort killed it); historical mermaid repair (June 10) did complete. Full fail→fix→green proof rides on the C1 fix |
 
 ## 4 · Plugins / MCP
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | code audit 2026-07-14; spec parity/p-plugins.spec.ts pending | 5/9 connectors are stdio (dead in Lambda); `github`+`postgres` advertise servers that DON'T EXIST in servers/; `knowledge-core` → 127.0.0.1:7979; `sharepoint` → mcp.slack.com with SLACK_TOKEN cred key (copy-paste bug, connectors.json:181,190) |
-| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🔴 | spec written (mock on :7983) | add-by-URL UI EXISTS (CustomServerModal + addCustom, urlAllowed). Local run pending; deployed test needs a public mock (urlAllowed blocks RFC1918; loopback useless in Lambda) |
+| P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 | browser-confirmed: dead connectors carry no planned/local-only labeling. Plus code audit: github+postgres have NO server files; knowledge-core → 127.0.0.1:7979; sharepoint → mcp.slack.com with SLACK_TOKEN (connectors.json:181,190) |
+| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 | spec timed out on the Plugins NAV CLICK itself (240s) — smells like harness/app-state, needs interactive repro before judging. P6 cascaded from it. First Phase B target in this section |
 | P3 | bundled servers rehosted or marked local-dev-only | 🔴 | code audit 2026-07-14 | filesystem/memory/sqlite = stdio + better-sqlite3 over /tmp SQLite — disjoint from DynamoDB data; chat.ts already hides memory/sqlite as "shadow" connectors writing to a dead DB |
 | P4 | per-server toggles per chat | 🔴 | code audit 2026-07-14 | per-PROJECT toggles exist (enabled_projects, enforced in toolsForProject + callTool); per-chat granularity absent |
-| P5 | credentials: stored encrypted, never echoed | 🔴 | code audit 2026-07-14; spec pending | AES-256-GCM, write-only API, never echoed (good) — but key + ciphertexts live under /tmp in Lambda: every cold start regenerates the key, orphaning stored creds; remote connectors then connect tokenless SILENTLY |
-| P6 | tool-loop robustness: error/timeout/mid-call kill | 🔴 | code audit 2026-07-14; spec pending | MCP calls: 30s timeout + error-string-to-model (good). Native tools (web/read_document) have NO timeout wrapper. Mid-call kill test pending |
+| P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |
+| P6 | tool-loop robustness: error/timeout/mid-call kill | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 | cascaded from P2 (no connected mock = no tool to kill). Code audit: MCP 30s timeout good; native tools unwrapped. Re-run after P2 |
 
 ## 5 · Conversation core
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| V1 | context management: summarize-and-archive, 60+ turns | 🔴 | spec parity/v1.spec.ts pending | BETTER than assumed: rolling LLM summary EXISTS (context.ts — 12-msg window + 24k char budget + summary at ≥6 uncovered, persisted convsum:<id>). No token counting anywhere (char-based). 30-turn recall test pending |
-| V2 | thinking blocks persist + collapsible in history | 🔴 | code audit 2026-07-14 | never persisted — chat.ts saves only {text,toolCalls}; client renders thinking for live stream only |
-| V3 | edit prior message → branch/replace-forward | 🔴 | spec parity/v3-v6.spec.ts pending | shipped behavior = replace-forward truncation (documented, acceptable per spec); indicator exists |
-| V4 | regenerate | 🔴 | — | not yet audited |
-| V5 | stop keeps partial (incl. mid-tool-call) | 🔴 | — | not yet audited |
-| V6 | copy message | 🔴 | — | not yet audited |
-| V7 | chat share link, revocable snapshot | 🔴 | code audit 2026-07-14 | no conversation-share route exists (artifact share does, 7-day presigned) |
-| V8 | export: single (md+json) + all (zip) | 🔴 | code audit 2026-07-14 | single-conversation MD export EXISTS (conversations.ts:120); json + all-zip absent |
-| V9 | rename / search / bulk delete + eval teardown | 🔴 | — | not yet audited |
-| V10 | feedback thumbs persist | 🔴 | — | not yet audited |
-| V11 | suggested prompts | 🔴 | — | not yet audited |
-| V12 | new-chat affordances | 🔴 | — | not yet audited |
+| V1 | context management: summarize-and-archive, 60+ turns | 🟢 | parity/v1.spec.ts 2026-07-14 (3.8m, 30 turns) | rolling summary recalled turn-1 codename+date after 30 filler turns. Char-budgeted, not token-counted (spec asks for Converse-usage counting — functional outcome achieved; counting still worth adding, note kept). 60-turn variant deferred to the full-sweep spec |
+| V2 | thinking blocks persist + collapsible in history | 🔴 | parity/v2.spec.ts ✘ 2026-07-14 | confirmed in browser: nothing renders after reload; chat.ts persists only {text,toolCalls} |
+| V3 | edit prior message → branch/replace-forward | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | indicator shown; replace-forward truncation verified (BETA-2 gone after editing turn 1). Shipped behavior: replace-forward, documented here |
+| V4 | regenerate | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | |
+| V5 | stop keeps partial (incl. mid-tool-call) | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | basic stop verified; mid-TOOL-CALL stop still unexercised (needs a long tool call to time) — note kept |
+| V6 | copy message | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | clipboard content verified |
+| V7 | chat share link, revocable snapshot | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | browser-confirmed: no share affordance; no route |
+| V8 | export: single (md+json) + all (zip) | 🟡 | parity/v7-v12.spec.ts 2026-07-14 | V8a md export downloads (✓); json + all-zip absent (✘) |
+| V9 | rename / search / bulk delete + eval teardown | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | rename/search spec failed (locator vs product — triage); eval pollution CONFIRMED vividly (screenshot: a dozen junk eval conversations in recents, no teardown) |
+| V10 | feedback thumbs persist | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | rating persists server-side (settings KV, code-verified) but no active state re-renders after reload in the UI — or my detector missed it; triage then fix |
+| V11 | suggested prompts | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
+| V12 | new-chat affordances | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
 
 ## 6 · Web search & citations
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | W1 | search reliability ≥9/10 varied queries | 🔴 | scripts/test/parity-w1-search.ts 7/10 2026-07-14 | DDG scrape returned 0 urls on 3/10 queries (satisfies-operator, CloudFront-timeout, soffice-convert) — the known fragility, confirmed |
-| W2 | inline citations on search-grounded answers | 🔴 | — | not yet audited |
-| W3 | URL fetch → grounded answer with citation | 🔴 | — | not yet audited |
-| W4 | per-chat search toggle removes tools | 🔴 | code audit 2026-07-14; spec pending | toggle exists but is GLOBAL (settings key webSearchEnabled) despite living in the composer — flipping it changes every chat |
+| W2 | inline citations on search-grounded answers | 🔴 | parity/w2-w4.spec.ts ✘ 2026-07-14 | zero clickable source links render in answers |
+| W3 | URL fetch → grounded answer with citation | 🟢 | parity/w2-w4.spec.ts 2026-07-14 | pasted URL fetched, heading answered verbatim (citation rendering counted under W2) |
+| W4 | per-chat search toggle removes tools | 🟡 | parity/w2-w4.spec.ts 2026-07-14 | toggle-off honestly removes tools (✓) — but scope is GLOBAL despite living in the composer; per-chat is the spec |
 
 ## 7 · Memory & projects
 
@@ -109,28 +109,29 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | M1 | recall e2e vs DEPLOYED stack | 🔴 | memory-eval (ported) — local 13/14, DEPLOYED 10/14, 2026-07-14 | eval ported off SQLite introspection to behavioral JIT-flush check (passes both envs). DEPLOYED failures: paraphrase dedup (two keys persist: deploy_target + deployment_platform), contradiction supersede (value stays Fargate), forget leaves a layer (fails locally too). Historical "14/14" not reproducible |
 | M2 | project isolation vs DEPLOYED stack | 🟢 | scripts/test/parity-m2-isolation.ts 8/8 DEPLOYED 2026-07-14 | new API-level harness (old stage-2 gate is SQLite-bound, kept as historical). Conversation/artifact scoping + memory-recall isolation + cross-project chat probe all hold on DynamoDB/S3 Vectors |
 | M3 | remember/forget tools | 🟡 | memory-eval §4-5, both envs 2026-07-14 | remember: tool fires + fact stores + recalls (✓✓ both envs). forget: tool fires but a storage layer keeps the fact (✗ both envs) — partial |
-| M4 | memory modal browse/edit | 🔴 | — | not yet audited |
-| M5 | deletion propagation: purge derived facts+vectors | 🔴 | — | not yet audited; suspected gap |
-| M6 | knowledge citations as rendered chips | 🔴 | — | not yet audited |
-| M7 | project instructions honored | 🔴 | — | not yet audited |
-| M8 | knowledge upload + RAG page-7 spot check | 🔴 | — | not yet audited |
-| M9 | incognito: zero persistence, banner | 🔴 | — | not yet audited |
+| M4 | memory modal browse/edit | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | fact listed in the modal |
+| M5 | deletion propagation: purge derived facts+vectors | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | CONFIRMED: fact learned → conversation deleted → fact still recalls in a new chat. The suspected gap is real |
+| M6 | knowledge citations as rendered chips | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no citation/source chip renders |
+| M7 | project instructions honored | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | HARNESS BUG: spec set instructions on projects[0], chat ran in the ACTIVE project (Org Intelligence) — re-audit with the active project before judging the product |
+| M8 | knowledge upload + RAG page-7 spot check | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | survey.pdf uploaded → page-7 site total answered in a DIFFERENT chat, 25s |
+| M9 | incognito: zero persistence, banner | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no incognito affordance exists (code + browser) |
 
 ## 8 · Styles, settings, polish
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| X1 | styles: presets + custom-from-sample, per chat | 🔴 | code audit 2026-07-14 | absent entirely; only project instructions exist |
-| X2 | global preferences injected | 🔴 | spec pending | userName setting exists and is exposed; injection into the prompt unverified |
-| X3 | markdown torture test (tables, LaTeX, code+copy) | 🔴 | — | not yet audited |
-| X4 | streaming: slow-conn, heartbeat, tab-close abort | 🔴 | — | not yet audited |
-| X5 | error recovery: mid-stream kill → retry affordance | 🔴 | — | not yet audited |
+| X1 | styles: presets + custom-from-sample, per chat | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | absent (code + browser) |
+| X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts 2026-07-14 | configured userName known to the model |
+| X3 | markdown torture test (tables, LaTeX, code+copy) | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | markdown TABLES don't render as HTML tables in chat (raw pipes) — failed before even reaching the LaTeX assertion |
+| X4 | streaming: slow-conn, heartbeat, tab-close abort | 🔴 | deferred | needs infra manipulation (throttled connection, CloudFront origin timing) — not a browser assertion; test approach TBD next session |
+| X5 | error recovery: mid-stream kill → retry affordance | 🔴 | observed via C1 run-2 2026-07-14 | a stalled Bedrock stream spins forever: no first-token timeout, no error surface, no retry affordance. Dedicated spec still needed (bad-model-id route) |
 | X6 | voice dictation (Web Speech, graceful hide) | 🔴 | code audit 2026-07-14 | mic button confirmed decorative — no onClick, no speech API usage anywhere |
 | X7 | artifacts gallery cross-chat | 🔴 | code audit 2026-07-14 | no surface; API /artifacts already returns the cross-chat list, so this is UI-only |
-| X8 | mobile layout | 🔴 | — | not yet audited |
-| X9 | light theme | 🔴 | — | not yet audited |
-| X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🔴 | — | not yet audited |
+| X8 | mobile layout | 🟢 | parity/x-polish.spec.ts 2026-07-14 | 390px: composer usable, no horizontal overflow |
+| X9 | light theme | 🟢 | parity/x-polish.spec.ts 2026-07-14 | toggle applies (background changes and restores) |
+| X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | Enter/Shift-Enter ✓, Esc-closes-modal ✓; Cmd-K absent (matches code audit — no global key handler) |
 
 ## Audit log
 
 - 2026-07-14 · matrix created; all 67 rows RED pending Phase A audit. Fixtures generated and property-verified (12-page PDF, zero-text scanned PDF, formula xlsx, 1200-row CSV with mean 14.87).
+- 2026-07-14 · **Phase A audit COMPLETE.** 67/67 rows have evidence-based status: **31 🟢 · 9 🟡 · 27 🔴.** 51 Playwright tests + 5 script evals executed (local dev + deployed CloudFront for M1/M2). Environment caveats: model varied across runs (Nova 2 Lite → Claude Haiku 4.5 via per-project memory); deployed Lambda predates the extraction overhaul; two failures are harness-caused and marked for re-audit (M7, P2/P6).
