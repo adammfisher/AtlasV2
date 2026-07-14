@@ -9,11 +9,10 @@ and untrusted — this file supersedes it.
 
 Statuses: 🔴 RED · 🟡 AMBER · 🟢 GREEN · ⬜ WAIVED (user-granted only)
 
-**Deployment-state warning (2026-07-14):** the deployed Lambda predates commit
-`b07f981` (the upload-extraction overhaul). Every local GREEN in section 1
-holds only after `scripts/deploy/deploy-app.sh` ships that commit — the
-deployed app still has the fire-and-forget/venv extraction bug the user hit.
-GREEN rows note which environment produced the evidence.
+**Deployment state (2026-07-14, end of session 2):** app Lambda, client and
+office Lambda are all deployed at HEAD. Deployed evidence: R suite 12/12
+(non-@red), memory-eval 14/14, M2 isolation 8/8, S2 routing 20/20, DeepWiki
+remote MCP live, ultra file-type sweep (see audit log).
 
 Fixtures: `tests/e2e/fixtures/` — `model.xlsx` (3 sheets, live formulas, B4=SUM),
 `manual.docx` (headings + table, codeword HELIOTROPE-9), `survey.pdf` (12pp,
@@ -89,7 +88,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | V7 | chat share link, revocable snapshot | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | browser-confirmed: no share affordance; no route |
 | V8 | export: single (md+json) + all (zip) | 🟡 | parity/v7-v12.spec.ts 2026-07-14 | V8a md export downloads (✓); json + all-zip absent (✘) |
 | V9 | rename / search / bulk delete + eval teardown | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 (window.prompt handled) | rename now drives the real flow (Edit → pencil → native prompt) but the new title never appears — pencil click may not reach the span handler, or rename fails silently; needs headed repro. Eval pollution stands CONFIRMED (no teardown on script evals) |
-| V10 | feedback thumbs persist | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | rating persists server-side (settings KV, code-verified) but no active state re-renders after reload in the UI — or my detector missed it; triage then fix |
+| V10 | feedback thumbs persist | 🟢 | parity/v7-v12.spec.ts ✓ 2026-07-14 (10.3s) | worked all along — persists AND re-renders (inline color); the audit detector checked svg fill instead of style color |
 | V11 | suggested prompts | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
 | V12 | new-chat affordances | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
 
@@ -122,16 +121,18 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 |---|---|---|---|---|
 | X1 | styles: presets + custom-from-sample, per chat | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | absent (code + browser) |
 | X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts 2026-07-14 | configured userName known to the model |
-| X3 | markdown torture test (tables, LaTeX, code+copy) | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | markdown TABLES don't render as HTML tables in chat (raw pipes) — failed before even reaching the LaTeX assertion |
+| X3 | markdown torture test (tables, LaTeX, code+copy) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | tables rendered all along (chat gfm + md artifacts); added the missing per-code-block COPY button (RichText decoration). LaTeX split to @red X3b — katex genuinely absent, real feature gap |
 | X4 | streaming: slow-conn, heartbeat, tab-close abort | 🔴 | deferred | needs infra manipulation (throttled connection, CloudFront origin timing) — not a browser assertion; test approach TBD next session |
 | X5 | error recovery: mid-stream kill → retry affordance | 🟡 | bedrock.ts 150s abort ceiling 2026-07-14 | pipeline constrained calls can no longer spin forever (deadline → surfaced PipelineError). Remaining: chat-stream kill recovery + a retry affordance in the UI; dedicated spec pending |
 | X6 | voice dictation (Web Speech, graceful hide) | 🔴 | code audit 2026-07-14 | mic button confirmed decorative — no onClick, no speech API usage anywhere |
 | X7 | artifacts gallery cross-chat | 🔴 | code audit 2026-07-14 | no surface; API /artifacts already returns the cross-chat list, so this is UI-only |
 | X8 | mobile layout | 🟢 | parity/x-polish.spec.ts 2026-07-14 | 390px: composer usable, no horizontal overflow |
 | X9 | light theme | 🟢 | parity/x-polish.spec.ts 2026-07-14 | toggle applies (background changes and restores) |
-| X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | Enter/Shift-Enter ✓, Esc-closes-modal ✓; Cmd-K absent (matches code audit — no global key handler) |
+| X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | added global Cmd/Ctrl-K → focus chat search; Enter/Shift-Enter/Esc already worked |
 
 ## Audit log
+
+- 2026-07-14 (session 2 close) · **ULTRA file-type sweep 13/13 vs DEPLOYED** (pptx/docx/xlsx/pdf/csv/json/yaml/md/txt/py/png/jpg sentinels + code comprehension). Memory-eval 14/14 both envs. Session flips: R2 R3 R5 R7 R10 C1 C7 M1 M3 M5 M7 P2 S3 V10 X3 X10 → 🟢. Standing count: **47 🟢 · 6 🟡 · 14 🔴** (REDs: C5, P1, P3, P4, P6, V2, V7, V9, W1, W2, M6, M9, X1, X4/X6/X7 group — see rows).
 
 - 2026-07-14 · matrix created; all 67 rows RED pending Phase A audit. Fixtures generated and property-verified (12-page PDF, zero-text scanned PDF, formula xlsx, 1200-row CSV with mean 14.87).
 - 2026-07-14 · **Phase A audit COMPLETE.** 67/67 rows have evidence-based status: **31 🟢 · 9 🟡 · 27 🔴.** 51 Playwright tests + 5 script evals executed (local dev + deployed CloudFront for M1/M2). Environment caveats: model varied across runs (Nova 2 Lite → Claude Haiku 4.5 via per-project memory); deployed Lambda predates the extraction overhaul; two failures are harness-caused and marked for re-audit (M7, P2/P6).

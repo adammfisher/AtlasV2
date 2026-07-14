@@ -1,5 +1,19 @@
 # Parity Loop Log
 
+## 2026-07-14 — Session 2 (Phase B fix loop) — CLOSED
+
+Session close: everything below shipped to AWS (app+client+office at HEAD).
+Deployed evidence: R suite 12/12, ultra file sweep 13/13, memory-eval 14/14,
+M2 8/8, S2 20/20, DeepWiki remote MCP live in production chat.
+
+Next three targets:
+1. C5 react-artifact repro (headed) + fix affordance; P6 instrumented repro
+   (chip/log assertions); V9 headed repro of the prompt-rename flow.
+2. P1/P3 directory honesty (label planned/local-only, fix sharepoint
+   endpoint+cred key, drop phantom github/postgres or add servers).
+3. W1 search hardening + W2 citations; then V7 chat share, M6 citation chips,
+   M9 incognito, X1 styles, X6 voice, X7 gallery (feature builds).
+
 ## 2026-07-14 — Session 2 (Phase B fix loop) — running log
 
 GREEN flips this session (each spec-verified, committed per item):
