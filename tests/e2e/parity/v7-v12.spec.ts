@@ -47,17 +47,16 @@ test.describe('V7-V12 conversation surfaces', () => {
     await composer(page).fill(`${MARK} Reply with exactly RENAME-TARGET`);
     await composer(page).press('Enter');
     await waitIdle(page, 60_000);
-    // rename via the pencil affordance on the recents row
-    const row = page.locator(`text=${MARK} Reply with exactly RENAME-TARGET`).first();
-    await row.hover().catch(() => undefined);
-    const pencil = page.locator('button[title*="ename"], button:has(svg.lucide-pencil)').first();
-    if (await pencil.isVisible().catch(() => false)) {
-      await pencil.click();
-      const input = page.locator('input:focus, dialog input, [role="dialog"] input').first();
-      await input.fill(`${MARK} AUDIT-RENAMED`);
-      await input.press('Enter');
-      await page.waitForTimeout(800);
-    }
+    // rename lives behind Edit (manage mode) and uses window.prompt — answer
+    // the native dialog, not a DOM input (Sidebar.tsx:210)
+    page.once('dialog', (d) => void d.accept(`${MARK} AUDIT-RENAMED`));
+    await page.getByText('Edit', { exact: true }).first().click();
+    await page.waitForTimeout(400);
+    const pencil = page.locator('svg.lucide-pencil').first();
+    await expect(pencil, 'rename pencil in manage mode').toBeVisible({ timeout: 5_000 });
+    await pencil.click();
+    await page.waitForTimeout(800);
+    await page.getByText('Done', { exact: true }).first().click().catch(() => undefined);
     // search filters
     const search = page.locator('input[placeholder*="Search"]').first();
     await search.fill('AUDIT-RENAMED');

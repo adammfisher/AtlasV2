@@ -54,10 +54,11 @@ test.describe('P plugins/MCP', () => {
     await page.waitForTimeout(1000);
     await page.getByRole('button', { name: /add custom|custom server/i }).first().click();
     await page.waitForTimeout(500);
-    await page.locator('input[placeholder*="name" i], [role="dialog"] input').first().fill('parity-probe');
-    const urlInput = page.locator('input[placeholder*="mcp" i], input[placeholder*="url" i]').first();
-    await urlInput.fill('http://127.0.0.1:7983/mcp');
-    await page.getByRole('button', { name: /add|connect|save/i }).last().click();
+    // CustomServerModal: Name (placeholder my-tools) → transport button → URL
+    await page.locator('input[placeholder="my-tools"]').fill('parity-probe');
+    await page.getByRole('button', { name: 'streamable-http', exact: true }).click();
+    await page.locator('input[placeholder*="127.0.0.1:9000"]').fill('http://127.0.0.1:7983/mcp');
+    await page.getByRole('button', { name: /add server|add|connect/i }).last().click();
     await page.waitForTimeout(3000);
     await expect(page.locator('text=/connected|parity-probe/i').first()).toBeVisible({ timeout: 15_000 });
 

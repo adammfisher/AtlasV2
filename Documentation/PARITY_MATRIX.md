@@ -49,7 +49,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | C4 | pdf create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | pages+text verified via pdfplumber, edit→v2, 35s |
 | C5 | react artifact: renders, stateful, error surface + fix affordance | 🔴 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | component iframe content never became reachable in 60s — investigate panel auto-open vs nested-frame locator before trusting; fix-affordance half untested as a result |
 | C6 | html/site artifact: sandboxed, no cookie access | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | sandbox attr present, no allow-same-origin |
-| C7 | svg artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
+| C7 | svg artifact | 🟡 | passed 2× then flaked (regression3) 2026-07-14 | svg emission intermittently appends prose after the SVG → "XML not well-formed: Extra text at the end" twice → PipelineError, no artifact. Fix direction: validateSvg should strip trailing text (like stripFences) before failing |
 | C8 | mermaid artifact + graceful syntax errors | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | invalid source surfaced a visible parse error |
 | C9 | md artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
 | C10 | artifact versioning: list, browse, restore, per-version download | 🟡 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | v1+v2 downloads OK, version indicator OK; RESTORE not discoverable from the panel; no full history-list UI |
@@ -70,11 +70,11 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | code audit only — browser evidence INVALIDATED 2026-07-14 | the spec's `aside >>` locator matched nothing (sidebar is a div — no <aside> in the client); the "browser-confirmed" claim was wrong. Code audit stands: github+postgres have NO server files; knowledge-core → 127.0.0.1:7979; sharepoint → mcp.slack.com with SLACK_TOKEN. Re-audit with fixed locators |
-| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🔴 | harness bug found 2026-07-14 | the 240s nav-click timeout was the same phantom `aside` locator, NOT app state. Locators fixed; re-run pending. P6 cascades from this |
+| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟡 | parity/p-plugins.spec.ts ✓ LOCAL 2026-07-14 (57s) | add-by-URL → connected → tools listed → probe_echo invoked in chat, all GREEN locally (feature was fine; the harness was the blocker). AMBER until the DEPLOYED run: needs a public mock (loopback useless in Lambda, RFC1918 blocked) |
 | P3 | bundled servers rehosted or marked local-dev-only | 🔴 | code audit 2026-07-14 | filesystem/memory/sqlite = stdio + better-sqlite3 over /tmp SQLite — disjoint from DynamoDB data; chat.ts already hides memory/sqlite as "shadow" connectors writing to a dead DB |
 | P4 | per-server toggles per chat | 🔴 | code audit 2026-07-14 | per-PROJECT toggles exist (enabled_projects, enforced in toolsForProject + callTool); per-chat granularity absent |
 | P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |
-| P6 | tool-loop robustness: error/timeout/mid-call kill | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 | cascaded from P2 (no connected mock = no tool to kill). Code audit: MCP 30s timeout good; native tools unwrapped. Re-run after P2 |
+| P6 | tool-loop robustness: error/timeout/mid-call kill | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 (re-run w/ P2 green) | P2 unblocked but the kill-mid-call reply carried no error language — either the tool call hadn't fired within the 12s pre-kill window or the model narrated the failure without matchable wording. Needs an instrumented repro (assert on the tool chip/mcp.log, not reply text) |
 
 ## 5 · Conversation core
 
@@ -88,7 +88,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | V6 | copy message | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | clipboard content verified |
 | V7 | chat share link, revocable snapshot | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | browser-confirmed: no share affordance; no route |
 | V8 | export: single (md+json) + all (zip) | 🟡 | parity/v7-v12.spec.ts 2026-07-14 | V8a md export downloads (✓); json + all-zip absent (✘) |
-| V9 | rename / search / bulk delete + eval teardown | 🔴 | spec locators fixed 2026-07-14, re-run pending | first failure used phantom `aside` locators (no <aside> in the client). Eval pollution stands CONFIRMED regardless (screenshot: a dozen junk eval conversations, no teardown) |
+| V9 | rename / search / bulk delete + eval teardown | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 (window.prompt handled) | rename now drives the real flow (Edit → pencil → native prompt) but the new title never appears — pencil click may not reach the span handler, or rename fails silently; needs headed repro. Eval pollution stands CONFIRMED (no teardown on script evals) |
 | V10 | feedback thumbs persist | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | rating persists server-side (settings KV, code-verified) but no active state re-renders after reload in the UI — or my detector missed it; triage then fix |
 | V11 | suggested prompts | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
 | V12 | new-chat affordances | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
