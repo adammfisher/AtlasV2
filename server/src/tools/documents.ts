@@ -109,6 +109,63 @@ function render(name: string, ex: OfficeExtract, range?: string): string {
   return `${name}\n\n${ex.text}`.slice(0, READ_CAP);
 }
 
+/** Parse an attached tabular file (csv/tsv, or an xlsx sheet) into rows. */
+async function tabularRows(projectId: string, atts: DocRef[], name: string, sheet?: string): Promise<{ header: string[]; rows: string[][] } | string> {
+  const docs = await inScope(projectId, atts);
+  const hit = pick(docs, name);
+  if (!hit) return `no document matches "${name}". Available:\n${docs.map((d) => d.name).join('\n')}`;
+  const ext = path.extname(hit.name).toLowerCase();
+  if (ext === '.csv' || ext === '.tsv') {
+    const content = hit.source === 'attachment' ? await attachmentContent(hit.id) : null;
+    if (!content || !content.ok) return `${hit.name} could not be read`;
+    const sep = ext === '.tsv' ? '\t' : ',';
+    const lines = content.text.split(/\r?\n/).filter((l) => l.trim());
+    const cells = lines.map((l) => l.split(sep).map((c) => c.trim()));
+    return { header: cells[0] ?? [], rows: cells.slice(1) };
+  }
+  const cached = hit.source === 'attachment' ? await attachmentExtract(hit.id) : null;
+  const sheets = cached && cached.ok ? cached.extract.sheets : null;
+  if (sheets?.length) {
+    const ws = sheet ? sheets.find((s) => s.name.toLowerCase() === sheet.toLowerCase()) ?? sheets[0]! : sheets[0]!;
+    return { header: ws.rows[0] ?? [], rows: ws.rows.slice(1) };
+  }
+  return `${hit.name} is not a tabular file (csv, tsv or xlsx)`;
+}
+
+/** Tool: deterministic table math — the model must never eyeball aggregates.
+ * (Model-computed row counts measured 355 of 1200 on the audit fixture.) */
+export async function analyzeTable(
+  projectId: string,
+  atts: DocRef[],
+  name: string,
+  operation: string,
+  column?: string,
+  sheet?: string,
+): Promise<string> {
+  const t = await tabularRows(projectId, atts, name, sheet);
+  if (typeof t === 'string') return t;
+  const { header, rows } = t;
+  if (operation === 'shape') {
+    return `${rows.length} data rows × ${header.length} columns. Columns: ${header.join(', ')}`;
+  }
+  if (!column) return 'a column name is required for this operation';
+  const idx = header.findIndex((h) => h.toLowerCase() === column.toLowerCase());
+  if (idx === -1) return `no column "${column}". Columns: ${header.join(', ')}`;
+  const nums = rows.map((r) => Number(r[idx])).filter((v) => Number.isFinite(v));
+  if (!nums.length) return `column "${column}" has no numeric values`;
+  const sum = nums.reduce((a, b) => a + b, 0);
+  const stats: Record<string, number> = {
+    mean: sum / nums.length,
+    sum,
+    min: Math.min(...nums),
+    max: Math.max(...nums),
+    count: nums.length,
+  };
+  const val = stats[operation];
+  if (val === undefined) return `unknown operation "${operation}" — use shape, mean, sum, min, max or count`;
+  return `${operation}(${header[idx]}) = ${Math.round(val * 10000) / 10000} (over ${nums.length} numeric rows)`;
+}
+
 /** Tool: list what's readable. Cheap, and stops the model guessing filenames. */
 export async function listDocuments(projectId: string, atts: DocRef[]): Promise<string> {
   const docs = await inScope(projectId, atts);

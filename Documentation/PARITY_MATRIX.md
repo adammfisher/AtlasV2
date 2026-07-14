@@ -32,12 +32,12 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | R2 | docx read: table contents verbatim | 🟢 | parity/r2.spec.ts ✓ 2026-07-14 (9.9s) | FIXED: docx table rows render into extraction text (was a literal "[table]"); documents.ts render() gained a blocks branch. Local; deployed pending office-Lambda ship |
 | R3 | xlsx read: per-sheet + cell-level (B4 formula) | 🟢 | parity/r3.spec.ts ✓✓ 2026-07-14 (10.6s) | FIXED: two-pass load surfaces formula text ("=SUM(B2:B3) → 36" when cached). Local; deployed pending office-Lambda ship |
 | R4 | pdf read: page-specific QA; scanned PDF honest degrade | 🟢 | parity/r4.spec.ts (2/2) 2026-07-14 | page-7 table verbatim; scanned PDF got an honest no-text statement, no hallucination |
-| R5 | csv read: row count, columns, aggregate | 🔴 | parity/r5.spec.ts ✘✘ 2026-07-14 | full CSV fits context (23,034 chars); columns correct but model GUESSED "355 rows" (actual 1200) and failed the mean. No computational path — claude.ai uses analysis/code-exec. Fix direction: route aggregates to real computation |
+| R5 | csv read: row count, columns, aggregate | 🟢 | parity/r5.spec.ts ✓✓ 2026-07-14 (6.3s/9.0s) | FIXED: analyze_table tool — deterministic shape/mean/sum/min/max/count over csv/tsv/xlsx server-side; model instructed to never eyeball aggregates. 1200 rows and mean 14.87 now exact |
 | R6 | image read: vision accurate, multi-image | 🟢 | parity/r6.spec.ts (2/2) 2026-07-14 | single + two-image |
 | R7 | code/text read verbatim | 🟢 | parity/r7.spec.ts 2026-07-14 | nested JSON sentinel + count |
 | R8 | multi-file (3 mixed) in one message | 🟢 | parity/r8.spec.ts 2026-07-14 | docx+csv+image all referenced |
 | R9 | large/unsupported file honesty | 🟢 | parity/r9.spec.ts 2026-07-14 | unsupported ext refuses visibly before send |
-| R10 | extraction-status UI; no answer-before-read path | 🟡 | parity/r10.spec.ts ✘ 2026-07-14 | working state IS shown during a 22MB upload, and no dishonest answer occurs — but send-during-upload is a SILENT no-op (message vanishes; spec demands wait-or-warn) |
+| R10 | extraction-status UI; no answer-before-read path | 🟢 | parity/r10.spec.ts ✓ 2026-07-14 (33.5s) | FIXED: send-during-upload now QUEUES with a visible banner ("sends when the file is ready") and fires when the upload lands; answered from real deck content. Was a silent drop at ChatView send() |
 
 ## 2 · File & artifact creation
 
@@ -70,7 +70,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | code audit only — browser evidence INVALIDATED 2026-07-14 | the spec's `aside >>` locator matched nothing (sidebar is a div — no <aside> in the client); the "browser-confirmed" claim was wrong. Code audit stands: github+postgres have NO server files; knowledge-core → 127.0.0.1:7979; sharepoint → mcp.slack.com with SLACK_TOKEN. Re-audit with fixed locators |
-| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟡 | parity/p-plugins.spec.ts ✓ LOCAL 2026-07-14 (57s) | add-by-URL → connected → tools listed → probe_echo invoked in chat, all GREEN locally (feature was fine; the harness was the blocker). AMBER until the DEPLOYED run: needs a public mock (loopback useless in Lambda, RFC1918 blocked) |
+| P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟢 | local spec ✓ + DEPLOYED live run 2026-07-14 (deepwiki-sse logs archived) | REAL public server (mcp.deepwiki.com) added by URL on the deployed Lambda → connected → read_wiki_structure invoked in chat → grounded answer. Found en route: addCustom enables hardcoded "p1" instead of the ACTIVE project (fix queued — until then a manual project toggle is needed after adding) |
 | P3 | bundled servers rehosted or marked local-dev-only | 🔴 | code audit 2026-07-14 | filesystem/memory/sqlite = stdio + better-sqlite3 over /tmp SQLite — disjoint from DynamoDB data; chat.ts already hides memory/sqlite as "shadow" connectors writing to a dead DB |
 | P4 | per-server toggles per chat | 🔴 | code audit 2026-07-14 | per-PROJECT toggles exist (enabled_projects, enforced in toolsForProject + callTool); per-chat granularity absent |
 | P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |

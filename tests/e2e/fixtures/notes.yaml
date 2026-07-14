@@ -1,0 +1,5 @@
+service: parity
+region: eu-west-1
+sentinel: YAML-CORMORANT-5
+limits:
+  rate: 240

@@ -16,7 +16,7 @@ import { webSearch, webFetch } from '../tools/web.js';
 import { bedrockSettings, activeModel, type BedrockTool } from '../providers/bedrock.js';
 import { streamWithTools } from '../providers/dispatch.js';
 import { attachmentDataUrl, attachmentContent } from './uploads.js';
-import { readDocument, listDocuments } from '../tools/documents.js';
+import { readDocument, listDocuments, analyzeTable } from '../tools/documents.js';
 import { recallContext, scheduleExtraction, flushProjectPending, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
 import { listKnowledge } from '../memory/knowledge.js';
 
@@ -69,6 +69,22 @@ const DOC_TOOLS: BedrockTool[] = [
     name: 'list_documents',
     description: 'List the documents readable right now (this message\'s attachments plus this project\'s knowledge files).',
     schema: { type: 'object', additionalProperties: false, properties: {} },
+  },
+  {
+    name: 'analyze_table',
+    description:
+      'Compute exact statistics over an attached CSV/TSV/spreadsheet: row and column counts (operation "shape"), or mean/sum/min/max/count of a named column. ALWAYS use this for counts and aggregates — never estimate them from the visible text.',
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name', 'operation'],
+      properties: {
+        name: { type: 'string', description: 'the file name' },
+        operation: { type: 'string', enum: ['shape', 'mean', 'sum', 'min', 'max', 'count'] },
+        column: { type: 'string', description: 'column name (required except for shape)' },
+        sheet: { type: 'string', description: 'sheet name for spreadsheets (default: first)' },
+      },
+    },
   },
 ];
 
@@ -328,6 +344,16 @@ chatRouter.post('/:id/messages', async (req, res) => {
             return readDocument(conv.project_id, atts, String(input.name ?? ''), input.slides ? String(input.slides) : undefined);
           }
           if (name === 'list_documents') return listDocuments(conv.project_id, atts);
+          if (name === 'analyze_table') {
+            return analyzeTable(
+              conv.project_id,
+              atts,
+              String(input.name ?? ''),
+              String(input.operation ?? ''),
+              input.column ? String(input.column) : undefined,
+              input.sheet ? String(input.sheet) : undefined,
+            );
+          }
           const spec = byMangled.get(name);
           if (spec) return callTool(spec.connectorId, conv.project_id, spec.name, input);
           return Promise.resolve(`unknown tool: ${name}`);
@@ -336,7 +362,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
           const spec = byMangled.get(tool);
           const native = tool.startsWith('web_')
             ? 'web'
-            : tool === 'read_document' || tool === 'list_documents'
+            : tool === 'read_document' || tool === 'list_documents' || tool === 'analyze_table'
               ? 'documents'
               : 'memory';
           const chip = { tool: spec?.name ?? tool, connector: spec?.connectorName ?? native };

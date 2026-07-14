@@ -1,5 +1,30 @@
 # Parity Loop Log
 
+## 2026-07-14 — Session 2 (Phase B fix loop) — running log
+
+GREEN flips this session (each spec-verified, committed per item):
+- R2 docx tables · R3 xlsx formulas · C1 pptx 28s (was 4min/∞, gate 2200→1200
+  + 150s abort ceiling) · C7 extractSvg · M7 (harness) · R7 read_document
+  serves text kinds · R5 analyze_table (deterministic aggregates) · R10
+  queued send with banner · P2 local AND DEPLOYED (real public server:
+  mcp.deepwiki.com added by URL, tool invoked in production chat).
+- Deployed R suite: 11/12 → 12/12 after the R7 fix + redeploy.
+- Office Lambda deployed (first time scripted); app+client deployed twice.
+
+Root causes found by measurement, not guessing:
+- Bedrock json_schema grammar compile ~188s for the pptx schema; tool-use 5-7s
+  with the same shape. Gate now 1200.
+- Deployed dedup/supersede: adjudicate() runs maxTokens:32 through forced
+  tool-use on Nova (supportsJsonSchema matches claude-* only) — the tool
+  envelope alone exceeds 32 tokens → parse throw → 'different' every time.
+  Fix queued (bump budget).
+- addCustom enables hardcoded "p1", not the active project — found live while
+  adding DeepWiki to the deployed app.
+
+Harness lessons: no <aside> exists (4 phantom failures); Playwright configs
+resolve from CWD (one invalid regression run); archive test-results before
+reruns; window.prompt needs dialog handlers, not DOM fills.
+
 Session handoffs for the claude.ai-parity mission. Each entry: items closed,
 items attempted-and-blocked, next three targets. The matrix
 (`Documentation/PARITY_MATRIX.md`) is the source of truth; this is the wire

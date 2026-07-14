@@ -7,7 +7,7 @@ import { attachAndAsk, pollBody, cleanupMarked, fixture } from './helpers';
 test.describe('R5 csv-read', () => {
   test.afterAll(cleanupMarked);
 
-  test('@red row count and column names', async ({ page }) => {
+  test('row count and column names', async ({ page }) => {
     await attachAndAsk(
       page,
       [fixture('readings.csv')],
@@ -18,7 +18,7 @@ test.describe('R5 csv-read', () => {
     await pollBody(page, /flow_lps/);
   });
 
-  test('@red aggregate: average of temp_c within ±0.5 of 14.87', async ({ page }) => {
+  test('aggregate: average of temp_c within ±0.5 of 14.87', async ({ page }) => {
     await attachAndAsk(page, [fixture('readings.csv')], 'What is the average of the temp_c column? Give a number.');
     await pollBody(page, /1[45]\.\d/); // 14.x or 15.x — then precision-checked below
     await pollBody(page, /14\.[4-9]\d?|15\.[0-3]\d?/);

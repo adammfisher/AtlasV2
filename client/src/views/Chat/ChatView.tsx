@@ -265,6 +265,16 @@ export function ChatView({
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean; pasted?: string }>
   >([]);
+  // a send attempted while uploads were in flight — fires when they finish
+  const [queuedSend, setQueuedSend] = useState<string | null>(null);
+  useEffect(() => {
+    if (queuedSend && attachments.length > 0 && !attachments.some((a) => a.uploading)) {
+      const text = queuedSend;
+      setQueuedSend(null);
+      void send(text);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attachments, queuedSend]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -389,7 +399,13 @@ export function ChatView({
   ) => {
     const text = (overrideText ?? input).trim();
     if (!text || busy) return;
-    if (!attsOverride && attachments.some((a) => a.uploading)) return; // wait for uploads
+    // uploads in flight: queue the send instead of silently dropping it — the
+    // message fires the moment the last upload lands (claude.ai behavior)
+    if (!attsOverride && attachments.some((a) => a.uploading)) {
+      setQueuedSend(text);
+      return;
+    }
+    setQueuedSend(null);
     // no conversation yet (fresh install, or all chats deleted) — create one so
     // the composer always works instead of silently dropping the message
     let target = convId;
@@ -413,7 +429,9 @@ export function ChatView({
       setEditing(null);
     }
     const sendAtts = retry ? [] : (attsOverride ?? attachments.map(({ id, name, kind }) => ({ id, name, kind })));
-    if (!overrideText) {
+    // clear the composer whenever this send consumed its attachments — the
+    // queued-send path passes overrideText but still owns the composer state
+    if (!attsOverride && !retry) {
       setInput('');
       setAttachments([]);
     }
@@ -975,6 +993,17 @@ export function ChatView({
               >
                 Editing message — sending replaces it and everything after
                 <button onClick={() => { setEditing(null); setInput(''); }} title="Cancel edit">
+                  <X size={11} />
+                </button>
+              </span>
+            ) : null}
+            {queuedSend ? (
+              <span
+                className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md"
+                style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
+              >
+                Uploading — your message sends when the file is ready
+                <button onClick={() => setQueuedSend(null)} title="Cancel queued send">
                   <X size={11} />
                 </button>
               </span>
