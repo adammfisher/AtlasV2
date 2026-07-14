@@ -43,7 +43,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| C1 | pptx create + edit round-trip, template intact | 🔴 | parity/c1-c4-office.spec.ts (rerun in flight) | first run hit my 240s spec cap mid-generation — the deck itself BUILT (~4 min wall-clock: a latency AMBER even once functional). Rerun with 720s budget pending |
+| C1 | pptx create + edit round-trip, template intact | 🔴 | parity/c1-c4-office.spec.ts ✘✘ 2026-07-14 (screenshot archived) | ROOT CAUSE SHARPENED: pptx slides-JSON first pass fails schema on the Bedrock path ("must have required property 'title'", pipeline.log 18:26) → every deck pays a repair round (run 1: ~4 min but built) or dies waiting (run 2: 0 chars, 3+ min, no first-token timeout, no surfaced error — feeds X5). Docx/xlsx/pdf pass first-try in ~30s |
 | C2 | docx create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | create→headings→edit→v2, python-docx validated, 34s |
 | C3 | xlsx create with WORKING formulas + edit | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | real =formulas present (not baked values), edit→v2, 31s |
 | C4 | pdf create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | pages+text verified via pdfplumber, edit→v2, 35s |
@@ -63,7 +63,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | S1 | progressive disclosure proven (prompt-size assertion) | 🟢 | scripts/test/parity-s1-disclosure.ts 2026-07-14 | chat prompt carries ZERO skill text (leaner than the ~100-token metadata claim, which is UI-only); matched skill's guidance (~3k tokens total across all) loads per-pipeline-task only |
 | S2 | routing accuracy ≥90% on 20-prompt eval | 🟢 | scripts/test/parity-s2-routing.ts 20/20 2026-07-14 | via the DEPLOYED router path (Bedrock constrained JSON — llama does not exist in Lambda). All 6 must-NOT-fire statements stayed chat |
 | S3 | skills UI toggles gate the router, persist | 🔴 | parity/s3.spec.ts | spec written, not yet run (C-batch) |
-| S4 | validator loop: fail → retry with feedback | 🔴 | — | code-verified loop exists (orchestrator.ts: 2 attempts, error string fed back, Bedrock escalation); live first-pass-fail observation pending |
+| S4 | validator loop: fail → retry with feedback | 🟡 | pipeline.log 18:26:48 2026-07-14 | observed LIVE: pptx first pass failed schema ("must have required property 'title'") → repair attempt carrying the validator error. Repair completion unobserved this session (the C1 test abort killed it); historical mermaid repair (June 10) did complete. Full fail→fix→green proof rides on the C1 fix |
 
 ## 4 · Plugins / MCP
 
