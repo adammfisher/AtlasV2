@@ -207,16 +207,32 @@ def extract_preview(kind, file_bytes):
             rows = [[c.text.strip() for c in r.cells] for r in t.rows]
             blocks.append({"style": "Table", "rows": rows[:20]})
         out["blocks"] = blocks[:200]
-        out["text"] = "\n".join(b.get("text", "[table]") for b in blocks)
+        # tables carry their rows into the text — a "[table]" placeholder reads
+        # to the model as an empty table and it says so to the user
+        out["text"] = "\n".join(
+            b["text"] if "text" in b else "\n".join(" | ".join(r) for r in b.get("rows", []))
+            for b in blocks
+        )
     elif kind == "xlsx":
         from openpyxl import load_workbook
 
+        # two passes: data_only gives cached values (present when Excel saved
+        # the file), the raw pass gives formula text. A formula cell renders as
+        # "=SUM(B2:B3) → 36" with the value, or just the formula without it —
+        # data_only alone made formulas literally invisible (empty cells).
         wb = load_workbook(str(fp), data_only=True, read_only=True)
+        wb_raw = load_workbook(str(fp), read_only=True)
         sheets = []
-        for ws in wb.worksheets:
+        for ws, ws_raw in zip(wb.worksheets, wb_raw.worksheets):
             rows = []
-            for r in ws.iter_rows(values_only=True):
-                rows.append(["" if c is None else str(c) for c in r])
+            for r, r_raw in zip(ws.iter_rows(values_only=True), ws_raw.iter_rows(values_only=True)):
+                cells = []
+                for val, raw in zip(r, r_raw):
+                    if isinstance(raw, str) and raw.startswith("="):
+                        cells.append(f"{raw} → {val}" if val is not None else raw)
+                    else:
+                        cells.append("" if val is None else str(val))
+                rows.append(cells)
                 if len(rows) >= 50:
                     break
             sheets.append({"name": ws.title, "rows": rows})

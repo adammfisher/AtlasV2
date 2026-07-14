@@ -29,8 +29,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | R1 | pptx read: slide-by-slide content incl. notes+tables | 🟢 | parity/r1.spec.ts (2/2) 2026-07-14 | small deck incl. chart series; 22MB DFS deck via presign path, slide-5 title answered in 47s |
-| R2 | docx read: table contents verbatim | 🔴 | parity/r2.spec.ts ✘ 2026-07-14 | root cause: lambda_handler docx `text` renders tables as literal "[table]"; documents.ts render() has no blocks branch. Serials never reach the model |
-| R3 | xlsx read: per-sheet + cell-level (B4 formula) | 🟡 | parity/r3.spec.ts (1/2) 2026-07-14 | all sheets extracted (sentinel ✓); B4 formula ✘ — extraction uses data_only=True, and openpyxl-written files carry no cached values → formulas invisible |
+| R2 | docx read: table contents verbatim | 🟢 | parity/r2.spec.ts ✓ 2026-07-14 (9.9s) | FIXED: docx table rows render into extraction text (was a literal "[table]"); documents.ts render() gained a blocks branch. Local; deployed pending office-Lambda ship |
+| R3 | xlsx read: per-sheet + cell-level (B4 formula) | 🟢 | parity/r3.spec.ts ✓✓ 2026-07-14 (10.6s) | FIXED: two-pass load surfaces formula text ("=SUM(B2:B3) → 36" when cached). Local; deployed pending office-Lambda ship |
 | R4 | pdf read: page-specific QA; scanned PDF honest degrade | 🟢 | parity/r4.spec.ts (2/2) 2026-07-14 | page-7 table verbatim; scanned PDF got an honest no-text statement, no hallucination |
 | R5 | csv read: row count, columns, aggregate | 🔴 | parity/r5.spec.ts ✘✘ 2026-07-14 | full CSV fits context (23,034 chars); columns correct but model GUESSED "355 rows" (actual 1200) and failed the mean. No computational path — claude.ai uses analysis/code-exec. Fix direction: route aggregates to real computation |
 | R6 | image read: vision accurate, multi-image | 🟢 | parity/r6.spec.ts (2/2) 2026-07-14 | single + two-image |
