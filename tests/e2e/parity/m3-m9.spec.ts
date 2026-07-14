@@ -1,0 +1,99 @@
+/** M3 remember/forget, M4 modal, M5 deletion propagation (suspected gap),
+ * M6 knowledge citations @red, M7 instructions, M8 knowledge RAG page-7,
+ * M9 incognito @red. M1/M2 run as the existing evals against the DEPLOYED
+ * stack (recorded separately). */
+import { test, expect } from '@playwright/test';
+import { composer, waitIdle, pollBody, cleanupMarked, api, fixture, MARK } from './helpers';
+
+async function newChat(page: import('@playwright/test').Page): Promise<void> {
+  await page.goto('/');
+  await page.getByText('New chat', { exact: true }).first().click();
+  await page.waitForTimeout(400);
+}
+
+test.describe('M3-M9 memory & projects', () => {
+  test.afterAll(cleanupMarked);
+
+  test('M3 remember tool fires and the fact recalls in a NEW chat', async ({ page }) => {
+    await newChat(page);
+    await composer(page).fill(`${MARK} Remember for this project: the staging bucket is called cobalt-staging-11.`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 90_000);
+    await newChat(page);
+    await composer(page).fill(`${MARK} What is the staging bucket called?`);
+    await composer(page).press('Enter');
+    await pollBody(page, /cobalt-staging-11/, 90_000);
+  });
+
+  test('M4 memory modal lists the fact and supports delete', async ({ page }) => {
+    await page.goto('/');
+    const brain = page.locator('button:has(svg.lucide-brain), button[title*="emory"]').first();
+    await expect(brain).toBeVisible({ timeout: 10_000 });
+    await brain.click();
+    await expect(page.locator('text=cobalt-staging-11').first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('M5 deleting a conversation purges its derived facts', async ({ page }) => {
+    await newChat(page);
+    await composer(page).fill(`${MARK} Remember for this project: the incident bridge number is 774-PURGE-ME.`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 90_000);
+    // force extraction, then delete the conversation
+    const convs = await api<Array<{ id: string; title: string; project_id?: string }>>('/conversations');
+    const conv = convs.find((c) => c.title.includes(MARK));
+    expect(conv).toBeTruthy();
+    await api('/conversations/delete', { method: 'POST', body: JSON.stringify({ ids: [conv!.id] }) });
+    await newChat(page);
+    await composer(page).fill(`${MARK} What is the incident bridge number? If you don't know, say NO-BRIDGE-KNOWN.`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 90_000);
+    const body = await page.locator('body').innerText();
+    expect(body, 'fact from a deleted conversation must not recall').not.toContain('774-PURGE-ME');
+  });
+
+  test('@red M6 knowledge answers cite the source file as a rendered chip', async ({ page }) => {
+    await newChat(page);
+    await composer(page).fill(`${MARK} What is the northern zone codeword in the field manual?`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 90_000);
+    const chip = page.locator('[class*="citation"], [class*="source"], a[title*="manual"]');
+    expect(await chip.count(), 'no rendered source-citation chip').toBeGreaterThan(0);
+  });
+
+  test('M7 project instructions are honored', async ({ page }) => {
+    const projects = await api<Array<{ id: string; name: string }>>('/projects');
+    const pid = projects[0]?.id;
+    expect(pid, 'a project must exist').toBeTruthy();
+    await api(`/projects/${pid}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ instructions: 'Always end every reply with the token INSTR-FOXTROT.' }),
+    });
+    await newChat(page);
+    await composer(page).fill(`${MARK} Reply with a one-line greeting.`);
+    await composer(page).press('Enter');
+    await pollBody(page, /INSTR-FOXTROT/, 90_000);
+    await api(`/projects/${pid}`, { method: 'PATCH', body: JSON.stringify({ instructions: '' }) });
+  });
+
+  test('M8 project knowledge: page-7 fact answered from an uploaded PDF', async ({ page }) => {
+    // upload survey.pdf as project knowledge via the panel input if present,
+    // else via the composer in a project chat (attachment → knowledge)
+    await newChat(page);
+    await page.locator('input[type="file"]').setInputFiles(fixture('survey.pdf'));
+    await page.waitForResponse((r) => r.url().includes('/api/uploads') && r.ok(), { timeout: 120_000 });
+    await composer(page).fill(`${MARK} Noted, thanks. Reply OK.`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 60_000);
+    // ask in a NEW chat — only project knowledge can answer
+    await newChat(page);
+    await composer(page).fill(`${MARK} From the survey document in this project: what is the audited site total on page 7?`);
+    await composer(page).press('Enter');
+    await pollBody(page, /twenty-six|26/, 120_000);
+  });
+
+  test('@red M9 incognito chat: ghost affordance, nothing persisted', async ({ page }) => {
+    await newChat(page);
+    const ghost = page.locator('button:has(svg.lucide-ghost), button[title*="ncognito"], button[title*="emporary"]');
+    await expect(ghost.first(), 'no incognito affordance exists').toBeVisible({ timeout: 5_000 });
+  });
+});

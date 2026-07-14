@@ -1,0 +1,18 @@
+{
+  "service": "atlas-parity",
+  "replicas": 3,
+  "flags": {
+    "beta_ui": true,
+    "sentinel": "JSON-NIGHTJAR-77"
+  },
+  "endpoints": [
+    {
+      "name": "primary",
+      "port": 8443
+    },
+    {
+      "name": "canary",
+      "port": 9443
+    }
+  ]
+}

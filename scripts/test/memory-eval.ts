@@ -7,7 +7,9 @@
  *
  *   pnpm test:memory-eval        (server must be running on :5175)
  */
-const BASE = 'http://127.0.0.1:5175/api';
+// ATLAS_BASE lets the same eval run against the deployed CloudFront origin
+// (parity M1: memory guarantees must hold on the DEPLOYED DynamoDB/S3 Vectors)
+const BASE = `${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api`;
 
 let passed = 0;
 let failed = 0;
