@@ -49,7 +49,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | C4 | pdf create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | pages+text verified via pdfplumber, edit→v2, 35s |
 | C5 | react artifact: renders, stateful, error surface + fix affordance | 🔴 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | component iframe content never became reachable in 60s — investigate panel auto-open vs nested-frame locator before trusting; fix-affordance half untested as a result |
 | C6 | html/site artifact: sandboxed, no cookie access | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | sandbox attr present, no allow-same-origin |
-| C7 | svg artifact | 🟡 | passed 2× then flaked (regression3) 2026-07-14 | svg emission intermittently appends prose after the SVG → "XML not well-formed: Extra text at the end" twice → PipelineError, no artifact. Fix direction: validateSvg should strip trailing text (like stripFences) before failing |
+| C7 | svg artifact | 🟢 | parity spec 3/3 consecutive 2026-07-14 | FIXED: extractSvg cuts the <svg> span out of prose-wrapped emissions before validate+persist (both generate and edit paths) |
 | C8 | mermaid artifact + graceful syntax errors | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | invalid source surfaced a visible parse error |
 | C9 | md artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
 | C10 | artifact versioning: list, browse, restore, per-version download | 🟡 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | v1+v2 downloads OK, version indicator OK; RESTORE not discoverable from the panel; no full history-list UI |

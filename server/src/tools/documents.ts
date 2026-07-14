@@ -10,7 +10,7 @@
  * series and speaker notes.
  */
 import path from 'node:path';
-import { attachmentExtract } from '../routes/uploads.js';
+import { attachmentExtract, attachmentContent } from '../routes/uploads.js';
 import { listKnowledge, knowledgeExtract } from '../memory/knowledge.js';
 import type { OfficeExtract, Slide } from '../office/extract.js';
 import { logTo } from '../log.js';
@@ -132,9 +132,15 @@ export async function readDocument(
   try {
     if (hit.source === 'attachment') {
       const cached = await attachmentExtract(hit.id);
-      if (!cached) return `${hit.name} is not a document that can be read as text`;
-      if (!cached.ok) return `${hit.name} could not be read: ${cached.error}`;
-      return render(hit.name, cached.extract, range);
+      if (cached) {
+        if (!cached.ok) return `${hit.name} could not be read: ${cached.error}`;
+        return render(hit.name, cached.extract, range);
+      }
+      // not an office kind — text/code/data files read verbatim. A "cannot be
+      // read" here made the model distrust content that was in fact available.
+      const content = await attachmentContent(hit.id);
+      if (!content.ok) return `${hit.name} could not be read: ${content.error}`;
+      return `${hit.name}\n\n${content.text}`.slice(0, READ_CAP);
     }
     const ex = await knowledgeExtract(projectId, hit.id);
     if (!ex) return `${hit.name} is no longer available`;
