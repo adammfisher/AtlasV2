@@ -912,7 +912,15 @@ export function ChatView({
                       style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
                     >
                       <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-                      <span>{live.error}</span>
+                      <span className="flex-1">{live.error}</span>
+                      <button
+                        onClick={() => void send(live.userText, true)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium flex-shrink-0"
+                        style={{ background: 'rgba(212,173,106,0.2)', color: C.amber, border: `1px solid rgba(212,173,106,0.4)` }}
+                        title="Retry this message"
+                      >
+                        <RefreshCw size={11} /> Retry
+                      </button>
                     </div>
                   ) : !live.started && !live.pipeline ? (
                     <div className="flex items-center gap-2 text-sm" style={{ color: C.sub, fontFamily: sans }}>

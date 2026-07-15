@@ -1,29 +1,24 @@
 /**
- * AES-256-GCM credential store (PRD §6.2). Values live only in
- * dataDir/credentials/<ref>.enc; the key in dataDir/.atlas-key (chmod 600).
- * Never logged, never in the DB, masked in the UI.
+ * AES-256-GCM credential store (PRD §6.2). Ciphertext AND key live in DynamoDB
+ * settings — in Lambda, dataDir is /tmp, so file-based storage orphaned every
+ * credential on cold start (the key regenerated and old ciphertexts became
+ * undecryptable; connectors then went tokenless SILENTLY — parity P5).
+ *
+ * Threat model note: key and ciphertext share a table. This deployment is a
+ * single-account workspace with no user auth (mission scope) — the encryption
+ * guards against casual table inspection and log leakage, not a DB-level
+ * adversary. A KMS envelope is the upgrade path if that changes. Values are
+ * never logged, never returned by any API, masked in the UI.
  */
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-import { dataDir } from '../config.js';
-
-function keyPath(): string {
-  return path.join(dataDir, '.atlas-key');
-}
+import { getSetting, setSetting } from '../db/appdb.js';
 
 function loadKey(): Buffer {
-  if (!existsSync(keyPath())) {
-    const key = randomBytes(32);
-    writeFileSync(keyPath(), key);
-    chmodSync(keyPath(), 0o600);
-    return key;
-  }
-  return readFileSync(keyPath());
-}
-
-function credFile(ref: string): string {
-  return path.join(dataDir, 'credentials', `${ref}.enc`);
+  const existing = getSetting('credkey');
+  if (existing) return Buffer.from(existing, 'base64');
+  const key = randomBytes(32);
+  setSetting('credkey', key.toString('base64'));
+  return key;
 }
 
 export function storeCredential(value: string, ref?: string): string {
@@ -33,15 +28,14 @@ export function storeCredential(value: string, ref?: string): string {
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const enc = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
-  mkdirSync(path.dirname(credFile(id)), { recursive: true });
-  writeFileSync(credFile(id), Buffer.concat([iv, tag, enc]));
-  chmodSync(credFile(id), 0o600);
+  setSetting(`cred:${id}`, Buffer.concat([iv, tag, enc]).toString('base64'));
   return id;
 }
 
 export function readCredential(ref: string): string | null {
-  if (!existsSync(credFile(ref))) return null;
-  const blob = readFileSync(credFile(ref));
+  const raw = getSetting(`cred:${ref}`);
+  if (!raw) return null;
+  const blob = Buffer.from(raw, 'base64');
   const iv = blob.subarray(0, 12);
   const tag = blob.subarray(12, 28);
   const enc = blob.subarray(28);
@@ -51,5 +45,5 @@ export function readCredential(ref: string): string | null {
 }
 
 export function deleteCredential(ref: string): void {
-  rmSync(credFile(ref), { force: true });
+  setSetting(`cred:${ref}`, '');
 }

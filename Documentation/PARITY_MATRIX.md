@@ -51,8 +51,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | C7 | svg artifact | 🟢 | parity spec 3/3 consecutive 2026-07-14 | FIXED: extractSvg cuts the <svg> span out of prose-wrapped emissions before validate+persist (both generate and edit paths) |
 | C8 | mermaid artifact + graceful syntax errors | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | invalid source surfaced a visible parse error |
 | C9 | md artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
-| C10 | artifact versioning: list, browse, restore, per-version download | 🟡 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | v1+v2 downloads OK, version indicator OK; RESTORE not discoverable from the panel; no full history-list UI |
-| C11 | artifact share link (read-only, logged-out context) | 🟡 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | link works logged-out (presigned S3, 200) but serves an attachment DOWNLOAD, not claude.ai's viewable share page |
+| C10 | artifact versioning: list, browse, restore, per-version download | 🟢 | parity spec ✓ 2026-07-15 (real flow) | version list → select v1 → Restore → server current-version flips. FIXED en route: the panel showed a stale version list after edits (query now invalidated on artifact-ready) |
+| C11 | artifact share link (read-only, logged-out context) | 🟢 | parity spec ✓ 2026-07-15 | browser-renderable kinds (svg/pdf/html/md/png/json) now share as INLINE viewable pages with correct content-types; office binaries stay downloads (nothing renders them) |
 | C12 | downloads from chat AND panel | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
 
 ## 3 · Skills
@@ -62,7 +62,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | S1 | progressive disclosure proven (prompt-size assertion) | 🟢 | scripts/test/parity-s1-disclosure.ts 2026-07-14 | chat prompt carries ZERO skill text (leaner than the ~100-token metadata claim, which is UI-only); matched skill's guidance (~3k tokens total across all) loads per-pipeline-task only |
 | S2 | routing accuracy ≥90% on 20-prompt eval | 🟢 | scripts/test/parity-s2-routing.ts 20/20 2026-07-14 | via the DEPLOYED router path (Bedrock constrained JSON — llama does not exist in Lambda). All 6 must-NOT-fire statements stayed chat |
 | S3 | skills UI toggles gate the router, persist | 🟢 | parity/s3.spec.ts 2026-07-14 | disable pptx → honest refusal, no artifact; Disabled badge persists after reload |
-| S4 | validator loop: fail → retry with feedback | 🟡 | pipeline.log 18:26:48 2026-07-14 | observed LIVE: pptx first pass failed schema ("must have required property 'title'") → repair attempt carrying the validator error. Repair completion unobserved this session (the C1 test abort killed it); historical mermaid repair (June 10) did complete. Full fail→fix→green proof rides on the C1 fix |
+| S4 | validator loop: fail → retry with feedback | 🟢 | parity/s4.spec.ts ✓ 2026-07-15 | proven live end-to-end: hostile mermaid labels fail validation → repair attempt logged with the validator error → valid artifact lands |
 
 ## 4 · Plugins / MCP
 
@@ -72,7 +72,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟢 | local spec ✓ + DEPLOYED live run 2026-07-14 (deepwiki-sse logs archived) | REAL public server (mcp.deepwiki.com) added by URL on the deployed Lambda → connected → read_wiki_structure invoked in chat → grounded answer. Found en route: addCustom enables hardcoded "p1" instead of the ACTIVE project (fix queued — until then a manual project toggle is needed after adding) |
 | P3 | bundled servers rehosted or marked local-dev-only | 🟢 | deployed API check 2026-07-15 | option (b) shipped: marked local-only in the manifest, surfaced as 'unavailable' in the Lambda deployment — no zombie entries |
 | P4 | per-server toggles per chat | 🟢 | parity/p-plugins.spec.ts ✓ 2026-07-15 | BUILT: per-conversation disabled set (mcpoff:<convId>), filtered out of the model's tool list in chat.ts; composer plus-menu lists project connectors with per-chat toggles |
-| P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |
+| P5 | credentials: stored encrypted, never echoed | 🟢 | roundtrip+leak test 2026-07-15 | AES-256-GCM ciphertext AND key persisted in DynamoDB — cold starts no longer orphan credentials (was /tmp). Settings allowlist keeps cred keys out of every API response. KMS envelope noted as upgrade path |
 | P6 | tool-loop robustness: error/timeout/mid-call kill | 🟢 | parity/p-plugins.spec.ts ✓ 2026-07-15 (instrumented) | tool chip proves the call started → server SIGKILLed mid-call → stream finishes (no hang), composer recovers, tool failure recorded in mcp.log and fed to the model |
 
 ## 5 · Conversation core
@@ -99,7 +99,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | W1 | search reliability ≥9/10 varied queries | 🟢 | parity-w1-search.ts 10/10 2026-07-15 | FIXED: html→lite endpoint fallback + 3 jittered backoff rounds (DDG bot-detection is bursty); honest failure only after all passes |
 | W2 | inline citations on search-grounded answers | 🟢 | parity/w2-w4.spec.ts ✓ 2026-07-15 | system prompt requires inline markdown links to tool-result URLs only; anchors render in .chat-md |
 | W3 | URL fetch → grounded answer with citation | 🟢 | parity/w2-w4.spec.ts 2026-07-14 | pasted URL fetched, heading answered verbatim (citation rendering counted under W2) |
-| W4 | per-chat search toggle removes tools | 🟡 | parity/w2-w4.spec.ts 2026-07-14 | toggle-off honestly removes tools (✓) — but scope is GLOBAL despite living in the composer; per-chat is the spec |
+| W4 | per-chat search toggle removes tools | 🟢 | parity/w2-w4.spec.ts ✓ 2026-07-15 | PER-CHAT override (websearch:<convId>); chat A off leaves chat B with web. Bonus fix: the extractor no longer stores the assistant's transient tool state as durable memory (recall poisoning) |
 
 ## 7 · Memory & projects
 
@@ -123,7 +123,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts 2026-07-14 | configured userName known to the model |
 | X3 | markdown torture test (tables, LaTeX, code+copy) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | tables rendered all along (chat gfm + md artifacts); added the missing per-code-block COPY button (RichText decoration). LaTeX split to @red X3b — katex genuinely absent, real feature gap |
 | X4 | streaming: slow-conn, heartbeat, tab-close abort | 🟢 | parity/x4.spec.ts ✓✓ 2026-07-15 | CDP-throttled 50kbps link delivers every token; tab close mid-stream aborts server-side and persists the partial; 15s keep-alives hold CloudFront's origin-read window (proven by deployed runs) |
-| X5 | error recovery: mid-stream kill → retry affordance | 🟡 | bedrock.ts 150s abort ceiling 2026-07-14 | pipeline constrained calls can no longer spin forever (deadline → surfaced PipelineError). Remaining: chat-stream kill recovery + a retry affordance in the UI; dedicated spec pending |
+| X5 | error recovery: mid-stream kill → retry affordance | 🟢 | parity/x5.spec.ts ✓ 2026-07-15 (8.6s) | Bedrock disconnect mid-session → honest persisted error + retry (regenerate) → reconnect → retry succeeds, composer recovers. Live stream errors additionally show an inline Retry button |
 | X6 | voice dictation (Web Speech, graceful hide) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: SpeechRecognition wiring, final transcripts append to the composer, listening state; button hidden on unsupported browsers |
 | X7 | artifacts gallery cross-chat | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: Artifacts view — kind filters, project select, per-row downloads |
 | X8 | mobile layout | 🟢 | parity/x-polish.spec.ts 2026-07-14 | 390px: composer usable, no horizontal overflow |
@@ -131,6 +131,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | added global Cmd/Ctrl-K → focus chat search; Enter/Shift-Enter/Esc already worked |
 
 ## Audit log
+
+- 2026-07-15 (session 5) · **ALL AMBERS CLEARED → 67 🟢 · 0 🟡 · 0 🔴.** C10 (stale version list fixed), C11 (inline viewable shares), S4 (live repair proof), P5 (credentials → DynamoDB), W4 (true per-chat scope + extractor poisoning fix), X5 (retry affordance verified). ULTRA complex-UI suite added (expense tracker with derived state, tabbed dashboard) — exposed and fixed the esbuild outdir/css bug. CAPABILITIES.md added.
 
 - 2026-07-15 · **ZERO RED ROWS.** Session 4 cleared the last seven: C5 (esbuild '<stdout>' output-path bug — bundles were silently discarded since the feature shipped), V2, X1, M9, P4, P6, X4. Standing: **63 🟢 · 4 🟡 · 0 🔴** (ambers: S4 repair-completion proof, C10 restore affordance, C11 share-page UX, W4 per-chat search scope; P5 deployed credential storage remains the one design-level amber).
 

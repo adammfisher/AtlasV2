@@ -120,6 +120,10 @@ export async function buildReactSrcdoc(
       entryPoints: [entry],
       bundle: true,
       write: false,
+      // outdir names the outputs (/out/*.js, /out/*.css) — without it,
+      // write:false + a css import dies with 'Cannot import ... without an
+      // output path', and single outputs get the unfindable '<stdout>' name
+      outdir: '/out',
       format: 'iife',
       // hand the entry's exports to the mount script — without globalName the
       // IIFE returns nothing and AtlasEntry was always {} (blank frames since)
