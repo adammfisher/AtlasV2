@@ -12,6 +12,7 @@ import { Toasts } from './components/Toasts';
 import { ChatView } from './views/Chat/ChatView';
 import { PluginsView } from './views/Plugins/PluginsView';
 import { SkillsView } from './views/Skills/SkillsView';
+import { ArtifactsGallery } from './views/Artifacts/ArtifactsGallery';
 import { ProjectsView } from './views/Projects/ProjectsView';
 
 /** deep-link: /c/<convId> restores that chat on refresh. */
@@ -231,6 +232,7 @@ export default function App() {
           <PluginsView plugins={plugins ?? []} projects={projects ?? []} activeProject={activeProjectId} />
         ) : null}
         {view === 'skills' ? <SkillsView skills={skills ?? []} /> : null}
+        {view === 'artifacts' ? <ArtifactsGallery projects={projects ?? []} /> : null}
         {view === 'projects' ? (
           <ProjectsView
             projects={projects ?? []}

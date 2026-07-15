@@ -287,6 +287,41 @@ export function ChatView({
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean; pasted?: string }>
   >([]);
+  // X6 voice dictation via the Web Speech API — free, on-device/browser, and
+  // hidden entirely on unsupported browsers (graceful degrade per spec)
+  const [listening, setListening] = useState(false);
+  const recRef = useRef<{ stop: () => void } | null>(null);
+  const SpeechRec =
+    (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition ??
+    (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
+  const speechSupported = Boolean(SpeechRec);
+  const toggleDictation = () => {
+    if (listening) {
+      recRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const rec = new (SpeechRec as new () => {
+      continuous: boolean;
+      interimResults: boolean;
+      onresult: (e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void;
+      onend: () => void;
+      start: () => void;
+      stop: () => void;
+    })();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.onresult = (e) => {
+      const last = e.results[e.results.length - 1];
+      const first = last?.isFinal ? last[0] : undefined;
+      if (first) setInput((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${first.transcript}`);
+    };
+    rec.onend = () => setListening(false);
+    recRef.current = rec;
+    rec.start();
+    setListening(true);
+  };
+
   // a send attempted while uploads were in flight — fires when they finish
   const [queuedSend, setQueuedSend] = useState<string | null>(null);
   useEffect(() => {
@@ -1067,9 +1102,17 @@ export function ChatView({
                 />
               ) : null}
             </span>
-            <button className="p-1.5 rounded-lg" style={{ color: C.mute }}>
-              <Mic size={16} />
-            </button>
+            {speechSupported ? (
+              <button
+                onClick={toggleDictation}
+                title={listening ? 'Stop dictation' : 'Dictate (Web Speech)'}
+                data-listening={listening ? 'true' : 'false'}
+                className="p-1.5 rounded-lg"
+                style={{ color: listening ? C.accent : C.mute }}
+              >
+                <Mic size={16} />
+              </button>
+            ) : null}
             <button
               onClick={busy ? stop : () => void send()}
               title={busy ? 'Stop generating' : 'Send'}

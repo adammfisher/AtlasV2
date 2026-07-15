@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
 import { Badge } from './Badge';
@@ -97,6 +97,7 @@ export function Sidebar({
         <NavItem icon={FolderKanban} label="Projects" active={view === 'projects'} onClick={() => setView('projects')} />
         <NavItem icon={Puzzle} label="Plugins" active={view === 'plugins'} onClick={() => setView('plugins')} badge="MCP" />
         <NavItem icon={Sparkles} label="Skills" active={view === 'skills'} onClick={() => setView('skills')} />
+        <NavItem icon={Box} label="Artifacts" active={view === 'artifacts'} onClick={() => setView('artifacts')} />
       </div>
 
       <div

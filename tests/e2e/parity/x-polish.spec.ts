@@ -66,22 +66,32 @@ test.describe('X polish', () => {
     expect(math, 'LaTeX renders as math').toBeGreaterThan(0);
   });
 
-  test('@red X6 mic button is wired (Web Speech), not decorative', async ({ page }) => {
+  test('X6 mic button is wired (Web Speech), not decorative', async ({ page }) => {
     await newChat(page);
     const mic = page.locator('button:has(svg.lucide-mic)').first();
+    // headless Chromium exposes webkitSpeechRecognition, so the button renders
     await expect(mic).toBeVisible();
-    const handled = await mic.evaluate((el) => {
-      // decorative = no click handler property and no listener-attached marker
-      const anyEl = el as unknown as { onclick: unknown };
-      return Boolean(anyEl.onclick) || el.getAttributeNames().some((n) => n.startsWith('data-listening'));
-    });
-    expect(handled, 'mic has no handler — decorative').toBe(true);
+    expect(await mic.getAttribute('data-listening'), 'wired with listening state').toBe('false');
+    await mic.click();
+    // click flips the state marker (actual audio capture needs a mic; the
+    // wiring — construct, start, state — is what this asserts)
+    await expect
+      .poll(async () => mic.getAttribute('data-listening'), { timeout: 5_000 })
+      .toBe('true');
   });
 
-  test('@red X7 cross-chat artifacts gallery surface', async ({ page }) => {
+  test('X7 cross-chat artifacts gallery surface', async ({ page }) => {
     await page.goto('/');
-    const nav = page.locator('text=/artifacts|gallery/i');
-    expect(await nav.count(), 'no artifacts gallery navigation').toBeGreaterThan(0);
+    await page.getByText('Artifacts', { exact: true }).first().click();
+    await page.waitForTimeout(1200);
+    // rows from MANY chats/projects render with kind filters + downloads
+    await expect(page.getByText('Everything generated across every chat and project.')).toBeVisible();
+    expect(await page.locator('a[title^="Download"]').count(), 'artifact rows with downloads').toBeGreaterThan(3);
+    // kind filter narrows
+    await page.getByRole('button', { name: 'docx', exact: true }).click();
+    await page.waitForTimeout(400);
+    const kinds = await page.locator('span[style*="mono"], span.text-xs').allInnerTexts();
+    expect(kinds.join(' ')).toContain('docx');
   });
 
   test('X8 mobile layout smoke (390px)', async ({ page }) => {
