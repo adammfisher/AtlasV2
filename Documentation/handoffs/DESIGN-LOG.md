@@ -433,6 +433,91 @@ parallel rows, banded table with dk2 header, no accent line under titles.
 Vision-rubric scoring stays available behind `ATLAS_VISION_CRITIQUE=1` (advisory;
 not used for the pass/fail above).
 
+---
+
+## 2026-07-15 — Deliverable G: handoff
+
+### What shipped (A–F)
+- **A — doctrine in SKILLs**: 12-archetype numeric doctrine embedded in
+  `skills/pptx/SKILL.md` (~1.4k tokens; references/ for palette/archetypes/
+  validator rubric) + proportional docx/xlsx/pdf doctrine. Injected into every
+  office generation prompt via the existing `officePrompt()` path.
+- **B — ugliness-resistant schemas**: archetype enum, title ≤ 90, required
+  speaker_notes, per-archetype conditional requireds, positions unrepresentable
+  (typed frontier-only `position_overrides`); typed docx/pdf blocks with
+  styles-only discipline; xlsx table model. Stdlib mini-schema validator +
+  content audits in `validate_common.py` (Lambda side), ajv unchanged (server).
+- **C — deterministic builders**: template-driven pptx (furniture-free DFS
+  layouts, grid-normalized placeholders, embedded-Poppins measurement + font
+  stepping + OVERFLOW flags, theme-slot-only color with a runtime assertion,
+  chart doctrine, icon primitives); docx named styles/outline levels/Pillow
+  figures/auto-TOC; xlsx NamedStyles/formats/freeze/Tables/print-area; pdf
+  WeasyPrint paged.css (running header, page N of M, orphans/widows 3).
+- **D — exemplar engine**: 16 schema-valid exemplars across all 12 archetypes,
+  geometry extracted from dfs_library.pptx; deterministic top-K retrieval
+  (Python canonical + TS mirror, parity-proven) wired into the pptx prompt.
+- **E — hard visual gate**: measured overflow, collision, margins, unrounded
+  WCAG contrast vs effective background, font cap, content backstop,
+  placeholder scan, speaker notes; post-render bleed raster scan; per-type
+  gates (docx/xlsx incl. #N/A/pdf); bounded 2-retry fix-and-rerender loop in
+  the orchestrator; advisory vision critique behind a flag.
+- **F — eval**: 18 fixed specs, before/after through the same gates —
+  **2/18 → 18/18 pass, 85 → 0 findings** (full table in the F entry above).
+
+### Numeric doctrine reference
+The authoritative numbers live in `skills/pptx/SKILL.md` (+references/) and are
+enforced in `skills/*/schema.json`, `validate_common._content_audit`,
+`validate.ts officeDoctrineCheck`, and `validate_common.visual_gate_pptx`:
+title ≤ 90 chars/≤ 2 lines · ≤ 5 bullets × ≤ 12 words · ≤ 40 words/content
+slide · type scale 28–40/20–24/18–24/floor 14/captions 12–14 · ≤ 2 families ·
+margins ≥ 0.5" · headline gap ≥ 0.5" · block gap 0.4" · footer clearance ≥
+0.3" · contrast ≥ 4.5:1 / ≥ 3:1 large, unrounded · charts ≤ 5 series, sort
+declared, legend only > 1 series · tables ≤ 7 cols · timeline 3–6 steps ·
+xlsx zero formula errors (#REF!/#DIV/0!/#VALUE!/#N/A/#NAME?) · pdf margins ≥
+0.75", orphans/widows ≥ 3, page N of M.
+
+### Config flags
+- `ATLAS_VISION_CRITIQUE=1` — advisory vision critique (thumbnails from the
+  builder, fixed rubric through the active multimodal Bedrock model, strict
+  JSON, cost/latency logged). Default OFF; never gates.
+- `ATLAS_PDF_ENGINE=xhtml2pdf` — force the pure-python PDF fallback (testing).
+
+### Confirmations
+- **Routing untouched**: zero A–F commits touch `router.ts`, `workflows.ts`, or
+  the `<atlas_behavior>` block (verified per-commit). The only orchestrator.ts
+  changes are the office design path (doctrine check, exemplar injection, fix
+  loop, vision pass).
+- **Scale-to-zero preserved**: no always-on services; the office Lambda remains
+  the only Python runtime; `deploy-office.sh` bundles the new schemas +
+  paged.css into the existing zip-swap flow; `lambda_handler.py` untouched.
+- **Clean-room**: no Anthropic SKILL.md prose, scripts, or license text copied;
+  all doctrine paraphrased in Atlas's own words; geometry and palette extracted
+  from the repo's own DFS templates.
+
+### Workstream interleaving (for archaeology)
+Two parallel sessions shared this working tree. Consequences: commits A/B sit
+on main's history, C–G on `feat/mcp-pat-connectors` (the branch the parallel
+session created mid-flight; it contains A/B); the D orchestrator wiring shipped
+inside the parallel commit `3fab614` after a shared-index race; brain(...)
+commits interleave the series. All A–G content is present on this branch.
+
+### Open questions
+1. The office **edit** flows re-emit full JSON against the new schemas; edited
+   legacy artifacts (old-schema payload versions) will fail validation until
+   regenerated. Recommend a one-time projection migration or regenerate-on-edit.
+2. `us.anthropic.claude-sonnet-5` remains quota-blocked for this account
+   (see bedrock memory note); when granted, the frontier tier gains
+   position_overrides latitude automatically via `officeModel().tier`.
+3. The Lambda's soffice availability differs from the spec preamble (zip deploy
+   ships pure-python); post-render bleed + thumbnails amber-skip there today.
+   If cloud-side rendering is wanted, the office Lambda needs a container image
+   or a soffice layer.
+4. score_docx checks paragraph runs but not table-cell runs (noted blind spot;
+   the builder's own named-styles-only check covers cells on the AFTER path).
+5. dfs_exemplars.json v1 consumers: none remain (the old copier was dead code),
+   but any external tooling reading `manifest.exemplars` as a dict must switch
+   to the v2 list shape.
+
 ### Open questions carried into A–G
 - The 12-archetype schema renames fields (`layout`→`archetype`, `heading`→`title`,
   `notes`→`speaker_notes`): the office **edit** flows re-emit full JSON against the
