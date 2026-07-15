@@ -10,7 +10,10 @@ import {
   bedrockStreamWithTools,
   bedrockCompleteJson,
   bedrockCompleteText,
+  modelDefByKey,
+  structuredOutputs as modelStructuredOutputs,
   type BedrockTool,
+  type ModelDef,
 } from './bedrock.js';
 import * as openai from './openai.js';
 import * as anthropic from './anthropic.js';
@@ -55,4 +58,34 @@ export function completeText(
   if (p === 'openai') return openai.completeText(messages, opts).then((t) => (opts.onDelta?.(t), t));
   if (p === 'anthropic') return anthropic.completeText(messages, opts).then((t) => (opts.onDelta?.(t), t));
   return bedrockCompleteText(messages, opts);
+}
+
+/** Resolve a model key (or the active model when the key is unknown/undefined). */
+function resolveModel(modelKey?: string): ModelDef {
+  return (modelKey ? modelDefByKey(modelKey) : undefined) ?? activeModelDef();
+}
+
+/** Does the given model (by key; default active) expose native structured
+ * outputs? False → the router must force tool-choice. */
+export function structuredOutputs(modelKey?: string): boolean {
+  return modelStructuredOutputs(resolveModel(modelKey));
+}
+
+/**
+ * Constrained-JSON classification pinned to a SPECIFIC model (router Stage 2 +
+ * escalation). Bedrock pins the inference-profile id; the constrained path then
+ * auto-selects json_schema (structured-output models) vs forced tool-choice
+ * (Nova/Nemotron) by the same capability. openai/anthropic use their configured
+ * model (the defined tiers are all bedrock).
+ */
+export function classifyJson(
+  modelKey: string,
+  messages: ChatMessage[],
+  schema: Record<string, unknown>,
+  opts: { maxTokens?: number; temperature?: number; signal?: AbortSignal } = {},
+): Promise<string> {
+  const def = resolveModel(modelKey);
+  if (def.provider === 'openai') return openai.completeJson(messages, schema, opts);
+  if (def.provider === 'anthropic') return anthropic.completeJson(messages, schema, opts);
+  return bedrockCompleteJson(messages, schema, { ...opts, modelId: def.model });
 }

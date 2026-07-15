@@ -217,7 +217,7 @@ export const WORKFLOWS: Workflow[] = [
     intent: 'Generate a new PDF one-pager, flyer, or report.',
     triggers: {
       verbs: ['create', 'generate', 'export', 'make', 'produce'],
-      nounObjects: ['pdf', 'one-pager', 'flyer', 'report', 'brochure'],
+      nounObjects: ['pdf', 'flyer', 'brochure'],
       fileTypeContext: ['pdf'],
       predicates: ['noEditTarget'],
     },
@@ -407,7 +407,7 @@ export const WORKFLOWS: Workflow[] = [
     intent: 'Write a new standalone code artifact (function, script, component, app, program).',
     triggers: {
       verbs: ['write', 'build', 'implement', 'create', 'code', 'make'],
-      nounObjects: ['function', 'script', 'component', 'app', 'program', 'class', 'module', 'cli'],
+      nounObjects: ['function', 'script', 'program', 'class', 'module', 'cli', 'algorithm', 'parser'],
       fileTypeContext: ['code'],
       predicates: ['noEditTarget', 'codeReusableOrLong'],
     },

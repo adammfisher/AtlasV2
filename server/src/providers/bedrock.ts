@@ -271,6 +271,22 @@ export interface BedrockCallOptions {
   maxTokens?: number;
   signal?: AbortSignal;
   onDelta?: (delta: string) => void;
+  /** pin a specific inference-profile id (router tier testing + escalation);
+   * defaults to the active model so production paths are unchanged. */
+  modelId?: string;
+}
+
+/** Declarative per-model capability: native structured outputs (json_schema on
+ * Converse). Claude ≥4.5 = true; Nova/Nemotron = false → forced tool-choice.
+ * openai/anthropic APIs expose json_schema / tool schemas, so true. */
+export function structuredOutputs(def: ModelDef): boolean {
+  if (def.provider === 'bedrock') return supportsJsonSchema(def.model);
+  return true;
+}
+
+/** The model definition for a config key, or undefined. */
+export function modelDefByKey(key: string): ModelDef | undefined {
+  return MODEL_DEFS.find((m) => m.key === key);
 }
 
 /** Plain text completion over Converse (mermaid/svg/md emission, summaries).
@@ -330,7 +346,7 @@ export async function bedrockCompleteJson(
   if (!bedrockActive()) throw new Error('Bedrock is not connected');
   const client = runtime(bedrockSettings());
   const { system, messages: msgs } = toConverse(messages);
-  const modelId = activeModelId();
+  const modelId = opts.modelId ?? activeModelId();
   const inferenceConfig = { maxTokens: opts.maxTokens ?? 3072, temperature: opts.temperature ?? 0.2 };
   // hard ceiling per constrained call: a wedged call must become a surfaced
   // pipeline error, never an indefinite "waiting for first tokens" spinner.
