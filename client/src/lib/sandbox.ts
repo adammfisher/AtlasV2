@@ -121,6 +121,9 @@ export async function buildReactSrcdoc(
       bundle: true,
       write: false,
       format: 'iife',
+      // hand the entry's exports to the mount script — without globalName the
+      // IIFE returns nothing and AtlasEntry was always {} (blank frames since)
+      globalName: 'AtlasEntry',
       jsx: 'transform',
       plugins: [vfs],
       logLevel: 'silent',
@@ -134,16 +137,19 @@ export async function buildReactSrcdoc(
     const mount = `const __root=document.getElementById('root');
 const __mod = typeof AtlasEntry !== 'undefined' ? AtlasEntry : null;
 const __C = __mod && (__mod.default || __mod);
-if (__C) { window.ReactDOM.createRoot(__root).render(window.React.createElement(__C)); }`;
+if (typeof __C === 'function') { window.ReactDOM.createRoot(__root).render(window.React.createElement(__C)); }
+else if (!__root.hasChildNodes()) {
+  // a silent blank frame hides the failure — surface it honestly instead
+  __root.innerHTML = '<div style="font-family:monospace;padding:1rem;color:#b45309">' +
+    'Render failed: the entry file has no default-exported component.</div>';
+}`;
     const srcdoc = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="${CSP}">
 ${BASE_STYLE}
 <style>${css}</style></head>
 <body>${NET_SHIM}<div id="root"></div>
 <script>${escapeScript(react)}</script>
 <script>${escapeScript(reactDom)}</script>
-<script>var AtlasEntry=(function(){var module={exports:{}};var exports=module.exports;${escapeScript(
-      code.replace(/^\(\(\)\s*=>\s*\{/, '(() => {'),
-    )};return module.exports;})();</script>
+<script>${escapeScript(code)}</script>
 <script>${mount}</script>
 </body></html>`;
     return { srcdoc, ok: true, error: null, ms: Math.round(performance.now() - started) };

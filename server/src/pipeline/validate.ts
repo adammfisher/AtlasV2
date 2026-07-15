@@ -112,17 +112,36 @@ export function stripFences(source: string): string {
  * a demanded /App.jsx. Deterministic: prefer a case/extension/path variant,
  * else a SINGLE jsx/js file; never guess between multiple candidates. */
 export function healEntryFile(files: Record<string, string>, entry: string): Record<string, string> {
-  if (files[entry]) return files;
   const base = entry.replace(/^\//, '').toLowerCase().replace(/\.(jsx|js|tsx|ts)$/, '');
   const names = Object.keys(files);
-  const variant = names.find((n) => {
-    const stripped = n.toLowerCase().replace(/^.*\//, '').replace(/\.(jsx|js|tsx|ts)$/, '');
-    return stripped === base || stripped === 'index';
-  });
+  // the sandbox renders the entry's DEFAULT EXPORT — prefer (1) a name variant
+  // that actually exports one, (2) ANY script exporting one, (3) a name
+  // variant, (4) a single script. index.* often holds the render call, not
+  // the component — never prefer it over an export-default file.
+  const hasDefault = (n: string): boolean => /export\s+default/.test(files[n] ?? '');
+  const nameMatch = (n: string): boolean =>
+    n.toLowerCase().replace(/^.*\//, '').replace(/\.(jsx|js|tsx|ts)$/, '') === base;
   const scripts = names.filter((n) => /\.(jsx|js|tsx)$/i.test(n));
-  const source = variant ?? (scripts.length === 1 ? scripts[0] : undefined);
+  const source = files[entry]
+    ? entry
+    : (scripts.find((n) => nameMatch(n) && hasDefault(n)) ??
+      scripts.find(hasDefault) ??
+      scripts.find(nameMatch) ??
+      (scripts.length === 1 ? scripts[0] : undefined));
   if (!source) return files;
-  return { ...files, [entry]: files[source]! };
+  let content = files[source]!;
+  // some models emit pre-ESM React (component + ReactDOM.render, no exports) —
+  // EVEN under the demanded entry name. The sandbox mounts the entry's default
+  // export, so append one for the detected component — deterministic: the LAST
+  // capitalized function/const declaration wins; none found = leave untouched
+  // (the sandbox then surfaces an honest render error).
+  if (!/export\s+default/.test(content)) {
+    const decls = [...content.matchAll(/(?:function|const)\s+([A-Z][A-Za-z0-9_]*)\s*[=(]/g)].map((m) => m[1]!);
+    const name = decls[decls.length - 1];
+    if (name) content += `\nexport default ${name};\n`;
+  }
+  if (source === entry && content === files[entry]) return files;
+  return { ...files, [entry]: content };
 }
 
 export function validateFileMap(
