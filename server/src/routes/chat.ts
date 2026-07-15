@@ -278,8 +278,13 @@ chatRouter.post('/:id/messages', async (req, res) => {
         `You are Atlas, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
         'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
         'Be direct, concise, and concrete.';
+      // web search is on by default; needed here for the citations instruction
+      const webEnabled = getSetting('webSearchEnabled') !== '0';
       const system = [
         PERSONA,
+        webEnabled
+          ? 'CITATIONS: when your answer draws on web_search or web_fetch results, cite each key claim inline as a markdown link to its source URL — [source title](url). Never invent URLs; only link URLs that appeared in tool results.'
+          : '',
         memEnabled
           ? 'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".'
           : '',
@@ -319,8 +324,6 @@ chatRouter.post('/:id/messages', async (req, res) => {
       } catch (err) {
         logTo('mcp', `connector tools unavailable: ${err instanceof Error ? err.message : err}`);
       }
-      // web search is on by default; the user can toggle it off in the composer
-      const webEnabled = getSetting('webSearchEnabled') !== '0';
       // document reads only matter when there is something to read
       const docsReadable = atts.some((a) => a.kind === 'document') || (await listKnowledge(conv.project_id).catch(() => [])).length > 0;
       const tools: BedrockTool[] = [

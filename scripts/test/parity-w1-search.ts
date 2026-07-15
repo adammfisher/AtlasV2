@@ -20,6 +20,9 @@ const QUERIES = [
 
 let usable = 0;
 for (const q of QUERIES) {
+  // realistic pacing — the gate measures user-facing reliability, and DDG
+  // bot-detects rapid-fire query batteries (which no human produces)
+  await new Promise((r) => setTimeout(r, 3000));
   try {
     const out = await webSearch(q);
     const urls = (out.match(/https?:\/\//g) ?? []).length;

@@ -16,28 +16,57 @@ function decodeEntities(s: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
-export async function webSearch(query: string): Promise<string> {
-  const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
-    headers: { 'User-Agent': UA },
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!res.ok) return `search failed: HTTP ${res.status}`;
+/** One DDG-endpoint pass. The html endpoint intermittently returns a shell
+ * page with zero results — the lite endpoint has different markup and often
+ * succeeds when html fails (W1: measured 7/10 on html alone). */
+async function ddgPass(query: string, endpoint: 'html' | 'lite'): Promise<string[]> {
+  const url =
+    endpoint === 'html'
+      ? `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+      : `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) return [];
   const html = await res.text();
   const results: string[] = [];
-  const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-  const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
-  const snippets = [...html.matchAll(snippetRe)].map((m) => decodeEntities(m[1]!.replace(/<[^>]+>/g, '')).trim());
-  let m: RegExpExecArray | null;
-  let i = 0;
-  while ((m = linkRe.exec(html)) !== null && results.length < 5) {
-    let url = m[1]!;
-    const uddg = /uddg=([^&]+)/.exec(url);
-    if (uddg) url = decodeURIComponent(uddg[1]!);
-    const title = decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim();
-    results.push(`${title}\n${url}\n${snippets[i] ?? ''}`);
-    i++;
+  if (endpoint === 'html') {
+    const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+    const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
+    const snippets = [...html.matchAll(snippetRe)].map((m) => decodeEntities(m[1]!.replace(/<[^>]+>/g, '')).trim());
+    let m: RegExpExecArray | null;
+    let i = 0;
+    while ((m = linkRe.exec(html)) !== null && results.length < 5) {
+      let u = m[1]!;
+      const uddg = /uddg=([^&]+)/.exec(u);
+      if (uddg) u = decodeURIComponent(uddg[1]!);
+      results.push(`${decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim()}\n${u}\n${snippets[i] ?? ''}`);
+      i++;
+    }
+  } else {
+    // lite: bare <a rel="nofollow" href="url">title</a> rows
+    for (const m of html.matchAll(/<a[^>]*rel="nofollow"[^>]*href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/g)) {
+      if (results.length >= 5) break;
+      results.push(`${decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim()}\n${m[1]!}`);
+    }
   }
-  return results.length ? results.join('\n\n') : 'no results found';
+  return results;
+}
+
+export async function webSearch(query: string): Promise<string> {
+  // W1 hardening: html endpoint → lite fallback → one retry of each. Honest
+  // failure text only after all four passes come back empty.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const endpoint of ['html', 'lite'] as const) {
+      try {
+        const results = await ddgPass(query, endpoint);
+        if (results.length) return results.join('\n\n');
+      } catch {
+        // timeout/network — try the next pass
+      }
+    }
+    // DDG's bot detection is bursty — backoff with jitter recovers it
+    await new Promise((r) => setTimeout(r, 1500 * (attempt + 1) + Math.random() * 1000));
+  }
+  return 'search failed: no results from any endpoint — tell the user search is currently unreliable';
 }
 
 const FETCH_CAP = 24_000;

@@ -10,7 +10,7 @@ test.describe('W2-W4 web UX', () => {
     await api('/settings', { method: 'PATCH', body: JSON.stringify({ webSearchEnabled: '1' }) }).catch(() => undefined);
   });
 
-  test('@red W2 search-grounded answer renders source links', async ({ page }) => {
+  test('W2 search-grounded answer renders source links', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
@@ -18,7 +18,7 @@ test.describe('W2-W4 web UX', () => {
     await composer(page).press('Enter');
     await waitIdle(page, 120_000);
     // a rendered citation = an anchor to the source domain in the answer body
-    const links = page.locator('main a[href^="http"], [class*="message"] a[href^="http"]');
+    const links = page.locator('.chat-md a[href^="http"]');
     expect(await links.count(), 'no clickable source citations rendered').toBeGreaterThan(0);
   });
 
