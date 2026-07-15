@@ -37,10 +37,19 @@ pluginsRouter.get('/directory', (_req, res) => {
       // bundled connectors stay 'bundled'; anything else with an install row is 'installed'
       let status =
         c.status === 'bundled' ? 'bundled' : install ? (install.status === 'installed' ? 'installed' : install.status) : c.status;
+      // a manifest 'planned' outranks any stale install row — there is no
+      // server to be installed (P1 honesty)
+      if (c.status === 'planned') status = 'planned';
       if (c.id === 'knowledge-core' && !install && knowledgeCoreAvailable()) status = 'available';
+      // honesty (P1): stdio/loopback connectors cannot run in the Lambda
+      // deployment — surface that instead of a dead Connect button
+      const cloud = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+      const availability = (c as { availability?: string }).availability ?? null;
+      if (cloud && availability === 'local-only') status = 'unavailable';
       return {
         ...c,
         status,
+        availability,
         installId: install?.id ?? null,
         enabledProjects: install ? (JSON.parse(install.enabled_projects) as string[]) : [],
         lastError: install?.last_error ?? null,

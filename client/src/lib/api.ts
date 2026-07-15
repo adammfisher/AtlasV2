@@ -90,7 +90,7 @@ export interface PluginEntry {
   colorToken: string;
   transport: string;
   endpoint: string;
-  status: 'bundled' | 'installed' | 'available' | 'error' | 'connected' | 'installing' | 'planned';
+  status: 'bundled' | 'installed' | 'available' | 'error' | 'connected' | 'installing' | 'planned' | 'unavailable';
   description: string;
   tools: string[];
   creds: Array<{ key: string; label: string }>;

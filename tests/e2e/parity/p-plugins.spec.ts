@@ -30,21 +30,20 @@ test.describe('P plugins/MCP', () => {
     await cleanupMarked();
   });
 
-  test('@red P1 directory distinguishes AVAILABLE vs LOCAL-ONLY/PLANNED', async ({ page }) => {
+  test('P1 directory distinguishes AVAILABLE vs LOCAL-ONLY/PLANNED', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Plugins', { exact: true }).first().click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1200);
     const body = await page.locator('body').innerText();
-    // an honest directory labels the unreachable/unimplemented entries
-    for (const dead of ['GitHub', 'Postgres', 'Knowledge Core']) {
-      if (body.includes(dead)) {
-        const row = page.locator(`text=${dead}`).first();
-        const rowBox = row.locator('xpath=ancestor::*[self::div][2]');
-        const label = await rowBox.innerText().catch(() => '');
-        expect(label, `${dead} must be labeled planned/local-only/unavailable`).toMatch(
-          /planned|local.?only|unavailable|not available|error/i,
-        );
-      }
+    // phantom/unshippable connectors carry an honest label
+    expect(body).toMatch(/Planned — not yet available/);
+    // and the API says so structurally
+    const dir = await api<Array<{ id: string; status: string; availability?: string | null }>>('/plugins/directory');
+    for (const dead of ['github', 'postgres', 'sharepoint']) {
+      expect(dir.find((d) => d.id === dead)?.status, `${dead} must be planned`).toBe('planned');
+    }
+    for (const localOnly of ['filesystem', 'memory', 'sqlite']) {
+      expect(dir.find((d) => d.id === localOnly)?.availability, `${localOnly} marked local-only`).toBe('local-only');
     }
   });
 

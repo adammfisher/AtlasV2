@@ -29,7 +29,8 @@
       "projectScopable": true,
       "minAtlasVersion": "0.1.0",
       "url": "http://127.0.0.1:7979/mcp",
-      "warning": "Requires the AOI parser service \u2014 reserved until the Knowledge Core responds on port 7979."
+      "warning": "Requires the AOI parser service \u2014 reserved until the Knowledge Core responds on port 7979.",
+      "availability": "local-only"
     },
     {
       "id": "filesystem",
@@ -50,7 +51,8 @@
       "creds": [],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "availability": "local-only"
     },
     {
       "id": "memory",
@@ -71,7 +73,8 @@
       "creds": [],
       "runtime": "runtimes/python (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "availability": "local-only"
     },
     {
       "id": "sqlite",
@@ -90,7 +93,8 @@
       "creds": [],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAtlasVersion": "0.1.0",
+      "availability": "local-only"
     },
     {
       "id": "github",
@@ -100,7 +104,7 @@
       "colorToken": "text",
       "transport": "stdio",
       "endpoint": "bundled Node runtime",
-      "status": "available",
+      "status": "planned",
       "description": "Repos, PRs, issues, and code search through the bundled runtime \u2014 no global npx required.",
       "tools": [
         "search_code",
@@ -178,8 +182,8 @@
       "icon": "folder-open",
       "colorToken": "blue",
       "transport": "streamable-http",
-      "endpoint": "https://mcp.slack.com/v1",
-      "status": "available",
+      "endpoint": "(no public SharePoint MCP endpoint yet)",
+      "status": "planned",
       "description": "Search and read SharePoint sites, lists and document libraries from chat.",
       "tools": [
         "sp_search",
@@ -188,14 +192,14 @@
       ],
       "creds": [
         {
-          "key": "SLACK_TOKEN",
+          "key": "SHAREPOINT_TOKEN",
           "label": "Bot token"
         }
       ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
       "minAtlasVersion": "0.1.0",
-      "url": "https://mcp.slack.com/v1"
+      "url": null
     },
     {
       "id": "postgres",
@@ -205,7 +209,7 @@
       "colorToken": "green",
       "transport": "stdio",
       "endpoint": "bundled Node runtime",
-      "status": "available",
+      "status": "planned",
       "description": "Read-only SQL over allowlisted databases. Results stream into spreadsheets and analyses.",
       "tools": [
         "query",

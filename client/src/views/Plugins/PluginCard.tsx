@@ -68,6 +68,14 @@ export function PluginCard({
               {enabledHere ? 'Enabled' : 'Disabled'}
             </span>
           </>
+        ) : p.status === 'planned' ? (
+          <Badge color={C.mute} dim="rgba(133,130,122,0.13)">
+            Planned — not yet available
+          </Badge>
+        ) : p.status === 'unavailable' ? (
+          <Badge color={C.amber} dim={C.amberDim}>
+            Local-only — unavailable in this deployment
+          </Badge>
         ) : p.status === 'installed' ? (
           <>
             <Badge color={C.blue} dim={C.blueDim} icon={Check}>
