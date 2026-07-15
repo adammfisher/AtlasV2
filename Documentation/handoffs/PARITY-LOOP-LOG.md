@@ -1,5 +1,67 @@
 # Parity Loop Log
 
+## 2026-07-15 — Session 3 (overnight autonomous run) — MORNING REPORT
+
+**Standing count: 57 🟢 · 4 🟡 · 6 🔴** (from 47/6/14 at session start; Phase A
+opened at 31/9/27). All work committed, pushed, and DEPLOYED to CloudFront.
+
+### Your bug, fixed first
+Sidebar **New chat no longer inherits the active project** — unscoped chats
+land in a neutral "General" project (no instructions, clean memory scope);
+chats started inside a project workspace stay in that project. Spec-proven
+both ways; M2 isolation re-verified 8/8 under the new default.
+
+### Built tonight (all spec-verified, all deployed)
+- **V7 chat share**: read-only HTML snapshot in S3, 7-day view link, revocable
+  (anonymous fetch 200 → revoke → dead), Share button in the chat header.
+- **V8 exports**: single-chat JSON (?format=json) + all-conversations zip with
+  manifest; "Export all" in the sidebar.
+- **X7 artifacts gallery**: cross-chat/cross-project view with kind filters,
+  project select, per-row downloads.
+- **X6 voice dictation**: Web Speech wiring, composer transcript append,
+  hidden on unsupported browsers.
+- **W1 search 10/10** (was 7/10): DDG html→lite fallback + jittered backoff.
+- **W2 citations**: search answers render inline source links.
+- **P1/P3 directory honesty**: sharepoint endpoint/cred copy-paste bug fixed;
+  github/postgres/sharepoint labeled Planned (outranks stale installs);
+  stdio bundles labeled local-only → "unavailable" on the deployed app.
+- **R5 analyze_table** + **R10 queued send** (earlier tonight, deployed).
+
+### Harness-flaw discoveries (product was fine; matrix corrected)
+M6 citation chips and V9 rename both worked all along — the audit specs
+clicked phantom elements (third and fourth instances of this pattern; all
+audit locators now verified against real DOM).
+
+### Remaining 🔴 (6)
+- **C5 react artifacts**: two root causes fixed tonight (entry-file heal —
+  payload + disk; bundle now compiles in ~92ms where it died before), but
+  Nova-emitted code mounts a blank frame, and the "try fixing" affordance is
+  unbuilt. Next: mount contract in react SKILL.md + retry affordance.
+- **P4 per-chat MCP toggles** (per-project exists).
+- **P6 tool-kill honesty**: needs chip/log-level assertions, not reply-text.
+- **M9 incognito**, **X1 styles**, **X3b LaTeX** (katex): genuine feature
+  builds, scoped and ready in the matrix notes.
+- **X4 streaming resilience**: needs an infra-manipulation test approach.
+
+### Remaining 🟡 (4)
+S4 (repair-loop completion proof), C10 (restore affordance), C11 (share page
+vs download), W4 (per-chat search scope), P5 (deployed /tmp credential key —
+needs KMS/DynamoDB storage; design note in matrix), P2 addCustom→active
+project (fixed tonight — verify on next deployed add).
+
+### Exit-criteria status (Phase C)
+Not yet met: 6 RED rows remain, and the 3× consecutive clean-suite runs +
+full-sweep spec are still to do. Recommend: finish the 6 REDs (C5 being the
+big one), then build tests/e2e/parity/full-sweep.spec.ts, then the 3×
+consecutive runs against the deployed app.
+
+### Morning verification (2 minutes)
+1. Open the deployed app — sidebar New chat should say "General" in the header.
+2. Artifacts nav item → gallery with filters.
+3. Any chat → Share button → link opens read-only in an incognito window.
+4. Ask "search the web for X" → answer carries clickable source links.
+
+
 ## 2026-07-14 — Session 2 (Phase B fix loop) — CLOSED
 
 Session close: everything below shipped to AWS (app+client+office at HEAD).

@@ -68,9 +68,9 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🔴 | code audit only — browser evidence INVALIDATED 2026-07-14 | the spec's `aside >>` locator matched nothing (sidebar is a div — no <aside> in the client); the "browser-confirmed" claim was wrong. Code audit stands: github+postgres have NO server files; knowledge-core → 127.0.0.1:7979; sharepoint → mcp.slack.com with SLACK_TOKEN. Re-audit with fixed locators |
+| P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🟢 | p-plugins spec ✓ + deployed API check 2026-07-15 | FIXED: sharepoint endpoint/cred bug corrected; github/postgres/sharepoint 'planned' (outranks stale installs — no dead Connect); stdio bundles 'local-only' → 'unavailable' in Lambda. Verified in the deployed directory |
 | P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟢 | local spec ✓ + DEPLOYED live run 2026-07-14 (deepwiki-sse logs archived) | REAL public server (mcp.deepwiki.com) added by URL on the deployed Lambda → connected → read_wiki_structure invoked in chat → grounded answer. Found en route: addCustom enables hardcoded "p1" instead of the ACTIVE project (fix queued — until then a manual project toggle is needed after adding) |
-| P3 | bundled servers rehosted or marked local-dev-only | 🔴 | code audit 2026-07-14 | filesystem/memory/sqlite = stdio + better-sqlite3 over /tmp SQLite — disjoint from DynamoDB data; chat.ts already hides memory/sqlite as "shadow" connectors writing to a dead DB |
+| P3 | bundled servers rehosted or marked local-dev-only | 🟢 | deployed API check 2026-07-15 | option (b) shipped: marked local-only in the manifest, surfaced as 'unavailable' in the Lambda deployment — no zombie entries |
 | P4 | per-server toggles per chat | 🔴 | code audit 2026-07-14 | per-PROJECT toggles exist (enabled_projects, enforced in toolsForProject + callTool); per-chat granularity absent |
 | P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |
 | P6 | tool-loop robustness: error/timeout/mid-call kill | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 (re-run w/ P2 green) | P2 unblocked but the kill-mid-call reply carried no error language — either the tool call hadn't fired within the 12s pre-kill window or the model narrated the failure without matchable wording. Needs an instrumented repro (assert on the tool chip/mcp.log, not reply text) |
@@ -85,9 +85,9 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | V4 | regenerate | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | |
 | V5 | stop keeps partial (incl. mid-tool-call) | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | basic stop verified; mid-TOOL-CALL stop still unexercised (needs a long tool call to time) — note kept |
 | V6 | copy message | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | clipboard content verified |
-| V7 | chat share link, revocable snapshot | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 | browser-confirmed: no share affordance; no route |
-| V8 | export: single (md+json) + all (zip) | 🟡 | parity/v7-v12.spec.ts 2026-07-14 | V8a md export downloads (✓); json + all-zip absent (✘) |
-| V9 | rename / search / bulk delete + eval teardown | 🔴 | parity/v7-v12.spec.ts ✘ 2026-07-14 (window.prompt handled) | rename now drives the real flow (Edit → pencil → native prompt) but the new title never appears — pencil click may not reach the span handler, or rename fails silently; needs headed repro. Eval pollution stands CONFIRMED (no teardown on script evals) |
+| V7 | chat share link, revocable snapshot | 🟢 | parity/v7-v12.spec.ts ✓ 2026-07-15 (6.9s) | BUILT: snapshot → static noindex HTML in S3, 7-day presigned VIEW link, revoke deletes the object (spec proves anonymous 200 → revoke → dead). Share2 button in chat header |
+| V8 | export: single (md+json) + all (zip) | 🟢 | parity/v7-v12.spec.ts ✓✓ 2026-07-15 | BUILT: ?format=json on single export; GET /conversations/export.zip (md per chat + manifest.json); 'Export all' in sidebar manage row |
+| V9 | rename / search / bulk delete + eval teardown | 🟢 | parity/v7-v12.spec.ts ✓ 2026-07-15 (8.7s) | the pencil is a HOVER control (not manage-mode) — with the right flow the prompt rename persists, /search finds it, filter narrows. Product was fine; two harness generations were wrong. Eval-pollution note stands as hygiene backlog |
 | V10 | feedback thumbs persist | 🟢 | parity/v7-v12.spec.ts ✓ 2026-07-14 (10.3s) | worked all along — persists AND re-renders (inline color); the audit detector checked svg fill instead of style color |
 | V11 | suggested prompts | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
 | V12 | new-chat affordances | 🟢 | parity/v7-v12.spec.ts 2026-07-14 | |
@@ -96,8 +96,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| W1 | search reliability ≥9/10 varied queries | 🔴 | scripts/test/parity-w1-search.ts 7/10 2026-07-14 | DDG scrape returned 0 urls on 3/10 queries (satisfies-operator, CloudFront-timeout, soffice-convert) — the known fragility, confirmed |
-| W2 | inline citations on search-grounded answers | 🔴 | parity/w2-w4.spec.ts ✘ 2026-07-14 | zero clickable source links render in answers |
+| W1 | search reliability ≥9/10 varied queries | 🟢 | parity-w1-search.ts 10/10 2026-07-15 | FIXED: html→lite endpoint fallback + 3 jittered backoff rounds (DDG bot-detection is bursty); honest failure only after all passes |
+| W2 | inline citations on search-grounded answers | 🟢 | parity/w2-w4.spec.ts ✓ 2026-07-15 | system prompt requires inline markdown links to tool-result URLs only; anchors render in .chat-md |
 | W3 | URL fetch → grounded answer with citation | 🟢 | parity/w2-w4.spec.ts 2026-07-14 | pasted URL fetched, heading answered verbatim (citation rendering counted under W2) |
 | W4 | per-chat search toggle removes tools | 🟡 | parity/w2-w4.spec.ts 2026-07-14 | toggle-off honestly removes tools (✓) — but scope is GLOBAL despite living in the composer; per-chat is the spec |
 
@@ -110,7 +110,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | M3 | remember/forget tools | 🟢 | memory-eval §4-5 ✓✓ both envs 2026-07-14 | forget now sweeps lexically behind the vector pass — no layer survives |
 | M4 | memory modal browse/edit | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | fact listed in the modal |
 | M5 | deletion propagation: purge derived facts+vectors | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (12.8s) | FIXED: deleteConversation purges source-stamped notes/KV (+vectors) in project+user scopes and clears the queued extraction (no resurrection). Graph edges not yet swept — noted as residual |
-| M6 | knowledge citations as rendered chips | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no citation/source chip renders |
+| M6 | knowledge citations as rendered chips | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-15 (22.8s) | worked all along — [source: filename] renders as .chat-cite chips; the spec looked for classes that never existed + needed self-contained knowledge after the General-chat change |
 | M7 | project instructions honored | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (8.5s re-audit) | first fail was the harness (wrong project targeted); with the ACTIVE project the instruction token appears in the reply |
 | M8 | knowledge upload + RAG page-7 spot check | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | survey.pdf uploaded → page-7 site total answered in a DIFFERENT chat, 25s |
 | M9 | incognito: zero persistence, banner | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no incognito affordance exists (code + browser) |
@@ -124,8 +124,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | X3 | markdown torture test (tables, LaTeX, code+copy) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | tables rendered all along (chat gfm + md artifacts); added the missing per-code-block COPY button (RichText decoration). LaTeX split to @red X3b — katex genuinely absent, real feature gap |
 | X4 | streaming: slow-conn, heartbeat, tab-close abort | 🔴 | deferred | needs infra manipulation (throttled connection, CloudFront origin timing) — not a browser assertion; test approach TBD next session |
 | X5 | error recovery: mid-stream kill → retry affordance | 🟡 | bedrock.ts 150s abort ceiling 2026-07-14 | pipeline constrained calls can no longer spin forever (deadline → surfaced PipelineError). Remaining: chat-stream kill recovery + a retry affordance in the UI; dedicated spec pending |
-| X6 | voice dictation (Web Speech, graceful hide) | 🔴 | code audit 2026-07-14 | mic button confirmed decorative — no onClick, no speech API usage anywhere |
-| X7 | artifacts gallery cross-chat | 🔴 | code audit 2026-07-14 | no surface; API /artifacts already returns the cross-chat list, so this is UI-only |
+| X6 | voice dictation (Web Speech, graceful hide) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: SpeechRecognition wiring, final transcripts append to the composer, listening state; button hidden on unsupported browsers |
+| X7 | artifacts gallery cross-chat | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: Artifacts view — kind filters, project select, per-row downloads |
 | X8 | mobile layout | 🟢 | parity/x-polish.spec.ts 2026-07-14 | 390px: composer usable, no horizontal overflow |
 | X9 | light theme | 🟢 | parity/x-polish.spec.ts 2026-07-14 | toggle applies (background changes and restores) |
 | X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | added global Cmd/Ctrl-K → focus chat search; Enter/Shift-Enter/Esc already worked |
