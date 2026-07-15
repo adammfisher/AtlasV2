@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost, LogOut } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C, sans, serif } from '../theme/tokens';
+import { C, sans } from '../theme/tokens';
 import { NavItem } from './NavItem';
+import { AtlasLogo } from './AtlasLogo';
 import type { View } from '../lib/store';
 import { api, type Conversation, type ModelsRegistry, type Health } from '../lib/api';
 
@@ -63,10 +64,8 @@ export function Sidebar({
       className="flex flex-col h-full flex-shrink-0"
       style={{ width: 264, background: C.sidebar, borderRight: `1px solid ${C.borderSoft}` }}
     >
-      <div className="px-4 pt-4 pb-3 flex items-center gap-2">
-        <span style={{ fontFamily: serif, fontSize: 21, color: C.text, letterSpacing: '-0.01em' }}>
-          Atlas
-        </span>
+      <div className="px-4 pt-4 pb-3 flex items-center justify-center">
+        <AtlasLogo />
       </div>
 
       <div className="px-2.5">
