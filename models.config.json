@@ -26,6 +26,15 @@
       "provider": "bedrock",
       "model": "us.amazon.nova-2-lite-v1:0",
       "vision": true
+    },
+    {
+      "key": "nemotron",
+      "name": "Nemotron 3 Super 120B",
+      "sub": "NVIDIA · Amazon Bedrock",
+      "provider": "bedrock",
+      "model": "nvidia.nemotron-super-3-120b",
+      "modelComment": "bare id — no us. inference profile needed; text-only (the 120B is not the VL variant)",
+      "vision": false
     }
   ],
   "examples_you_can_uncomment_into_models": [

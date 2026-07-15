@@ -1,7 +1,7 @@
 {
   "_comment": "Simple account config (no Cognito). Each account is a fully separate workspace: its own chats, projects, memory, artifacts and settings. 'models' limits the model dropdown per account — keys must match models.config.json. Passwords are plaintext by design decision (three trusted users, single deployment); rotate by editing this file and redeploying.",
   "users": [
-    { "username": "adammfisher", "password": "buster11", "models": ["haiku", "sonnet", "nova"] },
+    { "username": "adammfisher", "password": "buster11", "models": ["haiku", "sonnet", "nova", "nemotron"] },
     { "username": "susan", "password": "ally", "models": ["nova"] },
     { "username": "demo", "password": "llama", "models": ["nova"] }
   ]
