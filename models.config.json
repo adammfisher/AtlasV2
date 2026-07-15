@@ -1,5 +1,6 @@
 {
   "_comment": "Add or remove models here — they appear in the model dropdown. provider: 'bedrock' (uses the connected AWS Bedrock account), 'openai' (OpenAI API), or 'anthropic' (Anthropic API). For openai/anthropic set keyEnv to the environment variable holding the API key (e.g. OPENAI_API_KEY); the model shows as available only when that key is present. 'vision' true enables image uploads for that model.",
+  "_maxOutputComment": "maxOutput is the model's OWN hard output ceiling, in tokens — not a budget we impose. Generation asks for this much and never less, so the only limit on a document is what the model itself can emit. Getting it WRONG IN EITHER DIRECTION is visible: too low silently truncates long output, too high makes Bedrock reject every call with a validation error. Verify against the provider's model card before editing.",
   "default": "haiku",
   "models": [
     {
@@ -8,6 +9,7 @@
       "sub": "Fast · Amazon Bedrock",
       "provider": "bedrock",
       "model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "maxOutput": 64000,
       "vision": true
     },
     {
@@ -17,6 +19,7 @@
       "provider": "bedrock",
       "model": "us.anthropic.claude-sonnet-4-6",
       "modelComment": "set to us.anthropic.claude-sonnet-5 once AWS clears it for this account",
+      "maxOutput": 128000,
       "vision": true
     },
     {
@@ -25,6 +28,8 @@
       "sub": "Fast & low-cost · multimodal · Amazon Bedrock",
       "provider": "bedrock",
       "model": "us.amazon.nova-2-lite-v1:0",
+      "maxOutputComment": "UNVERIFIED — conservative placeholder. Prior-gen Nova Lite capped at 5k output; raise once the Nova 2 model card is checked.",
+      "maxOutput": 8192,
       "vision": true
     },
     {
@@ -34,6 +39,8 @@
       "provider": "bedrock",
       "model": "nvidia.nemotron-super-3-120b",
       "modelComment": "bare id — no us. inference profile needed; text-only (the 120B is not the VL variant)",
+      "maxOutputComment": "UNVERIFIED — conservative placeholder; raise once the NVIDIA model card is checked.",
+      "maxOutput": 8192,
       "vision": false
     }
   ],
