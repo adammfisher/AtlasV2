@@ -194,9 +194,28 @@ artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
       const bucket = 'atlasv2-uploads-683032473658';
       const key = `shares/${row.id}-v${req.params.v}/${filename}`;
       await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: readFileSync(target) }));
+      // C11: kinds a browser can RENDER open as a viewable page (claude.ai
+      // share parity); office binaries stay downloads — nothing renders them
+      const inlineTypes: Record<string, string> = {
+        '.svg': 'image/svg+xml',
+        '.pdf': 'application/pdf',
+        '.html': 'text/html; charset=utf-8',
+        '.md': 'text/plain; charset=utf-8',
+        '.mmd': 'text/plain; charset=utf-8',
+        '.txt': 'text/plain; charset=utf-8',
+        '.png': 'image/png',
+        '.json': 'application/json',
+      };
+      const ext = path.extname(filename).toLowerCase();
+      const inline = inlineTypes[ext];
       const url = await getSignedUrl(
         s3,
-        new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: `attachment; filename="${filename}"` }),
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          ResponseContentDisposition: inline ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`,
+          ...(inline ? { ResponseContentType: inline } : {}),
+        }),
         { expiresIn: 7 * 86_400 },
       );
       logTo('app', `artifact shared: ${row.id} v${req.params.v} → s3 presigned (7d)`);

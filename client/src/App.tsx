@@ -187,7 +187,11 @@ export default function App() {
   const onArtifactReady = (ref: ArtifactRef) => {
     // claude.ai parity: a freshly generated artifact always opens on the right,
     // handing off from the live writing view (or replacing an older artifact).
-    if (ref.artifactId) setRightPanel({ kind: 'detail', artifactId: ref.artifactId });
+    if (ref.artifactId) {
+      // an EDIT adds a version — the open panel must not show a stale list (C10)
+      void queryClient.invalidateQueries({ queryKey: ['artifact', ref.artifactId] });
+      setRightPanel({ kind: 'detail', artifactId: ref.artifactId });
+    }
   };
 
   return (

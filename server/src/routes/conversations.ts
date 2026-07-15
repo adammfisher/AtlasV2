@@ -275,6 +275,13 @@ body{font-family:-apple-system,Segoe UI,sans-serif;max-width:760px;margin:2rem a
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/** W4 per-chat web-search override ('1'|'0'; clear to fall back to global). */
+conversationsRouter.post('/:id/websearch', (req, res) => {
+  const { enabled } = req.body as { enabled?: boolean | null };
+  setSetting(`websearch:${req.params.id}`, enabled === null || enabled === undefined ? '' : enabled ? '1' : '0');
+  res.json({ ok: true });
+});
+
 /** P4 per-chat tool toggles (claude.ai tool-menu parity): connectors disabled
  * for THIS conversation only — the project-level toggle stays the master. */
 conversationsRouter.get('/:id/tools', (req, res) => {

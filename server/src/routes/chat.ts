@@ -279,8 +279,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
         `You are Atlas, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
         'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
         'Be direct, concise, and concrete.';
-      // web search is on by default; needed here for the citations instruction
-      const webEnabled = getSetting('webSearchEnabled') !== '0';
+      // web search: per-chat override wins, else the global default (W4)
+      const webConv = getSetting(`websearch:${conv.id}`); // null/'' = no override
+      const webEnabled = webConv === '1' || webConv === '0' ? webConv === '1' : getSetting('webSearchEnabled') !== '0';
       const convStyle = getSetting(`style:${conv.id}`) ?? '';
       const system = [
         PERSONA,

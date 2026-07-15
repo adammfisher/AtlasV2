@@ -85,7 +85,7 @@ test.describe('C5-C12 artifact surfaces', () => {
     await expect(page.locator('iframe').last()).toBeVisible({ timeout: 30_000 });
   });
 
-  test('@red C10 versioning: list browsable, restore, per-version download', async ({ page }) => {
+  test('C10 versioning: list browsable, restore, per-version download', async ({ page }) => {
     const t0 = Date.now();
     await create(page, 'Create an SVG icon of a lighthouse.');
     await composer(page).fill(`${MARK} Make the lighthouse red.`);
@@ -99,11 +99,20 @@ test.describe('C5-C12 artifact surfaces', () => {
       const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${art!.id}/versions/${v}/download`);
       expect(res.ok, `v${v} download → ${res.status}`).toBe(true);
     }
-    // UI: a version list + restore affordance
-    const versionUi = await page.locator('text=/v1|version/i').count();
-    const restoreUi = await page.getByRole('button', { name: /restore/i }).count();
-    expect(versionUi, 'version indicator visible').toBeGreaterThan(0);
-    expect(restoreUi, 'restore affordance visible').toBeGreaterThan(0);
+    // UI flow: open the panel, select v1 in the version list → Restore appears
+    // → restoring makes v1 current again (server truth)
+    // the version browser lives in the artifact DETAIL panel — open it via the card
+    await page.locator('text=graphic.svg').last().click();
+    await page.waitForTimeout(800);
+    const v1btn = page.getByRole('button', { name: 'v1', exact: true }).last();
+    await expect(v1btn, 'version list browsable').toBeVisible({ timeout: 10_000 });
+    await v1btn.click();
+    const restore = page.getByRole('button', { name: /restore/i }).first();
+    await expect(restore, 'restore appears for a non-current version').toBeVisible({ timeout: 5_000 });
+    await restore.click();
+    await expect
+      .poll(async () => (await api<{ ver: number }>(`/artifacts/${art!.id}`)).ver, { timeout: 10_000 })
+      .toBe(1);
   });
 
   test('C11 share link opens read-only in a logged-out context', async ({ page, browser }) => {
@@ -118,13 +127,12 @@ test.describe('C5-C12 artifact surfaces', () => {
     const url = await page.evaluate(() => navigator.clipboard.readText());
     expect(url, 'share must copy a URL').toMatch(/^https?:\/\//);
 
-    // the link must serve the content to an unauthenticated client. Today it
-    // is a presigned S3 DOWNLOAD (content-disposition: attachment) — reachable
-    // and read-only, but not claude.ai's viewable share page → AMBER note.
+    // viewable kinds must open IN the browser (inline), not download (C11)
     const res = await fetch(url);
     expect(res.status, 'share link fetch').toBe(200);
     const disposition = res.headers.get('content-disposition') ?? '';
-    console.log(`C11 evidence: share serves ${disposition || 'inline content'}`);
+    expect(disposition, 'svg share renders in the browser tab').toContain('inline');
+    expect(res.headers.get('content-type')).toContain('svg');
   });
 
   test('C12 downloads reachable from chat and panel', async ({ page }) => {

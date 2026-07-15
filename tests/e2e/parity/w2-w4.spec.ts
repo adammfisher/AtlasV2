@@ -31,17 +31,24 @@ test.describe('W2-W4 web UX', () => {
     await pollBody(page, /Example Domain/i, 120_000);
   });
 
-  test('W4 search toggle off removes the tools (global-scope noted)', async ({ page }) => {
-    await api('/settings', { method: 'PATCH', body: JSON.stringify({ webSearchEnabled: '0' }) });
+  test('W4 PER-CHAT search toggle: off in chat A, chat B keeps web access', async ({ page }) => {
+    // chat A: toggle off via the per-chat route
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
-    await page.waitForTimeout(400);
+    await expect.poll(() => page.url(), { timeout: 10_000 }).toMatch(/\/c\/[A-Za-z0-9_-]+/);
+    const convA = /\/c\/([A-Za-z0-9_-]+)/.exec(page.url())?.[1];
+    expect(convA).toBeTruthy();
+    await api(`/conversations/${convA}/websearch`, { method: 'POST', body: JSON.stringify({ enabled: false }) });
     await composer(page).fill(`${MARK} Search the web for today's date in Tokyo. If you have no web access, reply exactly NO-WEB-TOOLS.`);
     await composer(page).press('Enter');
     await waitIdle(page, 90_000);
-    const body = await page.locator('body').innerText();
-    expect(body).toMatch(/NO-WEB-TOOLS|no (web|internet|search) access|can'?t search/i);
-    // and no web tool chip may appear
-    expect(body).not.toMatch(/web_search · web/);
+    const bodyA = await page.locator('body').innerText();
+    expect(bodyA).toMatch(/NO-WEB-TOOLS|no (web|internet|search) access|can'?t search/i);
+    // chat B: untouched — web tools present (global default on)
+    await page.getByText('New chat', { exact: true }).first().click();
+    await page.waitForTimeout(600);
+    await composer(page).fill(`${MARK} Do you have web search tools available right now? Reply exactly WEB-OK if yes, NO-WEB-TOOLS if no.`);
+    await composer(page).press('Enter');
+    await pollBody(page, /WEB-OK/, 90_000);
   });
 });

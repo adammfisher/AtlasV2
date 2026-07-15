@@ -111,6 +111,8 @@ Do NOT extract (these pollute memory):
 - Verbatim passages copied from a document (those already live in project knowledge) — capture the
   CONCLUSION or DECISION, not a raw excerpt.
 - Conversational ephemera, pleasantries, or things true only for today.
+- The assistant's OWN tool or capability state ("no web access", "cannot search", connector
+  availability) — tools are per-chat settings, and storing them poisons every later chat.
 - Sensitive attributes (health, politics, religion, sexuality, precise location, financial account details).
 
 If the excerpt is only a question-and-answer with no new user-asserted fact, return empty arrays.

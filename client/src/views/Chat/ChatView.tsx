@@ -278,11 +278,20 @@ export function ChatView({
   });
   const remember = rememberState?.remember ?? true;
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: api.settings });
-  const webSearch = settings?.webSearchEnabled !== '0'; // on by default
+  // W4: the composer toggle is PER-CHAT (claude.ai scope); global stays the default
+  const [webOverride, setWebOverride] = useState<boolean | null>(null);
+  useEffect(() => setWebOverride(null), [convId]);
+  const webSearch = webOverride ?? (settings?.webSearchEnabled !== '0');
   const toggleWebSearch = () => {
-    void api.patchSettings({ webSearchEnabled: webSearch ? '0' : '1' }).then(() =>
-      queryClient.invalidateQueries({ queryKey: ['settings'] }),
-    );
+    const next = !webSearch;
+    setWebOverride(next);
+    if (convId) {
+      void fetch(`/api/conversations/${convId}/websearch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: next }),
+      });
+    }
   };
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean; pasted?: string }>
