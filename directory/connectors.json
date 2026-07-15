@@ -97,6 +97,43 @@
       "availability": "local-only"
     },
     {
+      "id": "gitlab",
+      "name": "GitLab",
+      "vendor": "GitLab",
+      "icon": "git-branch",
+      "colorToken": "amber",
+      "transport": "stdio",
+      "endpoint": "bundled Node runtime",
+      "status": "available",
+      "description": "Projects, issues, and merge requests over the GitLab REST API v4. Authenticated with a personal access token; works against gitlab.com or a self-hosted instance.",
+      "tools": [
+        "gitlab_search_projects",
+        "gitlab_list_issues",
+        "gitlab_get_issue",
+        "gitlab_create_issue",
+        "gitlab_list_merge_requests",
+        "gitlab_get_merge_request"
+      ],
+      "creds": [
+        {
+          "key": "GITLAB_PAT",
+          "label": "Personal access token"
+        }
+      ],
+      "config": [
+        {
+          "key": "GITLAB_URL",
+          "label": "GitLab host",
+          "default": "https://gitlab.com",
+          "placeholder": "https://gitlab.example.com"
+        }
+      ],
+      "runtime": "runtimes/node (portable folder)",
+      "projectScopable": true,
+      "minAtlasVersion": "0.1.0",
+      "availability": "local-only"
+    },
+    {
       "id": "github",
       "name": "GitHub",
       "vendor": "GitHub",

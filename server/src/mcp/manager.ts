@@ -18,9 +18,12 @@ import {
 } from '../db/appdb.js';
 import { dataDir, repoRoot } from '../config.js';
 import { logTo } from '../log.js';
-import { readCredential } from './credentials.js';
+import { readCredential, storeCredential, deleteCredential } from './credentials.js';
 
+/** Auto-installed on first boot: no credentials, always available. */
 const BUNDLED = ['filesystem', 'memory', 'sqlite'];
+/** Every connector whose implementation lives in servers/ and speaks stdio. */
+const LOCAL_SERVERS = [...BUNDLED, 'gitlab'];
 const KC_URL = 'http://127.0.0.1:7979/mcp';
 
 export interface ConnectorEntry {
@@ -73,7 +76,74 @@ export function urlAllowed(url: string): boolean {
   }
 }
 
-function bundledTransport(connectorId: string, projectId: string): StdioClientTransport {
+/** Base env for any stdio child: the scrub list, plus nothing from this process. */
+function baseEnv(projectId: string): Record<string, string> {
+  return {
+    ATLAS_PROJECT_ID: projectId,
+    ATLAS_DB_PATH: path.join(dataDir, 'data', 'atlas.db'),
+    ATLAS_DATA_DIR: dataDir,
+    PATH: process.env.PATH ?? '',
+  };
+}
+
+/**
+ * The install's non-secret config plus its one stored credential, keyed by the
+ * manifest's declared `config`/`creds` entries. stdio servers read these from
+ * their env; HTTP servers get the token as a Bearer header instead.
+ */
+function serverEnv(install: InstallRow, spec: ConnectorEntry | null): Record<string, string> {
+  const env: Record<string, string> = {};
+  const config = install.config ? (JSON.parse(install.config) as Record<string, string>) : {};
+  for (const [key, value] of Object.entries(config)) if (value) env[key] = value;
+  const credKey = (spec?.creds as Array<{ key: string }> | undefined)?.[0]?.key;
+  if (credKey && install.credentials_ref) {
+    const token = readCredential(install.credentials_ref);
+    if (token) env[credKey] = token;
+  }
+  return env;
+}
+
+/** True when the manifest declares a credential the install does not have yet. */
+function credentialMissing(install: InstallRow, spec: ConnectorEntry | null): boolean {
+  return Boolean((spec?.creds as unknown[] | undefined)?.length) && !install.credentials_ref;
+}
+
+/** A custom install carries its own spec; a directory install looks its own up. */
+function specFor(install: InstallRow): ConnectorEntry | null {
+  const custom = install.custom_config ? (JSON.parse(install.custom_config) as ConnectorEntry) : null;
+  return custom ?? directory().find((c) => c.id === install.connector_id) ?? null;
+}
+
+/**
+ * Connect and persist the outcome — the one place install status is decided.
+ * A connector still missing its token is parked as 'needs-credentials' rather
+ * than connected-and-401'd, so the UI can ask for the token instead of showing
+ * an auth error the user has no way to act on yet.
+ */
+async function connectAndRecord(row: InstallRow, projectId: string): Promise<InstallRow> {
+  if (credentialMissing(row, specFor(row))) {
+    row.status = 'needs-credentials';
+    row.last_error = null;
+    await putInstall(row);
+    return row;
+  }
+  try {
+    await withTimeout(connectClient(row, projectId), 5000, 'MCP initialize timed out (5s)');
+    row.status = 'connected';
+    row.last_error = null;
+  } catch (err) {
+    row.status = 'error';
+    row.last_error = err instanceof Error ? err.message : String(err);
+  }
+  await putInstall(row);
+  return row;
+}
+
+function bundledTransport(
+  connectorId: string,
+  projectId: string,
+  extraEnv: Record<string, string>,
+): StdioClientTransport {
   // portable build ships pre-bundled .mjs servers run by the vendored node;
   // dev runs the .ts sources through tsx
   const bundled = path.join(repoRoot, 'servers', `${connectorId}.mjs`);
@@ -82,12 +152,7 @@ function bundledTransport(connectorId: string, projectId: string): StdioClientTr
     command: useBundled ? process.execPath : path.join(repoRoot, 'node_modules/.bin/tsx'),
     args: [useBundled ? bundled : path.join(repoRoot, 'servers', `${connectorId}.ts`)],
     cwd: dataDir, // jail: built-ins never run with the repo as cwd
-    env: {
-      ATLAS_PROJECT_ID: projectId,
-      ATLAS_DB_PATH: path.join(dataDir, 'data', 'atlas.db'),
-      ATLAS_DATA_DIR: dataDir,
-      PATH: process.env.PATH ?? '',
-    },
+    env: { ...baseEnv(projectId), ...extraEnv },
   });
 }
 
@@ -96,14 +161,13 @@ async function connectClient(install: InstallRow, projectId: string): Promise<Cl
   const existing = live.get(key);
   if (existing) return existing.client;
 
-  const entry = directory().find((c) => c.id === install.connector_id);
-  const custom = install.custom_config ? (JSON.parse(install.custom_config) as ConnectorEntry) : null;
-  const spec = custom ?? entry;
+  const spec = specFor(install);
   if (!spec) throw new Error(`unknown connector ${install.connector_id}`);
 
   const client = new Client({ name: 'atlas', version: '2.0.0' });
-  if (BUNDLED.includes(install.connector_id) && install.source !== 'custom') {
-    await client.connect(bundledTransport(install.connector_id, projectId));
+  const extraEnv = serverEnv(install, spec);
+  if (LOCAL_SERVERS.includes(install.connector_id) && install.source !== 'custom') {
+    await client.connect(bundledTransport(install.connector_id, projectId, extraEnv));
   } else if (spec.transport === 'stdio' && spec.launch) {
     const command = path.resolve(repoRoot, spec.launch.command);
     if (!command.startsWith(repoRoot + path.sep)) {
@@ -114,12 +178,7 @@ async function connectClient(install: InstallRow, projectId: string): Promise<Cl
         command,
         args: spec.launch.args ?? [],
         cwd: dataDir,
-        env: {
-          ATLAS_PROJECT_ID: projectId,
-          ATLAS_DB_PATH: path.join(dataDir, 'data', 'atlas.db'),
-          ATLAS_DATA_DIR: dataDir,
-          PATH: process.env.PATH ?? '',
-        },
+        env: { ...baseEnv(projectId), ...extraEnv },
       }),
     );
   } else {
@@ -185,11 +244,21 @@ export async function ensureBundledInstalled(): Promise<void> {
 export async function installConnector(
   connectorId: string,
   activeProject: string,
+  options: { credential?: string; config?: Record<string, string> } = {},
 ): Promise<InstallRow> {
   const entry = directory().find((c) => c.id === connectorId);
   if (!entry) throw new Error(`unknown connector ${connectorId}`);
-  if (entry.status === 'planned' && !kcAvailable) {
-    throw new Error('Reserved — Knowledge Core is not responding on port 7979');
+  // 'planned' means there is no implementation to install. Knowledge Core is the
+  // one that becomes real the moment its peer service answers.
+  if (entry.status === 'planned' && !(connectorId === 'knowledge-core' && kcAvailable)) {
+    throw new Error(
+      connectorId === 'knowledge-core'
+        ? 'Knowledge Core is not responding on port 7979 — start the service, or add it as a custom MCP server.'
+        : `${entry.name as string} has no server implementation yet — add it as a custom MCP server if you have an endpoint.`,
+    );
+  }
+  if (entry.url && !urlAllowed(entry.url)) {
+    throw new Error(`URL not allowed by policy: ${entry.url as string}`);
   }
   const id = `inst_${connectorId}_${randomUUID().slice(0, 6)}`;
   const row: InstallRow = {
@@ -197,52 +266,67 @@ export async function installConnector(
     connector_id: connectorId,
     source: 'directory',
     status: 'installing',
-    enabled_projects: '[]',
+    // enabled where it was installed from, so it works the moment it connects
+    enabled_projects: JSON.stringify([activeProject]),
     created_at: Date.now(),
     custom_config: null,
-    credentials_ref: null,
+    config: options.config ? JSON.stringify(options.config) : null,
+    credentials_ref: options.credential ? storeCredential(options.credential) : null,
     last_error: null,
   };
   await putInstall(row);
-  try {
-    if (entry.url && !urlAllowed(entry.url)) throw new Error(`URL not allowed by policy: ${entry.url}`);
-    await withTimeout(connectClient(row, activeProject), 5000, 'MCP initialize timed out (5s)');
-    row.status = 'connected';
-    row.enabled_projects = JSON.stringify([activeProject]);
-    row.last_error = null;
-    await putInstall(row);
-    audit(`install\t${connectorId}\tok`);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    row.status = 'error';
-    row.last_error = message;
-    await putInstall(row);
-    audit(`install\t${connectorId}\terror`);
-  }
+  await connectAndRecord(row, activeProject);
+  audit(`install\t${connectorId}\t${row.status}`);
   return row;
+}
+
+/**
+ * Save config/credential on an install, then reconnect so status reflects the
+ * new settings. This is what the Save button in the plugin modal calls.
+ */
+export async function configureInstall(
+  installId: string,
+  patch: { config?: Record<string, string>; credential?: string | null },
+  projectId: string,
+): Promise<InstallRow> {
+  const row = (await installs()).find((r) => r.id === installId);
+  if (!row) throw new Error('install not found');
+  if (patch.config) {
+    const current = row.config ? (JSON.parse(row.config) as Record<string, string>) : {};
+    row.config = JSON.stringify({ ...current, ...patch.config });
+  }
+  if (patch.credential !== undefined) {
+    if (patch.credential) {
+      row.credentials_ref = storeCredential(patch.credential, row.credentials_ref ?? undefined);
+    } else if (row.credentials_ref) {
+      deleteCredential(row.credentials_ref);
+      row.credentials_ref = null;
+    }
+  }
+  await putInstall(row);
+  // drop any live client so the next connect picks up the new env/headers
+  await closeLive(row.connector_id);
+  await connectAndRecord(row, projectId);
+  audit(`configure\t${row.connector_id}\t${row.status}`);
+  return row;
+}
+
+/** Drop every live client for a connector, across all projects. */
+async function closeLive(connectorId: string): Promise<void> {
+  for (const [key, entry] of [...live.entries()]) {
+    if (key.startsWith(`${connectorId}:`)) {
+      await entry.client.close().catch(() => undefined);
+      live.delete(key);
+    }
+  }
 }
 
 export async function restartInstall(installId: string, activeProject: string): Promise<InstallRow> {
   const row = (await installs()).find((r) => r.id === installId);
   if (!row) throw new Error('install not found');
-  for (const [key, entry] of [...live.entries()]) {
-    if (key.startsWith(`${row.connector_id}:`)) {
-      await entry.client.close().catch(() => undefined);
-      live.delete(key);
-    }
-  }
-  try {
-    await withTimeout(connectClient(row, activeProject), 5000, 'MCP initialize timed out (5s)');
-    row.status = 'connected';
-    row.last_error = null;
-    await putInstall(row);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    row.status = 'error';
-    row.last_error = message;
-    await putInstall(row);
-  }
-  audit(`restart\t${row.connector_id}`);
+  await closeLive(row.connector_id);
+  await connectAndRecord(row, activeProject);
+  audit(`restart\t${row.connector_id}\t${row.status}`);
   return row;
 }
 
@@ -250,22 +334,22 @@ export async function removeInstall(installId: string): Promise<void> {
   const row = (await installs()).find((r) => r.id === installId);
   if (!row) return;
   if (row.source === 'bundled') throw new Error('bundled connectors cannot be removed');
-  for (const [key, entry] of [...live.entries()]) {
-    if (key.startsWith(`${row.connector_id}:`)) {
-      await entry.client.close().catch(() => undefined);
-      live.delete(key);
-    }
-  }
-  if (row.credentials_ref) {
-    const { deleteCredential } = await import('./credentials.js');
-    deleteCredential(row.credentials_ref);
-  }
+  await closeLive(row.connector_id);
+  if (row.credentials_ref) deleteCredential(row.credentials_ref);
   await deleteInstall(installId);
   audit(`remove\t${row.connector_id}`);
 }
 
 export async function addCustom(
-  config: { name: string; transport: string; command?: string; args?: string[]; url?: string },
+  config: {
+    name: string;
+    transport: string;
+    command?: string;
+    args?: string[];
+    url?: string;
+    credential?: string;
+    credentialKey?: string;
+  },
   activeProject: string,
 ): Promise<InstallRow> {
   const connectorId = `custom-${config.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`;
@@ -282,26 +366,28 @@ export async function addCustom(
     id,
     connector_id: connectorId,
     source: 'custom',
-    custom_config: JSON.stringify({ id: connectorId, name: config.name, transport: config.transport, launch: config.command ? { command: config.command, args: config.args ?? [] } : undefined, url: config.url }),
+    custom_config: JSON.stringify({
+      id: connectorId,
+      name: config.name,
+      transport: config.transport,
+      launch: config.command ? { command: config.command, args: config.args ?? [] } : undefined,
+      url: config.url,
+      // an ad-hoc server declaring a cred key gets it as an env var (stdio); a
+      // remote one gets the token as a Bearer header via connectClient
+      creds: config.credential
+        ? [{ key: config.credentialKey || 'MCP_TOKEN', label: 'Token' }]
+        : [],
+    }),
     status: 'installing',
-    enabled_projects: '[]',
+    enabled_projects: JSON.stringify([activeProject]),
     created_at: Date.now(),
-    credentials_ref: null,
+    config: null,
+    credentials_ref: config.credential ? storeCredential(config.credential) : null,
     last_error: null,
   };
   await putInstall(row);
-  try {
-    await withTimeout(connectClient(row, activeProject), 5000, 'MCP initialize timed out (5s)');
-    row.status = 'connected';
-    row.enabled_projects = JSON.stringify([activeProject]);
-    await putInstall(row);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    row.status = 'error';
-    row.last_error = message;
-    await putInstall(row);
-  }
-  audit(`custom-add\t${connectorId}`);
+  await connectAndRecord(row, activeProject);
+  audit(`custom-add\t${connectorId}\t${row.status}`);
   return row;
 }
 

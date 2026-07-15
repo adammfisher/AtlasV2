@@ -66,9 +66,11 @@ unless marked otherwise. Last verified: 2026-07-15.
 
 | Capability | Features |
 |---|---|
-| Remote MCP servers | Add any streamable-HTTP server by URL from the UI — verified in production against a real public server (mcp.deepwiki.com): connect → tools listed → invoked in chat with grounded answers |
+| Remote MCP servers | Add any streamable-HTTP server by URL from the UI — verified in production against a real public server (mcp.deepwiki.com): connect → tools listed → invoked in chat with grounded answers. An optional token is sent as `Authorization: Bearer`, which is what makes ad-hoc Jira / Confluence / Knowledge Core endpoints usable |
+| GitLab | Bundled stdio server over the GitLab REST API v4 (projects, issues, merge requests). PAT-authenticated with a configurable host, so gitlab.com and self-hosted both work. Local-only — stdio servers are not in the Lambda bundle |
+| PAT connectors | A connector declares its secret (`creds`) and non-secret settings (`config`); the token reaches stdio servers as an env var and remote servers as a Bearer header. Install parks as **needs-credentials** rather than connecting and 401-ing, so the UI asks for the token instead of showing an auth error |
 | Scoping | Per-project enablement + **per-chat toggles** in the composer menu; disabled connectors never reach the model |
-| Directory honesty | Planned connectors labeled "Planned — not yet available" (no dead Connect buttons); local-only stdio bundles show "unavailable" on the deployed app |
+| Directory honesty | Planned connectors labeled "Planned — not yet available" (no dead Connect buttons); local-only stdio bundles show "unavailable" on the deployed app. GitHub/SharePoint/Postgres remain manifest-only until a server exists |
 | Credentials | AES-256-GCM, persisted in DynamoDB (survives Lambda cold starts), write-only API — never echoed to the client or the model |
 | Robustness | 30s tool timeout; a server killed mid-call surfaces an honest error, the stream finishes, the composer recovers |
 

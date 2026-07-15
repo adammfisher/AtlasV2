@@ -1,4 +1,4 @@
-import { Check, Download, ShieldCheck } from 'lucide-react';
+import { Check, Download, ShieldCheck, KeyRound, AlertCircle, Loader2 } from 'lucide-react';
 import { C, sans, namedIcon, tokenColor } from '../../theme/tokens';
 import { Badge } from '../../components/Badge';
 import { TransportBadge } from './TransportBadge';
@@ -69,20 +69,42 @@ export function PluginCard({
             </span>
           </>
         ) : p.status === 'planned' ? (
-          <Badge color={C.mute} dim="rgba(133,130,122,0.13)">
+          <Badge color={C.mute} dim={C.hoverWash}>
             Planned — not yet available
           </Badge>
         ) : p.status === 'unavailable' ? (
           <Badge color={C.amber} dim={C.amberDim}>
             Local-only — unavailable in this deployment
           </Badge>
-        ) : p.status === 'installed' ? (
+        ) : p.status === 'needs-credentials' ? (
           <>
-            <Badge color={C.blue} dim={C.blueDim} icon={Check}>
-              Installed
+            <Badge color={C.amber} dim={C.amberDim} icon={KeyRound}>
+              Needs token
             </Badge>
             <span className="text-xs ml-auto" style={{ color: C.mute, fontFamily: sans }}>
               Configure →
+            </span>
+          </>
+        ) : p.status === 'error' ? (
+          <>
+            <Badge color={C.amber} dim={C.amberDim} icon={AlertCircle}>
+              Error
+            </Badge>
+            <span className="text-xs ml-auto" style={{ color: C.mute, fontFamily: sans }}>
+              Configure →
+            </span>
+          </>
+        ) : p.status === 'installing' ? (
+          <Badge color={C.mute} dim={C.hoverWash} icon={Loader2}>
+            Connecting…
+          </Badge>
+        ) : p.status === 'installed' || p.status === 'connected' ? (
+          <>
+            <Badge color={C.blue} dim={C.blueDim} icon={Check}>
+              {p.status === 'connected' ? 'Connected' : 'Installed'}
+            </Badge>
+            <span className="text-xs ml-auto" style={{ color: enabledHere ? C.green : C.mute, fontFamily: sans }}>
+              {enabledHere ? 'Enabled' : 'Disabled'}
             </span>
           </>
         ) : (

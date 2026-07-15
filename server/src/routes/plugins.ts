@@ -3,6 +3,7 @@ import { listInstalls, putInstall, getSetting } from '../db/appdb.js';
 import {
   directory,
   installConnector,
+  configureInstall,
   restartInstall,
   removeInstall,
   addCustom,
@@ -11,7 +12,6 @@ import {
   listToolsFor,
   type InstallRow,
 } from '../mcp/manager.js';
-import { storeCredential, deleteCredential } from '../mcp/credentials.js';
 
 interface Connector {
   id: string;
@@ -54,6 +54,9 @@ pluginsRouter.get('/directory', (_req, res) => {
         enabledProjects: install ? (JSON.parse(install.enabled_projects) as string[]) : [],
         lastError: install?.last_error ?? null,
         hasCredentials: Boolean(install?.credentials_ref),
+        // non-secret settings only (host URLs and the like) — tokens live in the
+        // encrypted store and are never returned by any API
+        configValues: install?.config ? (JSON.parse(install.config) as Record<string, string>) : {},
       };
     });
     // custom installs are not in the directory manifest — surface them too
@@ -117,12 +120,17 @@ pluginsRouter.post('/installs/:id/projects', (req, res) => {
 });
 
 pluginsRouter.post('/installs', (req, res) => {
-  const { connectorId, projectId } = req.body as { connectorId?: string; projectId?: string };
+  const { connectorId, projectId, credential, config } = req.body as {
+    connectorId?: string;
+    projectId?: string;
+    credential?: string;
+    config?: Record<string, string>;
+  };
   if (!connectorId) {
     res.status(400).json({ error: 'connectorId is required' });
     return;
   }
-  installConnector(connectorId, projectId || 'p1')
+  installConnector(connectorId, projectId || 'p1', { credential, config })
     .then((row) =>
       res.json({
         installId: row.id,
@@ -147,36 +155,53 @@ pluginsRouter.post('/installs/:id/restart', (req, res) => {
     .catch((err: Error) => res.status(400).json({ error: err.message }));
 });
 
+/**
+ * Save an install's non-secret config and/or its token, then reconnect so the
+ * reported status reflects the new settings. Values are stored encrypted and
+ * never read back — the response only says whether a credential exists.
+ */
+pluginsRouter.put('/installs/:id/settings', (req, res) => {
+  const { config, credential, projectId } = req.body as {
+    config?: Record<string, string>;
+    credential?: string | null;
+    projectId?: string;
+  };
+  configureInstall(req.params.id, { config, credential }, projectId || 'p1')
+    .then((row) =>
+      res.json({
+        ok: true,
+        status: row.status,
+        lastError: row.last_error,
+        hasCredentials: Boolean(row.credentials_ref),
+      }),
+    )
+    .catch((err: Error) =>
+      res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
+    );
+});
+
+/** Legacy credential-only alias for the settings endpoint. */
 pluginsRouter.put('/installs/:id/credentials', (req, res) => {
-  const { value } = req.body as { value?: string };
-  void (async () => {
-    const install = ((await listInstalls()) as InstallRow[]).find((r) => r.id === req.params.id);
-    if (!install) {
-      res.status(404).json({ error: 'install not found' });
-      return;
-    }
-    if (!value) {
-      if (install.credentials_ref) deleteCredential(install.credentials_ref);
-      install.credentials_ref = null;
-      await putInstall(install);
-      res.json({ ok: true, hasCredentials: false });
-      return;
-    }
-    const ref = storeCredential(value, install.credentials_ref ?? undefined);
-    install.credentials_ref = ref;
-    await putInstall(install);
-    res.json({ ok: true, hasCredentials: true });
-  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+  const { value, projectId } = req.body as { value?: string; projectId?: string };
+  configureInstall(req.params.id, { credential: value ?? null }, projectId || 'p1')
+    .then((row) =>
+      res.json({ ok: true, hasCredentials: Boolean(row.credentials_ref), status: row.status }),
+    )
+    .catch((err: Error) =>
+      res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
+    );
 });
 
 pluginsRouter.post('/custom', (req, res) => {
-  const { name, transport, command, args, url, projectId } = req.body as {
+  const { name, transport, command, args, url, projectId, credential, credentialKey } = req.body as {
     name?: string;
     transport?: string;
     command?: string;
     args?: string[];
     url?: string;
     projectId?: string;
+    credential?: string;
+    credentialKey?: string;
   };
   if (!name || !transport) {
     res.status(400).json({ error: 'name and transport are required' });
@@ -184,7 +209,10 @@ pluginsRouter.post('/custom', (req, res) => {
   }
   // default to the ACTIVE project — 'p1' left freshly-added servers enabled
   // for a project nobody was in (found adding deepwiki to the deployed app)
-  addCustom({ name, transport, command, args, url }, projectId || getSetting('activeProjectId') || 'p1')
+  addCustom(
+    { name, transport, command, args, url, credential, credentialKey },
+    projectId || getSetting('activeProjectId') || 'p1',
+  )
     .then((row) => res.json({ installId: row.id, status: row.status, lastError: row.last_error }))
     .catch((err: Error) => res.status(400).json({ error: err.message }));
 });

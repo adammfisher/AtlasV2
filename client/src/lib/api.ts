@@ -92,10 +92,23 @@ export interface PluginEntry {
   colorToken: string;
   transport: string;
   endpoint: string;
-  status: 'bundled' | 'installed' | 'available' | 'error' | 'connected' | 'installing' | 'planned' | 'unavailable';
+  status:
+    | 'bundled'
+    | 'installed'
+    | 'available'
+    | 'error'
+    | 'connected'
+    | 'installing'
+    | 'planned'
+    | 'unavailable'
+    | 'needs-credentials';
   description: string;
   tools: string[];
   creds: Array<{ key: string; label: string }>;
+  /** Non-secret settings the connector declares (e.g. a self-hosted host URL). */
+  config?: Array<{ key: string; label: string; default?: string; placeholder?: string }>;
+  /** Saved values for those settings; tokens are never included. */
+  configValues?: Record<string, string>;
   runtime: string;
   installId: string | null;
   enabledProjects: string[];
@@ -277,7 +290,16 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ value }),
     }),
-  addCustomPlugin: (cfg: { name: string; transport: string; command?: string; args?: string[]; url?: string; projectId?: string }) =>
+  /** Save host/config and/or token, then reconnect. Returns the resulting status. */
+  savePluginSettings: (
+    installId: string,
+    patch: { config?: Record<string, string>; credential?: string | null; projectId?: string },
+  ) =>
+    request<{ ok: boolean; status: string; lastError: string | null; hasCredentials: boolean }>(
+      `/plugins/installs/${installId}/settings`,
+      { method: 'PUT', body: JSON.stringify(patch) },
+    ),
+  addCustomPlugin: (cfg: { name: string; transport: string; command?: string; args?: string[]; url?: string; projectId?: string; credential?: string; credentialKey?: string }) =>
     request<{ installId: string; status: string; lastError: string | null }>('/plugins/custom', {
       method: 'POST',
       body: JSON.stringify(cfg),

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Wrench, KeyRound, FolderKanban, ShieldCheck, RotateCw, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { X, Wrench, KeyRound, FolderKanban, ShieldCheck, RotateCw, Trash2, Loader2, AlertCircle, Settings2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon, tokenColor } from '../../theme/tokens';
 import { Toggle } from '../../components/Toggle';
@@ -26,6 +26,16 @@ export function PluginModal({
   const [busy, setBusy] = useState<'restart' | 'remove' | 'cred' | null>(null);
   const [credValue, setCredValue] = useState('');
   const [error, setError] = useState<string | null>(p.lastError ?? null);
+  // saved value wins, then the manifest default (e.g. https://gitlab.com)
+  const savedConfig = (): Record<string, string> => {
+    const initial: Record<string, string> = {};
+    for (const f of p.config ?? []) initial[f.key] = p.configValues?.[f.key] ?? f.default ?? '';
+    return initial;
+  };
+  const [configDraft, setConfigDraft] = useState<Record<string, string>>(savedConfig);
+  const configDirty = (p.config ?? []).some(
+    (f) => configDraft[f.key] !== (p.configValues?.[f.key] ?? f.default ?? ''),
+  );
 
   // live listTools replaces toolsPreview once connected
   const { data: liveTools } = useQuery({
@@ -50,7 +60,7 @@ export function PluginModal({
   return (
     <div
       className="absolute inset-0 z-30 flex items-center justify-center p-6"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: C.scrim }}
       onClick={onClose}
     >
       <div
@@ -129,13 +139,33 @@ export function PluginModal({
             </div>
           ) : null}
 
-          {(p.creds ?? []).length > 0 ? (
+          {(p.creds ?? []).length > 0 || (p.config ?? []).length > 0 ? (
             <div>
               <div className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: C.mute, fontFamily: sans }}>
-                Credentials · stored per user (customUserVars)
+                Settings
               </div>
+              {(p.config ?? []).map((f) => (
+                <label
+                  key={f.key}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-1.5"
+                  style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
+                >
+                  <Settings2 size={14} style={{ color: C.blue }} />
+                  <span className="text-sm flex-1" style={{ color: C.text, fontFamily: sans }}>
+                    {f.label}
+                  </span>
+                  <input
+                    value={configDraft[f.key] ?? ''}
+                    placeholder={f.placeholder ?? f.default ?? ''}
+                    disabled={!configurable}
+                    onChange={(e) => setConfigDraft({ ...configDraft, [f.key]: e.target.value })}
+                    className="bg-transparent text-right text-xs outline-none w-56"
+                    style={{ color: C.text, fontFamily: mono }}
+                  />
+                </label>
+              ))}
               {(p.creds ?? []).map((c) => (
-                <div
+                <label
                   key={c.key}
                   className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 mb-1.5"
                   style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
@@ -146,30 +176,44 @@ export function PluginModal({
                   </span>
                   <input
                     type="password"
-                    placeholder={p.hasCredentials ? '••••••••••••' : 'paste token'}
+                    placeholder={p.hasCredentials ? '•••••••• saved' : 'paste token'}
                     value={credValue}
                     disabled={!configurable}
                     onChange={(e) => setCredValue(e.target.value)}
                     className="bg-transparent text-right text-sm outline-none w-40"
                     style={{ color: C.text, fontFamily: sans }}
                   />
-                  <button
-                    disabled={!configurable || !credValue || busy === 'cred'}
-                    onClick={() =>
-                      run('cred', async () => {
-                        await api.setPluginCredential(p.installId as string, credValue);
-                        setCredValue('');
-                      })
-                    }
-                    className="px-2 py-1 rounded-md text-xs font-medium"
-                    style={{ background: C.raised, color: credValue ? C.text : C.mute, border: `1px solid ${C.border}`, fontFamily: sans }}
-                  >
-                    {busy === 'cred' ? <Loader2 size={11} className="animate-spin" /> : 'Save'}
-                  </button>
-                </div>
+                </label>
               ))}
-              <p className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
-                AES-256-GCM at rest in the data dir — never in the database, never logged.
+              <button
+                disabled={!configurable || busy === 'cred' || (!credValue && !configDirty)}
+                onClick={() =>
+                  run('cred', async () => {
+                    await api.savePluginSettings(p.installId as string, {
+                      // omit the token when the field is blank so saving a host
+                      // change doesn't wipe an already-stored one
+                      credential: credValue || undefined,
+                      config: configDraft,
+                      projectId: activeProject,
+                    });
+                    setCredValue('');
+                  })
+                }
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium"
+                style={{
+                  background: C.raised,
+                  color: !configurable || (!credValue && !configDirty) ? C.mute : C.text,
+                  border: `1px solid ${C.border}`,
+                  fontFamily: sans,
+                }}
+              >
+                {busy === 'cred' ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
+                Save & connect
+              </button>
+              <p className="text-xs mt-1.5" style={{ color: C.mute, fontFamily: sans }}>
+                {configurable
+                  ? 'Tokens are AES-256-GCM encrypted at rest, never returned by the API, and never shown to the model.'
+                  : 'Install this connector first, then add its token here.'}
               </p>
             </div>
           ) : null}
@@ -234,7 +278,7 @@ export function PluginModal({
           <button
             onClick={onClose}
             className={configurable ? 'px-4 py-2 rounded-lg text-sm font-medium' : 'ml-auto px-4 py-2 rounded-lg text-sm font-medium'}
-            style={{ background: C.accent, color: '#fff', fontFamily: sans }}
+            style={{ background: C.accent, color: C.accentContrast, fontFamily: sans }}
           >
             Done
           </button>

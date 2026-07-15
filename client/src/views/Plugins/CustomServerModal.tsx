@@ -17,6 +17,8 @@ export function CustomServerModal({
   const [transport, setTransport] = useState<'stdio' | 'streamable-http'>('stdio');
   const [command, setCommand] = useState('');
   const [url, setUrl] = useState('');
+  const [credential, setCredential] = useState('');
+  const [credentialKey, setCredentialKey] = useState('');
   const [busy, setBusy] = useState(false);
 
   const submit = (): void => {
@@ -27,6 +29,8 @@ export function CustomServerModal({
         transport,
         command: transport === 'stdio' ? command : undefined,
         url: transport === 'streamable-http' ? url : undefined,
+        credential: credential || undefined,
+        credentialKey: credentialKey || undefined,
         projectId: activeProject,
       })
       .then((r) => onResult(r.lastError))
@@ -60,7 +64,7 @@ export function CustomServerModal({
   return (
     <div
       className="absolute inset-0 z-30 flex items-center justify-center p-6"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: C.scrim }}
       onClick={onClose}
     >
       <div
@@ -99,16 +103,38 @@ export function CustomServerModal({
           ? field('Command (inside the Atlas repo/runtimes)', command, setCommand, 'servers/my-server.ts')
           : field('URL (loopback or public — private ranges blocked)', url, setUrl, 'http://127.0.0.1:9000/mcp')}
 
+        <label className="block mb-3">
+          <span className="block text-xs font-medium mb-1" style={{ color: C.mute, fontFamily: sans }}>
+            Token — optional (Jira, Confluence, Knowledge Core…)
+          </span>
+          <input
+            type="password"
+            value={credential}
+            onChange={(e) => setCredential(e.target.value)}
+            placeholder="paste a PAT or API token"
+            className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style={{ background: C.panel, border: `1px solid ${C.border}`, color: C.text, fontFamily: sans }}
+          />
+        </label>
+        {credential && transport === 'stdio'
+          ? field('Env var to pass the token as', credentialKey, setCredentialKey, 'MCP_TOKEN')
+          : null}
+
         <p className="text-xs mb-4" style={{ color: C.mute, fontFamily: sans }}>
           Adding a server is your consent to run it. stdio commands must resolve inside the Atlas
           repo — arbitrary host binaries are refused.
+          {credential
+            ? transport === 'streamable-http'
+              ? ' The token is sent as an Authorization: Bearer header, encrypted at rest.'
+              : ' The token is passed to the process as that env var, encrypted at rest.'
+            : ''}
         </p>
 
         <button
           disabled={busy || !name || (transport === 'stdio' ? !command : !url)}
           onClick={submit}
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
-          style={{ background: C.accent, color: '#fff', fontFamily: sans, opacity: busy ? 0.7 : 1 }}
+          style={{ background: C.accent, color: C.accentContrast, fontFamily: sans, opacity: busy ? 0.7 : 1 }}
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Connect
         </button>
