@@ -31,6 +31,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   FileDown,
+  Share2,
   X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -615,6 +616,19 @@ export function ChatView({
           style={{ color: C.mute, opacity: convId ? 1 : 0.4 }}
         >
           <FileDown size={16} />
+        </button>
+        <button
+          onClick={() => {
+            if (!convId) return;
+            void api.shareConversation(convId).then(({ url }) => {
+              void navigator.clipboard.writeText(url);
+            });
+          }}
+          title="Share conversation (copies a 7-day read-only link)"
+          className="p-1.5 rounded-lg"
+          style={{ color: C.mute, opacity: convId ? 1 : 0.4 }}
+        >
+          <Share2 size={16} />
         </button>
         <button
           onClick={onOpenArtifactList}

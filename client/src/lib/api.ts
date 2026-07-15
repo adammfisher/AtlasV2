@@ -227,6 +227,8 @@ export const api = {
   createConversation: (projectId?: string) =>
     request<Conversation>('/conversations', { method: 'POST', body: JSON.stringify(projectId ? { projectId } : {}) }),
   conversation: (id: string) => request<ConversationDetail>(`/conversations/${id}`),
+  shareConversation: (id: string) =>
+    request<{ url: string; expiresDays: number }>(`/conversations/${id}/share`, { method: 'POST', body: '{}' }),
   deleteConversations: (ids: string[]) =>
     request<{ ok: boolean; deleted: number }>('/conversations/delete', {
       method: 'POST',

@@ -186,6 +186,53 @@ conversationsRouter.post('/delete', (req, res) => {
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/** V7 chat share (claude.ai parity): snapshot the conversation to a static
+ * read-only HTML page in S3, return a 7-day presigned VIEW link (inline, not
+ * attachment). Revocable: DELETE removes the object, killing the link. */
+conversationsRouter.post('/:id/share', (req, res) => {
+  void (async () => {
+    const conv = await getConversation(req.params.id);
+    if (!conv) {
+      res.status(404).json({ error: 'conversation not found' });
+      return;
+    }
+    const msgs = await listMessages(req.params.id);
+    const esc = (t: string): string => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const rows = msgs
+      .filter((m) => m.kind === 'text')
+      .map((m) => {
+        const payload = JSON.parse(m.payload) as { text?: string };
+        const who = m.role === 'user' ? 'You' : 'Atlas';
+        return `<div class="msg ${m.role}"><div class="who">${who}</div><div class="body">${esc(payload.text ?? '')}</div></div>`;
+      })
+      .join('\n');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(conv.title)}</title>
+<meta name="robots" content="noindex"><style>
+body{font-family:-apple-system,Segoe UI,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;background:#faf9f5;color:#1a1917}
+.msg{margin:1rem 0;padding:.8rem 1rem;border-radius:12px;white-space:pre-wrap}
+.msg.user{background:#eee9df}.msg.assistant{background:#fff;border:1px solid #e3dfd5}
+.who{font-size:.75rem;font-weight:600;color:#73716b;margin-bottom:.3rem}
+.foot{margin:2rem 0;font-size:.8rem;color:#73716b}</style></head>
+<body><h2>${esc(conv.title)}</h2>${rows}<div class="foot">Shared read-only from Atlas · snapshot at share time</div></body></html>`;
+    const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+    const { fromIni } = await import('@aws-sdk/credential-providers');
+    const { bedrockSettings } = await import('../providers/bedrock.js');
+    const s = bedrockSettings();
+    const s3 = new S3Client({ region: s.region || 'us-east-1', ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile: s.profile || 'default' }) }) });
+    const bucket = 'atlasv2-uploads-683032473658';
+    const key = `shares/conv-${conv.id}/index.html`;
+    if (req.body && (req.body as { revoke?: boolean }).revoke) {
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      res.json({ ok: true, revoked: true });
+      return;
+    }
+    await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: html, ContentType: 'text/html; charset=utf-8' }));
+    const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 7 * 86_400 });
+    res.json({ url, expiresDays: 7 });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
 /** Per-conversation "remember this chat" toggle (memory capture + recall). */
 conversationsRouter.post('/:id/remember', (req, res) => {
   const { enabled } = req.body as { enabled?: boolean };

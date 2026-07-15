@@ -7,15 +7,28 @@ import { composer, waitIdle, pollBody, cleanupMarked, api, MARK } from './helper
 test.describe('V7-V12 conversation surfaces', () => {
   test.afterAll(cleanupMarked);
 
-  test('@red V7 conversation share link for a logged-out context', async ({ page }) => {
+  test('V7 conversation share: link serves read-only HTML logged-out, revocable', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
     await composer(page).fill(`${MARK} Reply with exactly SHARE-BODY`);
     await composer(page).press('Enter');
     await waitIdle(page, 60_000);
-    const share = page.locator('button[title*="hare"], [aria-label*="share conversation"]');
-    await expect(share.first(), 'no conversation-share affordance exists').toBeVisible({ timeout: 5_000 });
+    await page.locator('button[title*="Share conversation"]').first().click();
+    await page.waitForTimeout(1500);
+    const url = await page.evaluate(() => navigator.clipboard.readText());
+    expect(url).toMatch(/^https?:\/\//);
+    const res = await fetch(url); // anonymous client
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('SHARE-BODY');
+    expect(html).toContain('read-only');
+    // revoke kills the object behind the link
+    const convs = await api<Array<{ id: string; title: string }>>('/conversations');
+    const conv = convs.find((c) => c.title.includes('SHARE-BODY'));
+    await api(`/conversations/${conv!.id}/share`, { method: 'POST', body: JSON.stringify({ revoke: true }) });
+    const after = await fetch(url);
+    expect(after.status, 'revoked link must die').not.toBe(200);
   });
 
   test('V8a single-conversation markdown export downloads', async ({ page }) => {

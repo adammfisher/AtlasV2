@@ -51,13 +51,22 @@ test.describe('M3-M9 memory & projects', () => {
     expect(body, 'fact from a deleted conversation must not recall').not.toContain('774-PURGE-ME');
   });
 
-  test('@red M6 knowledge answers cite the source file as a rendered chip', async ({ page }) => {
+  test('M6 knowledge answers cite the source file as a rendered chip', async ({ page }) => {
+    // upload into THIS project's knowledge first (new chats are General now)
     await newChat(page);
-    await composer(page).fill(`${MARK} What is the northern zone codeword in the field manual?`);
+    await page.locator('input[type="file"]').setInputFiles(fixture('manual.docx'));
+    await page.waitForResponse((r) => r.url().includes('/api/uploads') && r.ok(), { timeout: 120_000 });
+    await composer(page).fill(`${MARK} Noted. Reply OK.`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 60_000);
+    await newChat(page);
+    await composer(page).fill(`${MARK} From this project's knowledge files: what is the northern zone codeword in the field manual?`);
     await composer(page).press('Enter');
     await waitIdle(page, 90_000);
-    const chip = page.locator('[class*="citation"], [class*="source"], a[title*="manual"]');
-    expect(await chip.count(), 'no rendered source-citation chip').toBeGreaterThan(0);
+    // RichText renders [source: filename] as a .chat-cite chip
+    await expect
+      .poll(async () => page.locator('.chat-cite').count(), { timeout: 60_000 })
+      .toBeGreaterThan(0);
   });
 
   test('M7 project instructions are honored', async ({ page }) => {
