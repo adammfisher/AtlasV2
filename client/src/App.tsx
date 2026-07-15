@@ -68,8 +68,10 @@ export default function App() {
   const { data: plugins } = useQuery({ queryKey: ['plugins'], queryFn: api.pluginsDirectory });
   const { data: registry } = useQuery({ queryKey: ['models'], queryFn: api.models });
 
-  // Open the most recent conversation on first load (mockup parity)
-  const effectiveConv = activeConv ?? conversations?.[0]?.id ?? null;
+  // Land on the empty General state, not the most recent chat. A deep link
+  // (/c/<id>) still restores that specific chat on refresh; only the bare
+  // entry point (sign-in, '/') shows the fresh new-chat view.
+  const effectiveConv = activeConv;
 
   // keep the URL in sync so a refresh restores the current chat (/c/<id>)
   useEffect(() => {
@@ -203,7 +205,10 @@ export default function App() {
     }
   };
 
-  if (!signedIn) return <LoginView onSignedIn={() => { setSignedIn(true); window.location.reload(); }} />;
+  // sign-in lands on the General empty state — clear any stale /c/<id> path
+  // (e.g. a previous session's chat) so we don't reopen someone else's chat
+  if (!signedIn)
+    return <LoginView onSignedIn={() => { window.location.href = '/'; }} />;
 
   return (
     <div className="flex w-full" style={{ height: '100vh', background: C.bg, overflow: 'hidden' }}>
@@ -255,7 +260,7 @@ export default function App() {
             convId={effectiveConv}
             registry={registry}
             userName={userName}
-            activeProjectName={convProject?.name ?? activeProject?.name ?? ''}
+            activeProjectName={convProject?.name ?? (effectiveConv ? activeProject?.name : 'General') ?? 'General'}
             onOpenArtifact={onOpenArtifact}
             onOpenArtifactList={() => setRightPanel({ kind: 'list' })}
             onGenStream={onGenStream}

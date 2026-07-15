@@ -51,4 +51,19 @@ test.describe('auth session', () => {
     await page.locator('button[title="Sign out"]').click();
     await expect(page.getByText('Sign in to your workspace')).toBeVisible({ timeout: 10_000 });
   });
+
+  test('sign-in lands on the General empty state, not a previous chat', async ({ browser }) => {
+    // fresh context (no auth) → sign in → must show the empty new-chat state
+    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await ctx.newPage();
+    await page.goto('/');
+    await page.locator('input').first().fill('adammfisher');
+    await page.locator('input[type="password"]').fill('buster11');
+    await page.getByRole('button', { name: /sign in/i }).click();
+    // empty state (the greeting), NOT an opened conversation with messages
+    await expect(page.getByText(/What are we building/i)).toBeVisible({ timeout: 15_000 });
+    // the URL must be the bare root, not /c/<id>
+    expect(new URL(page.url()).pathname).toBe('/');
+    await ctx.close();
+  });
 });
