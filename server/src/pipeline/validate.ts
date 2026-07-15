@@ -28,6 +28,59 @@ export function validateJson(
   return { ok: true, value };
 }
 
+/**
+ * Office design-doctrine checks the JSON schema can't express, run inside the
+ * generation repair loop so the model gets actionable feedback BEFORE the
+ * build (the Python builder re-runs the full audit as the authoritative gate).
+ * `frontier` gates position_overrides: small tiers never position anything.
+ */
+export function officeDoctrineCheck(
+  skillId: string,
+  payload: unknown,
+  frontier: boolean,
+): { ok: true } | { ok: false; error: string } {
+  const words = (s: unknown): number => String(s ?? '').split(/\s+/).filter(Boolean).length;
+  if (skillId === 'pptx') {
+    const slides = (payload as { slides?: Array<Record<string, unknown>> }).slides ?? [];
+    const CONTENT = new Set(['content_bullets', 'content_chart', 'comparison', 'two_column', 'table', 'timeline_process']);
+    for (const [i, slide] of slides.entries()) {
+      if (slide.position_overrides && !frontier) {
+        return { ok: false, error: `slide ${i + 1}: position_overrides are not available — remove them; layout comes from the archetype` };
+      }
+      const bullets = (slide.bullets as string[] | undefined) ?? [];
+      for (const b of bullets) {
+        if (words(b) > 12) return { ok: false, error: `slide ${i + 1}: bullet over 12 words — tighten: "${String(b).slice(0, 50)}"` };
+      }
+      if (CONTENT.has(String(slide.archetype))) {
+        let total = words(slide.title) + words(slide.subtitle) + bullets.reduce((n, b) => n + words(b), 0);
+        for (const col of (slide.columns as Array<{ head?: string; items?: string[] }> | undefined) ?? []) {
+          total += words(col.head) + (col.items ?? []).reduce((n, it) => n + words(it), 0);
+        }
+        for (const st of (slide.steps as Array<{ label?: string; detail?: string }> | undefined) ?? []) {
+          total += words(st.label) + words(st.detail);
+        }
+        if (total > 40) return { ok: false, error: `slide ${i + 1}: ${total} words on a content slide (max 40) — split the slide or cut copy` };
+      }
+    }
+  }
+  if (skillId === 'docx' || skillId === 'pdf') {
+    const blocks =
+      ((payload as Record<string, unknown>).blocks as Array<Record<string, unknown>> | undefined) ??
+      ((payload as Record<string, unknown>).sections as Array<Record<string, unknown>> | undefined) ??
+      [];
+    let level = 0;
+    for (const [i, blk] of blocks.entries()) {
+      if (blk.kind === 'heading') {
+        const lv = Number(blk.level ?? 1);
+        if (level === 0 && lv !== 1) return { ok: false, error: `block ${i + 1}: document must open at heading level 1` };
+        if (level > 0 && lv > level + 1) return { ok: false, error: `block ${i + 1}: heading level skip ${level} → ${lv}` };
+        level = lv;
+      }
+    }
+  }
+  return { ok: true };
+}
+
 const MERMAID_TYPES = [
   'flowchart',
   'graph',

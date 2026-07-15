@@ -1,0 +1,95 @@
+/* Atlas PDF paged-media doctrine (WeasyPrint).
+   Page geometry (@page size/margins) is generated per-document from the spec's
+   meta block and prepended to this sheet — everything else lives here. */
+
+/* running header + footer: title from the first h1, page N of M counter */
+h1 { string-set: doctitle content(); }
+
+@page {
+  @top-center {
+    content: string(doctitle);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8.5pt;
+    color: #650360;
+    border-bottom: 0.75pt solid #E7E2EC;
+    width: 100%;
+    vertical-align: bottom;
+    padding-bottom: 6pt;
+    margin-bottom: 12pt;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8.5pt;
+    color: #650360;
+  }
+}
+@page :first {
+  @top-center { content: none; border-bottom: none; }
+}
+
+/* <= 2 font families: Helvetica body, Helvetica headings (weight varies) */
+body {
+  font-family: Helvetica, Arial, sans-serif;
+  color: #1B1A18;
+  font-size: 10.5pt;
+  line-height: 1.45;
+  orphans: 3;
+  widows: 3;
+}
+
+h1 { color: #371447; font-size: 19pt; margin: 0 0 10pt; line-height: 1.2; }
+h2 { color: #650360; font-size: 13.5pt; margin: 16pt 0 6pt; page-break-after: avoid; }
+h3 { color: #371447; font-size: 11.5pt; margin: 12pt 0 4pt; page-break-after: avoid; }
+
+p { margin: 0 0 8pt; }
+
+ul, ol { margin: 0 0 8pt 18pt; padding: 0; }
+li { margin-bottom: 3pt; }
+
+/* tables never break across pages; banded rows; header via style not chrome */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10pt 0;
+  page-break-inside: avoid;
+}
+th {
+  background: #371447;
+  color: #fff;
+  text-align: left;
+  padding: 6pt 8pt;
+  font-size: 9.5pt;
+}
+td {
+  border-bottom: 0.75pt solid #E7E2EC;
+  padding: 5pt 8pt;
+  font-size: 9.5pt;
+}
+tr:nth-child(even) td { background: #F7F4FA; }
+
+/* figures: chart image + caption, kept together */
+figure {
+  margin: 12pt 0;
+  page-break-inside: avoid;
+  text-align: left;
+}
+figure img { max-width: 100%; }
+figcaption {
+  font-size: 8.5pt;
+  font-style: italic;
+  color: #650360;
+  margin-top: 4pt;
+}
+
+blockquote {
+  margin: 10pt 0 10pt 14pt;
+  padding-left: 10pt;
+  border-left: 2.25pt solid #26A697;
+  color: #650360;
+  font-style: italic;
+  page-break-inside: avoid;
+}
+
+.page-break { page-break-before: always; }
+/* single-column throughout — no multi-column layouts (weak engine support) */

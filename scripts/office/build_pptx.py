@@ -1,289 +1,630 @@
 #!/usr/bin/env python3
-"""
-Master PPTX designer (skills/pptx/schema.json → a designed 16:9 deck).
+"""Deterministic PPTX designer (skills/pptx/schema.json → the corporate template).
 
-Rather than filling a template's weak built-in layouts, this draws every slide
-from scratch with a cohesive, premium theme (Anthropic-style warm palette,
-strong type hierarchy, generous whitespace, accent details). Layouts: title,
-section divider, bullets, two-column, stat/metrics, quote, chart, closing.
-Self-contained — no template or exemplar library dependency.
+Renders the 12 layout archetypes onto dfs_default.potx: title text lands in the
+template's named title placeholders (normalized to the 12-column grid), content
+frames are grid-computed per archetype — the MODEL never positions anything
+(frontier-tier position_overrides excepted). All color styles through MSO theme
+slots via pptx_design roles; text is measured per line with embedded Poppins
+metrics and stepped down within its doctrine range; a frame still overflowing
+at the 14pt floor raises an OVERFLOW flag for the validator — never silently
+accepted.
 """
 from pathlib import Path
 
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
-from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.dml import MSO_THEME_COLOR
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.oxml.ns import qn
-from pptx.util import Inches, Pt, Emu
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.util import Emu, Pt
 
+import pptx_design as D
 import validate_common as vc
 
-# ── theme (warm, premium — the Atlas/Claude palette) ──────────────────────
-INK = RGBColor(0x1A, 0x19, 0x17)      # near-black warm text
-MUTE = RGBColor(0x73, 0x71, 0x6B)     # warm gray
-BG = RGBColor(0xFA, 0xF9, 0xF5)       # warm off-white
-PANEL = RGBColor(0xF1, 0xEE, 0xE7)    # subtle panel
-LINE = RGBColor(0xE3, 0xDF, 0xD5)     # hairline
-ACCENT = RGBColor(0xC9, 0x62, 0x42)   # clay/coral accent
-ACCENT_SOFT = RGBColor(0xE8, 0xD5, 0xCB)
-DARK = RGBColor(0x26, 0x24, 0x22)     # warm dark (section / closing)
-DARK_MUTE = RGBColor(0xA8, 0xA2, 0x97)
-WHITE = RGBColor(0xFA, 0xF9, 0xF5)
-CHART_PALETTE = [
-    RGBColor(0xC9, 0x62, 0x42), RGBColor(0x37, 0x5A, 0x5A),
-    RGBColor(0xD1, 0xA0, 0x54), RGBColor(0x6B, 0x7A, 0x8F),
-    RGBColor(0x8A, 0x5A, 0x44),
-]
-HEAD = "Poppins"
-BODY = "Poppins"
+# doctrine type scale: (max_pt, min_pt) per role
+SCALE = {
+    "deck_title": (40, 32),
+    "title": (36, 28),
+    "section": (24, 20),
+    "body": (24, 18),
+    "caption": (14, 12),
+    "stat": (72, 60),
+    "quote": (32, 28),
+}
+FOOTER_PT = 12
+CONTENT_TOP_GAP = 0.5   # whitespace below the headline (>= 0.5")
+FOOTER_Y = 6.85
+CONTENT_BOTTOM = 6.45   # >= 0.3" clearance above the footer line
+STATEMENT = {"title", "section_divider", "quote", "closing_cta"}
 
-EMU_IN = 914400
-W = 13.333
-H = 7.5
-MARGIN = 0.92
-
-
-def _slide(prs, bg=BG):
-    s = prs.slides.add_slide(prs.slide_layouts[6])  # blank
-    r = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-    r.fill.solid(); r.fill.fore_color.rgb = bg
-    r.line.fill.background()
-    r.shadow.inherit = False
-    # push background to back
-    sp = r._element
-    sp.getparent().remove(sp)
-    s.shapes._spTree.insert(2, sp)
-    return s
-
-
-def _rect(slide, x, y, w, h, color, shape=MSO_SHAPE.RECTANGLE, line=None):
-    sh = slide.shapes.add_shape(shape, Inches(x), Inches(y), Inches(w), Inches(h))
-    sh.fill.solid(); sh.fill.fore_color.rgb = color
-    if line is None:
-        sh.line.fill.background()
-    else:
-        sh.line.color.rgb = line; sh.line.width = Pt(1)
-    sh.shadow.inherit = False
-    return sh
-
-
-def _text(slide, x, y, w, h, runs, size=18, color=INK, bold=False, font=BODY,
-          align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, spacing=1.0, italic=False):
-    """runs: a string, or list of (text, {overrides}) for mixed styling."""
-    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
-    tf = tb.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = anchor
-    tf.margin_left = 0; tf.margin_right = 0; tf.margin_top = 0; tf.margin_bottom = 0
-    lines = runs if isinstance(runs, list) else [runs]
-    for i, ln in enumerate(lines):
-        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.alignment = align
-        if spacing != 1.0:
-            p.line_spacing = spacing
-        segs = ln if isinstance(ln, list) else [(ln, {})]
-        for text, ov in segs:
-            r = p.add_run(); r.text = str(text)
-            f = r.font
-            f.size = Pt(ov.get("size", size))
-            f.bold = ov.get("bold", bold)
-            f.italic = ov.get("italic", italic)
-            f.name = ov.get("font", font)
-            f.color.rgb = ov.get("color", color)
-    return tb
-
-
-def _footer(slide, title, idx, total, dark=False):
-    c = DARK_MUTE if dark else MUTE
-    _rect(slide, MARGIN, H - 0.62, 0.28, 0.02, ACCENT)
-    _text(slide, MARGIN + 0.36, H - 0.74, 8, 0.3, title, size=9.5, color=c, font=BODY)
-    _text(slide, W - MARGIN - 2, H - 0.74, 2, 0.3, f"{idx} / {total}", size=9.5,
-          color=c, align=PP_ALIGN.RIGHT, font=BODY)
-
-
-def _title_block(slide, heading, y=0.95):
-    """Section title with an accent underline — used on content slides."""
-    _rect(slide, MARGIN, y, 0.5, 0.09, ACCENT)
-    _text(slide, MARGIN, y + 0.22, W - 2 * MARGIN, 1.1, heading, size=30, bold=True,
-          font=HEAD, color=INK, spacing=1.02)
-
-
-# ── layouts ───────────────────────────────────────────────────────────────
-def slide_title(prs, spec, idx, total):
-    s = _slide(prs, BG)
-    _rect(s, 0, 0, 0.32, H, ACCENT)                      # left accent spine
-    _rect(s, MARGIN, 2.35, 0.9, 0.11, ACCENT)
-    _text(s, MARGIN, 2.7, W - 2 * MARGIN, 2.4, spec["heading"], size=46, bold=True,
-          font=HEAD, color=INK, spacing=1.03)
-    sub = spec.get("subtitle") or (spec.get("bullets") or [None])[0]
-    if sub:
-        _text(s, MARGIN, 5.05, W - 2 * MARGIN, 1.0, str(sub), size=18, color=MUTE, font=BODY)
-    # geometric accent, bottom-right
-    _rect(s, W - 2.1, H - 1.5, 1.1, 1.1, ACCENT_SOFT, shape=MSO_SHAPE.OVAL)
-    return s
-
-
-def slide_section(prs, spec, idx, total):
-    s = _slide(prs, DARK)
-    _text(s, MARGIN - 0.05, 1.35, 4, 2.0, f"{idx:02d}", size=104, bold=True, font=HEAD,
-          color=RGBColor(0x35, 0x32, 0x2E))
-    _text(s, MARGIN, 3.35, W - 2 * MARGIN, 1.4, spec["heading"], size=40, bold=True,
-          font=HEAD, color=WHITE, spacing=1.03)
-    _rect(s, MARGIN, 4.55, 0.7, 0.1, ACCENT)
-    sub = spec.get("subtitle")
-    if sub:
-        _text(s, MARGIN, 4.8, W - 2 * MARGIN, 1.0, str(sub), size=16, color=DARK_MUTE, font=BODY)
-    return s
-
-
-def slide_bullets(prs, spec, idx, total):
-    s = _slide(prs, BG)
-    _title_block(s, spec["heading"])
-    items = [str(b) for b in (spec.get("bullets") or [])][:7]
-    top = 2.35
-    avail = H - top - 0.9
-    row = min(0.92, avail / max(1, len(items)))
-    fs = 18 if len(items) <= 5 else 15
-    for i, it in enumerate(items):
-        y = top + i * row
-        _rect(s, MARGIN, y + 0.08, 0.16, 0.16, ACCENT, shape=MSO_SHAPE.OVAL)
-        _text(s, MARGIN + 0.42, y, W - 2 * MARGIN - 0.42, row, it, size=fs,
-              color=INK, font=BODY, anchor=MSO_ANCHOR.TOP, spacing=1.05)
-    _footer(s, spec.get("_deck", ""), idx, total)
-    return s
-
-
-def slide_two_col(prs, spec, idx, total):
-    s = _slide(prs, BG)
-    _title_block(s, spec["heading"])
-    cols = [
-        (spec.get("col_left") or [], spec.get("col_left_head") or spec.get("subtitle")),
-        (spec.get("col_right") or [], spec.get("col_right_head")),
-    ]
-    cw = (W - 2 * MARGIN - 0.5) / 2
-    for c, (items, head) in enumerate(cols):
-        x = MARGIN + c * (cw + 0.5)
-        _rect(s, x, 2.35, cw, H - 2.35 - 0.9, PANEL, shape=MSO_SHAPE.ROUNDED_RECTANGLE)
-        yy = 2.7
-        if head:
-            _text(s, x + 0.35, yy, cw - 0.7, 0.5, str(head), size=15, bold=True,
-                  font=HEAD, color=ACCENT)
-            yy += 0.6
-        for it in [str(i) for i in items][:6]:
-            _rect(s, x + 0.35, yy + 0.09, 0.12, 0.12, ACCENT, shape=MSO_SHAPE.OVAL)
-            _text(s, x + 0.62, yy, cw - 0.95, 0.7, it, size=13.5, color=INK, font=BODY, spacing=1.03)
-            yy += 0.62
-    _footer(s, spec.get("_deck", ""), idx, total)
-    return s
-
-
-def slide_stat(prs, spec, idx, total):
-    s = _slide(prs, BG)
-    _title_block(s, spec["heading"])
-    stats = spec.get("stats") or []
-    if not stats:  # derive from bullets if the model didn't fill stats
-        stats = [{"value": "•", "label": b} for b in (spec.get("bullets") or [])[:3]]
-    stats = stats[:3]
-    n = max(1, len(stats))
-    gap = 0.5
-    cw = (W - 2 * MARGIN - gap * (n - 1)) / n
-    for i, st in enumerate(stats):
-        x = MARGIN + i * (cw + gap)
-        _rect(s, x, 2.7, cw, 3.2, PANEL, shape=MSO_SHAPE.ROUNDED_RECTANGLE)
-        _rect(s, x + 0.4, 3.1, 0.5, 0.08, ACCENT)
-        _text(s, x + 0.35, 3.35, cw - 0.7, 1.5, str(st.get("value", "")), size=54,
-              bold=True, font=HEAD, color=ACCENT)
-        _text(s, x + 0.4, 4.85, cw - 0.8, 0.9, str(st.get("label", "")), size=14,
-              color=MUTE, font=BODY, spacing=1.05)
-    _footer(s, spec.get("_deck", ""), idx, total)
-    return s
-
-
-def slide_quote(prs, spec, idx, total):
-    s = _slide(prs, DARK)
-    _text(s, MARGIN - 0.1, 1.4, 3, 2, "“", size=140, bold=True, font=HEAD,
-          color=ACCENT)
-    q = spec.get("quote") or spec["heading"]
-    _text(s, MARGIN + 0.1, 2.7, W - 2 * MARGIN - 0.2, 2.6, str(q), size=30, font=HEAD,
-          color=WHITE, spacing=1.12, italic=True)
-    who = spec.get("attribution") or spec.get("subtitle")
-    if who:
-        _rect(s, MARGIN + 0.1, 5.5, 0.5, 0.06, ACCENT)
-        _text(s, MARGIN + 0.75, 5.32, W - 3, 0.5, str(who), size=15, color=DARK_MUTE, font=BODY)
-    return s
-
-
-def slide_chart(prs, spec, idx, total):
-    s = _slide(prs, BG)
-    _title_block(s, spec["heading"])
-    cs = spec.get("chart") or {}
-    if cs.get("series"):
-        data = CategoryChartData()
-        data.categories = [str(c) for c in (cs.get("labels") or [])] or ["—"]
-        n = len(data.categories)
-        for ser in cs["series"]:
-            vals = (list(ser.get("values") or []) + [0] * n)[:n]
-            data.add_series(str(ser.get("name", "series")), vals)
-        ctype = {"line": XL_CHART_TYPE.LINE_MARKERS, "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
-                 "pie": XL_CHART_TYPE.PIE}.get(cs.get("kind", "bar"), XL_CHART_TYPE.COLUMN_CLUSTERED)
-        gf = s.shapes.add_chart(ctype, Inches(MARGIN), Inches(2.45),
-                                Inches(W - 2 * MARGIN), Inches(3.9), data)
-        chart = gf.chart
-        chart.has_title = False
-        try:
-            for i, plot_ser in enumerate(chart.series):
-                plot_ser.format.fill.solid()
-                plot_ser.format.fill.fore_color.rgb = CHART_PALETTE[i % len(CHART_PALETTE)]
-        except Exception:
-            pass
-        if cs.get("kind") == "pie" or len(list(chart.series)) > 1:
-            chart.has_legend = True
-            chart.legend.position = XL_LEGEND_POSITION.BOTTOM
-            chart.legend.include_in_layout = False
-    _footer(s, spec.get("_deck", ""), idx, total)
-    return s
-
-
-def slide_closing(prs, spec, idx, total):
-    s = _slide(prs, DARK)
-    _rect(s, W / 2 - 0.45, 2.5, 0.9, 0.11, ACCENT)
-    _text(s, MARGIN, 2.95, W - 2 * MARGIN, 1.6, spec["heading"], size=40, bold=True,
-          font=HEAD, color=WHITE, align=PP_ALIGN.CENTER, spacing=1.03)
-    sub = spec.get("subtitle") or (spec.get("bullets") or [None])[0]
-    if sub:
-        _text(s, MARGIN, 4.5, W - 2 * MARGIN, 1.0, str(sub), size=17, color=DARK_MUTE,
-              font=BODY, align=PP_ALIGN.CENTER)
-    return s
-
-
-LAYOUTS = {
-    "title": slide_title, "section": slide_section, "bullets": slide_bullets,
-    "summary": slide_bullets, "two_col": slide_two_col, "stat": slide_stat,
-    "quote": slide_quote, "chart": slide_chart, "closing": slide_closing,
+# Furniture-free DFS layouts only (stock layouts 0-8 carry decorative banner
+# rectangles that collide with grid content; 12-19 are clean, most with a TITLE
+# placeholder; the master supplies the brand logo bottom-left on every slide).
+LAYOUT_IDX = {
+    "title": 16,             # Title Slide - Sub heading (clean, TITLE ph)
+    "agenda": 17,            # 1_Title Only (clean, TITLE ph)
+    "section_divider": 14,   # 2_Custom Layout (clean, TITLE ph)
+    "content_bullets": 17,
+    "content_chart": 13,     # chart-left 2-col layout (clean, TITLE ph)
+    "comparison": 14,
+    "big_stat": 17,
+    "quote": 6,              # Blank (statement field; no empty ph left behind)
+    "timeline_process": 14,
+    "two_column": 15,        # 1_Custom Layout (clean, TITLE ph)
+    "table": 14,
+    "closing_cta": 20,       # Close (brand logo lockup center)
 }
 
 
+class Ctx:
+    def __init__(self, prs, deck_title, total):
+        self.prs = prs
+        self.deck_title = deck_title
+        self.total = total
+        self.overflows = []      # [{slide, frame, detail}] — validator input
+        self.keyed = {}          # (slide_idx, key) -> shape, for overrides
+
+
+# ── low-level styled primitives (theme slots only) ─────────────────────────
+def _font(run_font, role, size_pt, bold=False, italic=False, brightness=0.0):
+    run_font.size = Pt(size_pt)
+    run_font.bold = bold
+    run_font.italic = italic
+    run_font.name = D.BODY
+    run_font.color.theme_color = D.ROLES[role]
+    if brightness:
+        run_font.color.brightness = brightness
+
+
+def _fill(shape, role, brightness=0.0):
+    shape.fill.solid()
+    shape.fill.fore_color.theme_color = D.ROLES[role]
+    if brightness:
+        shape.fill.fore_color.brightness = brightness
+    shape.line.fill.background()
+    shape.shadow.inherit = False
+
+
+def _bg(slide, role):
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.theme_color = D.ROLES[role]
+
+
+def _frame(shape, x, y, w, h):
+    shape.left, shape.top = Emu(D.emu(x)), Emu(D.emu(y))
+    shape.width, shape.height = Emu(D.emu(w)), Emu(D.emu(h))
+
+
+def _textbox(ctx, slide, sidx, key, x, y, w, h, text, role, scale_key, bold=False,
+             align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, italic=False,
+             brightness=0.0, spacing=1.15, max_lines=None):
+    """Measured text: fit within the doctrine range, flag overflow, never guess."""
+    max_pt, min_pt = SCALE[scale_key]
+    fit = D.fit_text(text, w, h, max_pt, min_pt, bold=bold, spacing=spacing)
+    if fit["overflow"]:
+        ctx.overflows.append({"slide": sidx, "frame": key, "detail": f"overflow at {fit['size']}pt floor"})
+    if max_lines and fit["lines"] > max_lines:
+        ctx.overflows.append({"slide": sidx, "frame": key, "detail": f"{fit['lines']} lines (max {max_lines})"})
+    tb = slide.shapes.add_textbox(Emu(D.emu(x)), Emu(D.emu(y)), Emu(D.emu(w)), Emu(D.emu(h)))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = anchor
+    tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+    para = tf.paragraphs[0]
+    para.alignment = align
+    para.line_spacing = spacing
+    run = para.add_run()
+    run.text = str(text)
+    _font(run.font, role, fit["size"], bold=bold, italic=italic, brightness=brightness)
+    ctx.keyed[(sidx, key)] = tb
+    return tb, fit
+
+
+def _title_into_placeholder(ctx, slide, sidx, spec, dark=False, y=D.MARGIN,
+                            scale_key="title", w_cols=12, align=PP_ALIGN.LEFT):
+    """The layout's TITLE placeholder, normalized to the grid. Left-aligned,
+    stepped within its scale range, <= 2 measured lines. NO accent line
+    beneath — ever. Falls back to a textbox on placeholder-less layouts."""
+    ph = next((p for p in slide.placeholders if p.placeholder_format.idx == 0), None)
+    w = D.grid_w(w_cols)
+    x = D.MARGIN if align == PP_ALIGN.LEFT else (D.SLIDE_W - w) / 2
+    fit = D.fit_text(spec["title"], w, 2.2, *SCALE[scale_key], bold=True, spacing=1.05)
+    if fit["lines"] > 2:
+        ctx.overflows.append({"slide": sidx, "frame": "title", "detail": f"title wraps to {fit['lines']} lines"})
+    h = max(0.6, fit["lines"] * D.line_height_in(fit["size"], bold=True, spacing=1.05))
+    role = "text_inverse" if dark else "text"
+    if ph is None:
+        _textbox(ctx, slide, sidx, "title", x, y, w, h + 0.1, spec["title"],
+                 role, scale_key, bold=True, spacing=1.05, max_lines=2, align=align)
+        return y + h
+    _frame(ph, x, y, w, h + 0.1)
+    tf = ph.text_frame
+    tf.word_wrap = True
+    tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+    para = tf.paragraphs[0]
+    para.alignment = align
+    para.line_spacing = 1.05
+    run = para.runs[0] if para.runs else para.add_run()
+    run.text = str(spec["title"])
+    _font(run.font, role, fit["size"], bold=True)
+    ctx.keyed[(sidx, "title")] = ph
+    return y + h
+
+
+def _footer(ctx, slide, sidx):
+    # bottom-left belongs to the master's brand logo — page number only, right
+    right = slide.shapes.add_textbox(
+        Emu(D.emu(D.SLIDE_W - D.MARGIN - 1.5)), Emu(D.emu(FOOTER_Y)), Emu(D.emu(1.5)), Emu(D.emu(0.3)))
+    para = right.text_frame.paragraphs[0]
+    para.alignment = PP_ALIGN.RIGHT
+    run = para.add_run()
+    run.text = f"{sidx} / {ctx.total}"
+    _font(run.font, "text", FOOTER_PT, brightness=0.45)
+
+
+def _notes(slide, spec):
+    slide.notes_slide.notes_text_frame.text = str(spec.get("speaker_notes", ""))
+
+
+def _bullets_block(ctx, slide, sidx, items, x, w, top, bottom, icons=None):
+    """Bullet stack sized collectively: the largest body size where every item
+    fits its row. Icon column (theme-shape glyphs) when icons are given."""
+    n = max(1, len(items))
+    avail = bottom - top
+    row_h = min(1.1, avail / n)
+    text_x, text_w = x, w
+    if icons:
+        text_x, text_w = x + 0.75, w - 0.75
+    max_pt, min_pt = SCALE["body"]
+    size = max_pt
+    while size > 14:
+        if all(D.required_height_in(b, text_w, size) <= row_h - 0.12 for b in items):
+            break
+        size -= 1
+    if size < min_pt:
+        # below the projected-body range: legal only above the 14pt floor; flag either way
+        ctx.overflows.append({"slide": sidx, "frame": "bullets",
+                              "detail": f"body stepped to {size}pt (range floor {min_pt}pt)"})
+    for i, item in enumerate(items):
+        y = top + i * row_h
+        if icons:
+            _icon(slide, icons[i % len(icons)], x, y + 0.02, 0.5)
+        else:
+            marker = slide.shapes.add_shape(
+                MSO_SHAPE.OVAL, Emu(D.emu(x + 0.02)), Emu(D.emu(y + 0.11)), Emu(D.emu(0.12)), Emu(D.emu(0.12)))
+            _fill(marker, "accent")
+            text_x, text_w = x + 0.4, w - 0.4
+        tb = slide.shapes.add_textbox(
+            Emu(D.emu(text_x)), Emu(D.emu(y)), Emu(D.emu(text_w)), Emu(D.emu(row_h)))
+        tf = tb.text_frame
+        tf.word_wrap = True
+        para = tf.paragraphs[0]
+        para.line_spacing = 1.1
+        run = para.add_run()
+        run.text = str(item)
+        _font(run.font, "text", size)
+    ctx.keyed[(sidx, "body")] = tb
+    return size
+
+
+# icon primitives: name -> [(shape, dx, dy, dw, dh, role, brightness)]
+_ICONS = {
+    "growth": [(MSO_SHAPE.RECTANGLE, 0.02, 0.30, 0.10, 0.18, "accent", 0.0),
+               (MSO_SHAPE.RECTANGLE, 0.18, 0.18, 0.10, 0.30, "accent", 0.0),
+               (MSO_SHAPE.RECTANGLE, 0.34, 0.04, 0.10, 0.44, "supporting", 0.0)],
+    "target": [(MSO_SHAPE.OVAL, 0.02, 0.02, 0.44, 0.44, "accent", 0.0),
+               (MSO_SHAPE.OVAL, 0.15, 0.15, 0.18, 0.18, "background", 0.0)],
+    "people": [(MSO_SHAPE.OVAL, 0.06, 0.02, 0.16, 0.16, "supporting", 0.0),
+               (MSO_SHAPE.OVAL, 0.26, 0.02, 0.16, 0.16, "accent", 0.0),
+               (MSO_SHAPE.ROUNDED_RECTANGLE, 0.04, 0.22, 0.40, 0.24, "supporting", 0.6)],
+    "risk": [(MSO_SHAPE.ISOSCELES_TRIANGLE, 0.02, 0.02, 0.44, 0.42, "accent", 0.0),
+             (MSO_SHAPE.RECTANGLE, 0.21, 0.14, 0.06, 0.16, "background", 0.0)],
+    "time": [(MSO_SHAPE.OVAL, 0.02, 0.02, 0.44, 0.44, "supporting", 0.0),
+             (MSO_SHAPE.RECTANGLE, 0.22, 0.10, 0.05, 0.16, "background", 0.0),
+             (MSO_SHAPE.RECTANGLE, 0.22, 0.22, 0.14, 0.05, "background", 0.0)],
+    "money": [(MSO_SHAPE.OVAL, 0.02, 0.02, 0.44, 0.44, "accent", 0.0),
+              (MSO_SHAPE.RECTANGLE, 0.21, 0.10, 0.06, 0.28, "background", 0.0)],
+    "check": [(MSO_SHAPE.ROUNDED_RECTANGLE, 0.02, 0.02, 0.44, 0.44, "accent", 0.0),
+              (MSO_SHAPE.CHEVRON, 0.12, 0.16, 0.24, 0.16, "background", 0.0)],
+    "idea": [(MSO_SHAPE.OVAL, 0.08, 0.02, 0.32, 0.32, "accent", 0.0),
+             (MSO_SHAPE.RECTANGLE, 0.18, 0.36, 0.12, 0.10, "supporting", 0.0)],
+    "globe": [(MSO_SHAPE.OVAL, 0.02, 0.02, 0.44, 0.44, "supporting", 0.0),
+              (MSO_SHAPE.RECTANGLE, 0.02, 0.22, 0.44, 0.04, "background", 0.0)],
+    "gear": [(MSO_SHAPE.OVAL, 0.08, 0.08, 0.32, 0.32, "supporting", 0.0),
+             (MSO_SHAPE.OVAL, 0.18, 0.18, 0.12, 0.12, "background", 0.0)],
+}
+
+
+def _icon(slide, name, x, y, box):
+    for shape_kind, dx, dy, dw, dh, role, bright in _ICONS.get(name, _ICONS["target"]):
+        scale = box / 0.48
+        sh = slide.shapes.add_shape(
+            shape_kind, Emu(D.emu(x + dx * scale)), Emu(D.emu(y + dy * scale)),
+            Emu(D.emu(dw * scale)), Emu(D.emu(dh * scale)))
+        _fill(sh, role, bright)
+
+
+def _sorted_chart(cs):
+    cats = [str(c) for c in cs["categories"]]
+    series = [{"name": s["name"], "values": list(s["values"])} for s in cs["series"]]
+    if cs.get("sort") in ("value_desc", "value_asc") and series:
+        order = sorted(range(len(cats)), key=lambda i: series[0]["values"][i],
+                       reverse=cs["sort"] == "value_desc")
+        cats = [cats[i] for i in order]
+        for s in series:
+            s["values"] = [s["values"][i] for i in order]
+    return cats, series
+
+
+def _chart(ctx, slide, sidx, cs, x, y, w, h):
+    cats, series = _sorted_chart(cs)
+    data = CategoryChartData()
+    data.categories = cats
+    for s in series[:5]:
+        data.add_series(str(s["name"]), s["values"])
+    kind = {"line": XL_CHART_TYPE.LINE_MARKERS, "bar": XL_CHART_TYPE.COLUMN_CLUSTERED,
+            "pie": XL_CHART_TYPE.PIE}[cs["kind"]]
+    gf = slide.shapes.add_chart(kind, Emu(D.emu(x)), Emu(D.emu(y)), Emu(D.emu(w)), Emu(D.emu(h)), data)
+    chart = gf.chart
+    chart.has_title = False
+    for i, plot_series in enumerate(chart.series):
+        plot_series.format.fill.solid()
+        plot_series.format.fill.fore_color.theme_color = D.CHART_SERIES_SLOTS[i % len(D.CHART_SERIES_SLOTS)]
+        plot_series.format.line.fill.background()
+    if cs["kind"] != "pie":
+        plot = chart.plots[0]
+        plot.has_data_labels = True
+        plot.data_labels.font.size = Pt(12)
+        plot.data_labels.font.color.theme_color = D.ROLES["text"]
+        try:
+            chart.value_axis.has_major_gridlines = True
+            chart.value_axis.major_gridlines.format.line.color.theme_color = D.ROLES["supporting"]
+            chart.value_axis.major_gridlines.format.line.color.brightness = 0.85
+            chart.category_axis.has_major_gridlines = False
+            for axis in (chart.value_axis, chart.category_axis):
+                axis.tick_labels.font.size = Pt(12)
+                axis.tick_labels.font.color.theme_color = D.ROLES["text"]
+        except Exception:
+            pass  # pie/axis-less chart types
+    multi = len(series) > 1
+    chart.has_legend = multi or cs["kind"] == "pie"
+    if chart.has_legend:
+        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
+        chart.legend.font.size = Pt(12)
+        chart.legend.font.color.theme_color = D.ROLES["text"]
+    ctx.keyed[(sidx, "chart")] = gf
+    return gf
+
+
+# ── archetype renderers ────────────────────────────────────────────────────
+def r_title(ctx, slide, sidx, spec):
+    _bg(slide, "dominant_dark")
+    # hero on the lower-third power line (rule of thirds)
+    _title_into_placeholder(ctx, slide, sidx, spec, dark=True, y=2.6,
+                            scale_key="deck_title", w_cols=9)
+    if spec.get("subtitle"):
+        _textbox(ctx, slide, sidx, "subtitle", D.MARGIN, 5.0, D.grid_w(8), 0.8,
+                 spec["subtitle"], "text_inverse", "body", brightness=-0.15)
+    accent = slide.shapes.add_shape(
+        MSO_SHAPE.OVAL, Emu(D.emu(D.grid_x(10))), Emu(D.emu(5.0)), Emu(D.emu(1.4)), Emu(D.emu(1.4)))
+    _fill(accent, "accent")
+
+
+def r_agenda(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    items = spec["bullets"][:6]
+    row_h = min(0.8, (CONTENT_BOTTOM - top) / max(1, len(items)))
+    for i, item in enumerate(items):
+        y = top + i * row_h
+        num = slide.shapes.add_textbox(Emu(D.emu(D.grid_x(0))), Emu(D.emu(y)), Emu(D.emu(0.6)), Emu(D.emu(row_h)))
+        para = num.text_frame.paragraphs[0]
+        run = para.add_run()
+        run.text = f"{i + 1:02d}"
+        _font(run.font, "supporting", 20, bold=True)
+        tb = slide.shapes.add_textbox(
+            Emu(D.emu(D.grid_x(1))), Emu(D.emu(y)), Emu(D.emu(D.grid_w(7))), Emu(D.emu(row_h)))
+        para = tb.text_frame.paragraphs[0]
+        run = para.add_run()
+        run.text = str(item)
+        _font(run.font, "text", 20)
+    # cols 9–12 stay empty by design (whitespace budget)
+    _footer(ctx, slide, sidx)
+
+
+def r_section_divider(ctx, slide, sidx, spec):
+    _bg(slide, "dominant_dark")
+    num = slide.shapes.add_textbox(Emu(D.emu(D.MARGIN)), Emu(D.emu(0.8)), Emu(D.emu(2.5)), Emu(D.emu(1.0)))
+    para = num.text_frame.paragraphs[0]
+    run = para.add_run()
+    run.text = f"{sidx:02d}"
+    _font(run.font, "text_inverse", 24, bold=True, brightness=-0.3)
+    _title_into_placeholder(ctx, slide, sidx, spec, dark=True, y=4.4,
+                            scale_key="deck_title", w_cols=10)
+    if spec.get("subtitle"):
+        _textbox(ctx, slide, sidx, "subtitle", D.MARGIN, 6.1, D.grid_w(8), 0.7,
+                 spec["subtitle"], "text_inverse", "body", brightness=-0.15)
+
+
+def r_content_bullets(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    icons = spec.get("icons")
+    _bullets_block(ctx, slide, sidx, spec["bullets"], D.grid_x(0), D.grid_w(8), top, CONTENT_BOTTOM,
+                   icons=icons)
+    if not icons:  # visual element: a quiet accent mark keeps the slide from being text-only
+        band = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Emu(D.emu(D.grid_x(9))), Emu(D.emu(top + 0.1)),
+            Emu(D.emu(D.grid_w(3))), Emu(D.emu(CONTENT_BOTTOM - top - 0.2)))
+        _fill(band, "supporting", D.PANEL_BRIGHTNESS)
+        _icon(slide, "target", D.grid_x(10) + 0.2, (top + CONTENT_BOTTOM) / 2 - 0.4, 0.8)
+    _footer(ctx, slide, sidx)
+
+
+def r_content_chart(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    bullets = spec.get("bullets") or []
+    chart_w = D.grid_w(8 if bullets else 12)
+    _chart(ctx, slide, sidx, spec["chart"], D.grid_x(0), top, chart_w, CONTENT_BOTTOM - top)
+    if bullets:
+        _bullets_block(ctx, slide, sidx, bullets[:3], D.grid_x(9), D.grid_w(3), top + 0.2, CONTENT_BOTTOM)
+    _footer(ctx, slide, sidx)
+
+
+def r_comparison(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    cols = spec["columns"]
+    n = len(cols)
+    span = 12 // n
+    for c, col in enumerate(cols):
+        x = D.grid_x(c * span)
+        w = D.grid_w(span) - (D.BLOCK_GAP if c < n - 1 else 0)
+        panel = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Emu(D.emu(x)), Emu(D.emu(top)),
+            Emu(D.emu(w)), Emu(D.emu(CONTENT_BOTTOM - top)))
+        _fill(panel, "supporting", D.PANEL_BRIGHTNESS)
+        head = slide.shapes.add_textbox(
+            Emu(D.emu(x + 0.3)), Emu(D.emu(top + 0.25)), Emu(D.emu(w - 0.6)), Emu(D.emu(0.5)))
+        para = head.text_frame.paragraphs[0]
+        run = para.add_run()
+        run.text = str(col["head"])
+        _font(run.font, "supporting", 20, bold=True)
+        yy = top + 0.95
+        for item in col["items"]:
+            fit = D.fit_text(item, w - 0.9, 0.9, 18, 14, spacing=1.08)
+            if fit["overflow"]:
+                ctx.overflows.append({"slide": sidx, "frame": f"column {c + 1}", "detail": "item overflow"})
+            marker = slide.shapes.add_shape(
+                MSO_SHAPE.OVAL, Emu(D.emu(x + 0.3)), Emu(D.emu(yy + 0.1)), Emu(D.emu(0.1)), Emu(D.emu(0.1)))
+            _fill(marker, "accent")
+            tb = slide.shapes.add_textbox(
+                Emu(D.emu(x + 0.55)), Emu(D.emu(yy)),
+                Emu(D.emu(w - 0.9)), Emu(D.emu(0.95)))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            para = tf.paragraphs[0]
+            para.line_spacing = 1.08
+            run = para.add_run()
+            run.text = str(item)
+            _font(run.font, "text", fit["size"])
+            yy += max(0.55, D.required_height_in(item, w - 0.9, fit["size"], spacing=1.08) + 0.12)
+    _footer(ctx, slide, sidx)
+
+
+def r_big_stat(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    stat = spec["stat"]
+    # numeral on the left-third power point; >= 40% of the slide stays empty
+    _textbox(ctx, slide, sidx, "stat", D.grid_x(0), top + 0.4, D.grid_w(7), 1.6,
+             stat["value"], "text", "stat", bold=True, spacing=1.0)
+    mark = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Emu(D.emu(D.grid_x(0))), Emu(D.emu(top + 2.15)), Emu(D.emu(1.1)), Emu(D.emu(0.12)))
+    _fill(mark, "accent")
+    _textbox(ctx, slide, sidx, "stat_label", D.grid_x(0), top + 2.45, D.grid_w(7), 0.6,
+             stat["label"], "text", "section", bold=False, brightness=0.25)
+    if spec.get("support"):
+        _textbox(ctx, slide, sidx, "support", D.grid_x(0), top + 3.15, D.grid_w(8), 0.8,
+                 spec["support"], "text", "body")
+    _footer(ctx, slide, sidx)
+
+
+def r_quote(ctx, slide, sidx, spec):
+    _bg(slide, "dominant_dark")
+    glyph = slide.shapes.add_textbox(Emu(D.emu(D.MARGIN)), Emu(D.emu(1.1)), Emu(D.emu(1.5)), Emu(D.emu(1.4)))
+    para = glyph.text_frame.paragraphs[0]
+    run = para.add_run()
+    run.text = "“"
+    _font(run.font, "accent", 96, bold=True)
+    _textbox(ctx, slide, sidx, "quote", D.grid_x(1), 2.5, D.grid_w(10), 2.4, spec["quote"],
+             "text_inverse", "quote", italic=True, spacing=1.2)
+    _textbox(ctx, slide, sidx, "attribution", D.grid_x(1), 5.4, D.grid_w(10), 0.5,
+             f"— {spec['attribution']}", "text_inverse", "caption", brightness=-0.15,
+             align=PP_ALIGN.RIGHT)
+
+
+def r_timeline(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    steps = spec["steps"]
+    n = len(steps)
+    mid = top + (CONTENT_BOTTOM - top) / 2 - 0.6
+    track = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE, Emu(D.emu(D.grid_x(0) + 0.3)), Emu(D.emu(mid + 0.28)),
+        Emu(D.emu(D.grid_w(12) - 0.6)), Emu(D.emu(0.03)))
+    _fill(track, "supporting", 0.6)
+    span = 12 // n if n else 12
+    for i, step in enumerate(steps):
+        x = D.grid_x(i * span)
+        w = D.grid_w(span) - 0.2
+        node = slide.shapes.add_shape(
+            MSO_SHAPE.OVAL, Emu(D.emu(x + 0.15)), Emu(D.emu(mid)), Emu(D.emu(0.6)), Emu(D.emu(0.6)))
+        _fill(node, "accent")
+        num = node.text_frame
+        para = num.paragraphs[0]
+        para.alignment = PP_ALIGN.CENTER
+        run = para.add_run()
+        run.text = str(i + 1)
+        _font(run.font, "text_inverse", 18, bold=True)  # >=14pt bold on teal: 3:1 large-text bar
+        label = slide.shapes.add_textbox(
+            Emu(D.emu(x)), Emu(D.emu(mid + 0.85)), Emu(D.emu(w)), Emu(D.emu(0.5)))
+        para = label.text_frame.paragraphs[0]
+        run = para.add_run()
+        run.text = str(step["label"])
+        _font(run.font, "text", 18, bold=True)
+        if step.get("detail"):
+            detail = slide.shapes.add_textbox(
+                Emu(D.emu(x)), Emu(D.emu(mid + 1.35)), Emu(D.emu(w)), Emu(D.emu(0.85)))
+            tf = detail.text_frame
+            tf.word_wrap = True
+            para = tf.paragraphs[0]
+            para.line_spacing = 1.08
+            run = para.add_run()
+            run.text = str(step["detail"])
+            _font(run.font, "text", 14, brightness=0.2)
+    _footer(ctx, slide, sidx)
+
+
+def r_two_column(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    _bullets_block(ctx, slide, sidx, spec["bullets"], D.grid_x(0), D.grid_w(6) - 0.2, top, CONTENT_BOTTOM)
+    if spec.get("chart"):
+        _chart(ctx, slide, sidx, spec["chart"], D.grid_x(6), top, D.grid_w(6), CONTENT_BOTTOM - top)
+    elif spec.get("stat"):
+        panel = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Emu(D.emu(D.grid_x(6))), Emu(D.emu(top)),
+            Emu(D.emu(D.grid_w(6))), Emu(D.emu(CONTENT_BOTTOM - top)))
+        _fill(panel, "supporting", D.PANEL_BRIGHTNESS)
+        _textbox(ctx, slide, sidx, "stat", D.grid_x(6) + 0.4, top + 0.8, D.grid_w(6) - 0.8, 1.4,
+                 spec["stat"]["value"], "text", "stat", bold=True)
+        _textbox(ctx, slide, sidx, "stat_label", D.grid_x(6) + 0.4, top + 2.4, D.grid_w(6) - 0.8, 0.8,
+                 spec["stat"]["label"], "text", "body", brightness=0.2)
+    else:
+        panel = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Emu(D.emu(D.grid_x(6))), Emu(D.emu(top)),
+            Emu(D.emu(D.grid_w(6))), Emu(D.emu(CONTENT_BOTTOM - top)))
+        _fill(panel, "supporting", D.PANEL_BRIGHTNESS)
+        names = spec.get("icons") or ["target", "growth", "check"]
+        for i, name in enumerate(names[:3]):
+            _icon(slide, name, D.grid_x(7) + i * 1.3, top + (CONTENT_BOTTOM - top) / 2 - 0.4, 0.8)
+    _footer(ctx, slide, sidx)
+
+
+def r_table(ctx, slide, sidx, spec):
+    _bg(slide, "background")
+    top = _title_into_placeholder(ctx, slide, sidx, spec) + CONTENT_TOP_GAP
+    headers = spec["table"]["headers"]
+    rows = spec["table"]["rows"]
+    ncol = len(headers)
+    shape = slide.shapes.add_table(
+        1 + len(rows), ncol, Emu(D.emu(D.grid_x(0))), Emu(D.emu(top)),
+        Emu(D.emu(D.grid_w(12))), Emu(D.emu(min(CONTENT_BOTTOM - top, 0.5 * (1 + len(rows))))))
+    table = shape.table
+    table.first_row = True
+    table.horz_banding = True
+    for c, header in enumerate(headers):
+        cell = table.cell(0, c)
+        cell.text = str(header)
+        cell.fill.solid()
+        cell.fill.fore_color.theme_color = D.ROLES["supporting"]
+        for para in cell.text_frame.paragraphs:
+            for run in para.runs:
+                _font(run.font, "text_inverse", 14, bold=True)
+    for r, row in enumerate(rows, start=1):
+        for c in range(ncol):
+            cell = table.cell(r, c)
+            cell.text = str(row[c]) if c < len(row) else ""
+            cell.fill.solid()
+            cell.fill.fore_color.theme_color = D.ROLES["background"]
+            if r % 2 == 0:
+                cell.fill.fore_color.theme_color = D.ROLES["supporting"]
+                cell.fill.fore_color.brightness = D.BAND_BRIGHTNESS
+            for para in cell.text_frame.paragraphs:
+                for run in para.runs:
+                    _font(run.font, "text", 14)
+    ctx.keyed[(sidx, "table")] = shape
+    _footer(ctx, slide, sidx)
+
+
+def r_closing(ctx, slide, sidx, spec):
+    # the Close layout carries the brand logo lockup center (2.89–4.64) —
+    # closing message sits above it, CTA/contact below; no extra decoration
+    _bg(slide, "dominant_dark")
+    _textbox(ctx, slide, sidx, "title", D.grid_x(1), 1.1, D.grid_w(10), 1.5, spec["title"],
+             "text_inverse", "deck_title", bold=True, align=PP_ALIGN.CENTER, max_lines=2)
+    if spec.get("subtitle"):
+        _textbox(ctx, slide, sidx, "subtitle", D.grid_x(2), 5.0, D.grid_w(8), 0.8,
+                 spec["subtitle"], "text_inverse", "body", align=PP_ALIGN.CENTER, brightness=-0.15)
+
+
+RENDERERS = {
+    "title": r_title, "agenda": r_agenda, "section_divider": r_section_divider,
+    "content_bullets": r_content_bullets, "content_chart": r_content_chart,
+    "comparison": r_comparison, "big_stat": r_big_stat, "quote": r_quote,
+    "timeline_process": r_timeline, "two_column": r_two_column, "table": r_table,
+    "closing_cta": r_closing,
+}
+
+
+def _apply_overrides(ctx, sidx, spec):
+    for ov in spec.get("position_overrides") or []:
+        shape = ctx.keyed.get((sidx, ov["shape"]))
+        if shape is not None:
+            _frame(shape, ov["x_in"], ov["y_in"], ov["w_in"], ov["h_in"])
+
+
+def _assert_theme_only():
+    """No RGB literal outside the palette module: this builder and the design
+    module must never import python-pptx's RGB color class."""
+    # needles assembled in halves so this function's own source never matches
+    import_needle = "pptx.dml" + ".color"
+    class_needle = "RGB" + "Color"
+    here = Path(__file__).resolve().parent
+    for name in ("build_pptx.py", "pptx_design.py"):
+        src = (here / name).read_text()
+        if import_needle in src or class_needle in src:
+            raise AssertionError(f"{name}: RGB color literal found — style through pptx_design roles only")
+
+
 def build(payload: dict, template: str, out: Path) -> dict:
-    prs = Presentation()
-    prs.slide_width = Emu(int(W * EMU_IN))
-    prs.slide_height = Emu(int(H * EMU_IN))
-    deck_title = payload.get("title", "")
+    _assert_theme_only()
+    template_file = template or str(
+        Path(__file__).resolve().parents[2] / "skills/pptx/templates/dfs_default.potx")
+    if not Path(template_file).exists():  # bundled Lambda layout
+        template_file = str(Path(__file__).resolve().parent / "templates/dfs_default.potx")
+    prs = Presentation(template_file)
+    prs.slide_width = Emu(D.emu(D.SLIDE_W))
+    prs.slide_height = Emu(D.emu(D.SLIDE_H))
+    # a .potx opens with zero slides; render every spec slide onto its layout
     slides = payload["slides"]
-    total = len(slides)
+    ctx = Ctx(prs, payload.get("title", ""), len(slides))
     for i, spec in enumerate(slides, start=1):
-        spec = dict(spec)
-        spec["_deck"] = deck_title
-        fn = LAYOUTS.get(spec.get("layout"), slide_bullets)
-        s = fn(prs, spec, i, total)
-        notes = spec.get("notes")
-        if notes:
-            s.notes_slide.notes_text_frame.text = str(notes)
+        layout = prs.slide_layouts[LAYOUT_IDX.get(spec["archetype"], 5)]
+        slide = prs.slides.add_slide(layout)
+        # drop layout-inherited placeholders we don't fill (date/footer/number stubs)
+        for ph in list(slide.placeholders):
+            if ph.placeholder_format.idx != 0:
+                ph._element.getparent().remove(ph._element)
+        RENDERERS[spec["archetype"]](ctx, slide, i, spec)
+        # an unfilled title placeholder would render as a "click to edit" stub
+        for ph in list(slide.placeholders):
+            if not ph.text_frame.text.strip():
+                ph._element.getparent().remove(ph._element)
+        _apply_overrides(ctx, i, spec)
+        _notes(slide, spec)
     out.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(out))
-    return {"slides": total, "bytes": out.stat().st_size}
+    return {
+        "slides": len(slides),
+        "bytes": out.stat().st_size,
+        "overflow_flags": ctx.overflows,
+    }
 
 
 def extract_texts(path: Path) -> list:
@@ -299,6 +640,7 @@ def extract_texts(path: Path) -> list:
 def main() -> None:
     args = vc.cli("pptx builder")
     payload = vc.load_payload(args.payload)
+    vc.spec_gate("pptx", payload)
     out = Path(args.out)
     meta = build(payload, args.template or "", out)
 
@@ -309,7 +651,9 @@ def main() -> None:
         vc.check("Round-trip", len(list(reopened.slides)) == meta["slides"] and any(t.strip() for t in texts))
     )
     checks.append(vc.placeholder_grep(texts))
+    checks.append(vc.check("Overflow-free (measured)", not meta["overflow_flags"]))
     checks.append(vc.soffice_convert(out, "soffice open/convert", vc.THUMBS_SKIP))
+    meta["overflow_flags"] = len(meta["overflow_flags"])
     vc.emit(out, meta, checks)
 
 

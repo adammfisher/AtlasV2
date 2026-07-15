@@ -15,7 +15,7 @@ function bedrockModule(): typeof bedrock {
   return bedrock;
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
-import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile } from './validate.js';
+import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile, officeDoctrineCheck } from './validate.js';
 import { OrchestrationError, injectEditContext, type ArtifactKind, type EditState } from './artifactContext.js';
 import {
   createArtifact,
@@ -343,7 +343,12 @@ export async function runCreateDoc(opts: {
         ? (payload: unknown) =>
             validateFileMap(((payload as Record<string, unknown>).files ?? {}) as Record<string, string>)
         : undefined;
-    const { payload, firstPass } = await generateJson(ctx, officePrompt(skill, opts.instructions, opts.text, opts.context), maxTokens, fileMapCheck);
+    // design-doctrine feedback inside the repair loop (word caps, hierarchy,
+    // frontier-only position_overrides); the Python builder re-audits as the gate
+    const doctrineCheck = ['pptx', 'docx', 'xlsx', 'pdf'].includes(skill.id)
+      ? (payload: unknown) => officeDoctrineCheck(skill.id, payload, officeModel().tier === 'bedrock')
+      : undefined;
+    const { payload, firstPass } = await generateJson(ctx, officePrompt(skill, opts.instructions, opts.text, opts.context), maxTokens, fileMapCheck ?? doctrineCheck);
     pushStep(ctx, {
       state: 'ok',
       label: genLabel,

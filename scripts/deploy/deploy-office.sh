@@ -25,6 +25,15 @@ aws s3 cp "s3://$BUCKET/$KEY" "$WORK/office.zip" --region "$REGION" --only-show-
 echo "→ swapping in scripts/office/*.py"
 ( cd scripts/office && zip -q "$WORK/office.zip" ./*.py )
 
+# design-doctrine assets the builders read at runtime (validate_common loads
+# schemas/<skill>.json beside the handler; build_pdf loads templates/paged.css)
+echo "→ bundling skill schemas + pdf stylesheet"
+STAGE="$WORK/stage"
+mkdir -p "$STAGE/schemas" "$STAGE/templates"
+for s in pptx docx xlsx pdf; do cp "skills/$s/schema.json" "$STAGE/schemas/$s.json"; done
+cp skills/pdf/templates/paged.css "$STAGE/templates/paged.css"
+( cd "$STAGE" && zip -q "$WORK/office.zip" schemas/*.json templates/paged.css )
+
 echo "→ uploading"
 aws s3 cp "$WORK/office.zip" "s3://$BUCKET/$KEY" --region "$REGION" --only-show-errors
 
