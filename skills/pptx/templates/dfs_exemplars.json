@@ -1,412 +1,1076 @@
 {
- "source": "dfs_library.pptx",
- "comment": "0-based slide indices into the DFS library with explicit fill maps (shape ids from the library). slots fill one content item each (first paragraph; the rest cleared); unused slots are deleted together with their icon shapes. always_delete removes hidden duplicate frames that exist in the library file.",
- "exemplars": {
-  "bullets2": {
-   "slide": 40,
-   "heading": 12,
-   "slots": [
+ "version": 2,
+ "comment": "Layout-archetype exemplar library. spec fields are schema-valid slide objects; geometry_source anchors each archetype to a real slide in dfs_library.pptx (extracted, not invented). template_geometry carries the extracted anchor facts the deterministic builder is calibrated against.",
+ "template_geometry": {
+  "content_bullets": {
+   "library_slide": 40,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.5,
+     2.76,
+     5.71,
+     1.53
+    ],
+    "max_pt": 18.0,
+    "sample": "Topic | Insert description here | Insert description here | "
+   },
+   "content": [
     {
-     "text": 20,
-     "icons": [
-      21
-     ]
+     "kind": "text",
+     "rect": [
+      0.5,
+      4.58,
+      5.71,
+      1.53
+     ],
+     "max_pt": 18.0,
+     "sample": "Topic | Insert description here | Insert description here | "
     },
     {
-     "text": 22,
-     "icons": [
-      23
-     ]
+     "kind": "text",
+     "rect": [
+      0.45,
+      2.25,
+      7.76,
+      3.4
+     ],
+     "max_pt": 16.0,
+     "sample": "Topic | Lorem ipsum dolor sit amet, consectetur adipiscing e"
+    },
+    {
+     "kind": "text",
+     "rect": [
+      0.54,
+      1.24,
+      5.81,
+      1.37
+     ],
+     "max_pt": null,
+     "sample": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed"
     }
    ],
-   "always_delete": [
-    5
-   ],
-   "heading_style": {
-    "size": 26,
-    "bold": true,
-    "color": "371447"
-   }
+   "graphics": []
   },
-  "bullets3": {
-   "slide": 44,
-   "heading": 3,
-   "slots": [
+  "two_column": {
+   "library_slide": 41,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     9.05,
+     0.29,
+     1.77,
+     0.49
+    ],
+    "max_pt": 18.0,
+    "sample": "Topic"
+   },
+   "content": [
     {
-     "text": 8,
-     "icons": [
-      9
-     ]
+     "kind": "text",
+     "rect": [
+      0.34,
+      1.14,
+      5.56,
+      3.94
+     ],
+     "max_pt": 18.0,
+     "sample": "Topic | Insert description here"
     },
     {
-     "text": 4,
-     "icons": [
-      5
-     ]
+     "kind": "text",
+     "rect": [
+      0.45,
+      2.25,
+      7.76,
+      3.4
+     ],
+     "max_pt": 16.0,
+     "sample": "Topic | Lorem ipsum dolor sit amet, consectetur adipiscing e"
     },
     {
-     "text": 6,
-     "icons": [
-      7
-     ]
+     "kind": "text",
+     "rect": [
+      8.33,
+      1.52,
+      3.45,
+      1.38
+     ],
+     "max_pt": 14.0,
+     "sample": "Insert description here"
     },
     {
-     "text": 11,
-     "icons": [
-      10
-     ]
+     "kind": "text",
+     "rect": [
+      8.33,
+      3.25,
+      3.45,
+      1.38
+     ],
+     "max_pt": 14.0,
+     "sample": "Insert description here"
     }
    ],
-   "always_delete": [],
-   "heading_style": {
-    "size": 22,
-    "bold": true,
-    "color": "371447"
-   }
+   "graphics": []
   },
-  "bullets5": {
-   "slide": 42,
-   "heading": 12,
-   "subtitle": 16,
-   "slots": [
+  "content_chart": {
+   "library_slide": 255,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.13,
+     0.91,
+     12.96,
+     0.33
+    ],
+    "max_pt": 18.0,
+    "sample": "Insert Topic Here"
+   },
+   "content": [
     {
-     "text": 4,
-     "icons": []
-    },
-    {
-     "text": 10,
-     "icons": []
-    },
-    {
-     "text": 13,
-     "icons": []
-    },
-    {
-     "text": 15,
-     "icons": []
-    },
-    {
-     "text": 18,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.25,
+      1.44,
+      2.23,
+      0.76
+     ],
+     "max_pt": 14.0,
+     "sample": "Insert Text | Insert Description"
     }
    ],
-   "always_delete": [
-    5,
-    6,
-    7,
-    8
-   ],
-   "heading_style": {
-    "size": 26,
-    "bold": true,
-    "color": "371447"
-   }
-  },
-  "two_col": {
-   "slide": 41,
-   "heading": 16,
-   "left": 8,
-   "slots": [
+   "graphics": [
     {
-     "text": 3,
-     "icons": [
-      18
-     ]
-    },
-    {
-     "text": 4,
-     "icons": [
-      19
-     ]
-    },
-    {
-     "text": 9,
-     "icons": [
-      15
+     "kind": "chart",
+     "rect": [
+      2.71,
+      1.31,
+      10.37,
+      5.44
      ]
     }
-   ],
-   "always_delete": [
-    5
-   ],
-   "heading_style": {
-    "size": 18,
-    "bold": true
-   }
-  },
-  "chart_line": {
-   "slide": 255,
-   "heading": 4,
-   "sidebar": 6,
-   "sidebar_frame": 5,
-   "chart": true,
-   "slots": [],
-   "always_delete": [],
-   "kind": "line"
-  },
-  "chart_bar": {
-   "slide": 257,
-   "heading": 7,
-   "slots": [
-    {
-     "text": 8,
-     "icons": []
-    }
-   ],
-   "chart": true,
-   "always_delete": [],
-   "kind": "bar"
-  },
-  "section": {
-   "slide": 26,
-   "heading": 2,
-   "slots": [],
-   "always_delete": [
-    4
    ]
   },
-  "closing": {
-   "slide": 283,
-   "heading": 2,
-   "slots": [],
-   "always_delete": []
+  "section_divider": {
+   "library_slide": 26,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.54,
+     2.65,
+     9.95,
+     1.59
+    ],
+    "max_pt": null,
+    "sample": "General Content Slides"
+   },
+   "content": [],
+   "graphics": []
   },
-  "exec_pillars": {
-   "slide": 79,
-   "heading": 11,
-   "slots": [
+  "closing_cta": {
+   "library_slide": 283,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     1.69,
+     2.96,
+     9.95,
+     1.59
+    ],
+    "max_pt": 36.0,
+    "sample": "Thank You"
+   },
+   "content": [],
+   "graphics": []
+  },
+  "comparison": {
+   "library_slide": 156,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.18,
+     1.31,
+     3.16,
+     0.99
+    ],
+    "max_pt": 14.0,
+    "sample": "Insert Text | $, #, %"
+   },
+   "content": [
     {
-     "text": 50,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      10.01,
+      1.31,
+      3.16,
+      0.98
+     ],
+     "max_pt": 14.0,
+     "sample": "Insert Text | $, #, %"
     },
     {
-     "text": 54,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      3.46,
+      1.31,
+      3.16,
+      0.98
+     ],
+     "max_pt": 14.0,
+     "sample": "Insert Text | $, #, %"
     },
     {
-     "text": 51,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      6.73,
+      1.31,
+      3.16,
+      0.98
+     ],
+     "max_pt": 14.0,
+     "sample": "Insert Text | $, #, %"
     },
     {
-     "text": 55,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.18,
+      2.47,
+      3.16,
+      4.04
+     ],
+     "max_pt": 14.0,
+     "sample": "Bullet point 1 | Bullet point 2"
     }
    ],
-   "always_delete": []
+   "graphics": []
   },
-  "list_blocks4": {
-   "slide": 113,
-   "heading": 5,
-   "slots": [
+  "timeline_process": {
+   "library_slide": 192,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     10.03,
+     1.94,
+     3.19,
+     0.46
+    ],
+    "max_pt": 16.0,
+    "sample": "Q4 202X"
+   },
+   "content": [
     {
-     "text": 17,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      6.73,
+      1.95,
+      3.19,
+      0.46
+     ],
+     "max_pt": 16.0,
+     "sample": "Q3 202X"
     },
     {
-     "text": 19,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      3.44,
+      1.97,
+      3.19,
+      0.46
+     ],
+     "max_pt": 16.0,
+     "sample": "Q2 202X"
     },
     {
-     "text": 21,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.15,
+      1.98,
+      3.19,
+      0.46
+     ],
+     "max_pt": 16.0,
+     "sample": "Q1 202X"
     },
     {
-     "text": 3,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.54,
+      1.14,
+      12.65,
+      0.43
+     ],
+     "max_pt": 14.0,
+     "sample": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed"
     }
    ],
-   "always_delete": []
+   "graphics": []
   },
-  "steps_5": {
-   "slide": 121,
-   "heading": 24,
-   "slots": [
+  "quote": {
+   "library_slide": 248,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.58,
+     1.61,
+     3.53,
+     1.77
+    ],
+    "max_pt": 16.0,
+    "sample": "Insert description here"
+   },
+   "content": [
     {
-     "text": 14,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      4.9,
+      1.61,
+      3.53,
+      1.77
+     ],
+     "max_pt": 16.0,
+     "sample": "Insert description here"
     },
     {
-     "text": 16,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      9.22,
+      1.61,
+      3.53,
+      1.77
+     ],
+     "max_pt": 16.0,
+     "sample": "Insert description here"
     },
     {
-     "text": 18,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.34,
+      1.28,
+      0.66,
+      0.66
+     ],
+     "max_pt": 14.0,
+     "sample": "1"
     },
     {
-     "text": 20,
-     "icons": []
-    },
-    {
-     "text": 22,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      9.02,
+      1.28,
+      0.66,
+      0.66
+     ],
+     "max_pt": 14.0,
+     "sample": "3"
     }
    ],
-   "always_delete": []
+   "graphics": []
   },
-  "compare_3": {
-   "slide": 156,
-   "heading": 7,
-   "slots": [
+  "big_stat": {
+   "library_slide": 79,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.31,
+     2.38,
+     2.93,
+     0.37
+    ],
+    "max_pt": 14.0,
+    "sample": "Current State"
+   },
+   "content": [
     {
-     "text": 15,
-     "icons": [
-      8,
-      13,
-      16,
-      23
-     ]
+     "kind": "text",
+     "rect": [
+      6.84,
+      2.38,
+      2.93,
+      0.37
+     ],
+     "max_pt": 14.0,
+     "sample": "Business Benefits"
     },
     {
-     "text": 19,
-     "icons": [
-      8,
-      13,
-      16,
-      23
-     ]
+     "kind": "text",
+     "rect": [
+      3.57,
+      2.38,
+      2.94,
+      0.37
+     ],
+     "max_pt": 14.0,
+     "sample": "Enhancements"
     },
     {
-     "text": 11,
-     "icons": [
-      8,
-      13,
-      16,
-      23
-     ]
+     "kind": "text",
+     "rect": [
+      10.09,
+      2.38,
+      2.93,
+      0.37
+     ],
+     "max_pt": 14.0,
+     "sample": "Next Steps"
+    },
+    {
+     "kind": "text",
+     "rect": [
+      0.34,
+      2.9,
+      2.93,
+      3.41
+     ],
+     "max_pt": 12.0,
+     "sample": "Insert challenges, problems to solve"
     }
    ],
-   "always_delete": []
+   "graphics": []
   },
-  "timeline_4": {
-   "slide": 192,
-   "heading": 3,
-   "slots": [
+  "table": {
+   "library_slide": 113,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     0.65,
+     2.27,
+     0.38,
+     0.37
+    ],
+    "max_pt": 24.0,
+    "sample": "1"
+   },
+   "content": [
     {
-     "text": 26,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.65,
+      3.26,
+      0.38,
+      0.37
+     ],
+     "max_pt": 24.0,
+     "sample": "2"
     },
     {
-     "text": 28,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.65,
+      4.26,
+      0.38,
+      0.37
+     ],
+     "max_pt": 24.0,
+     "sample": "3"
     },
     {
-     "text": 29,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.65,
+      5.26,
+      0.38,
+      0.37
+     ],
+     "max_pt": 24.0,
+     "sample": "4"
     },
     {
-     "text": 30,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.54,
+      1.14,
+      9.84,
+      0.73
+     ],
+     "max_pt": 16.0,
+     "sample": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed"
     }
    ],
-   "always_delete": []
+   "graphics": []
   },
-  "timeline_3": {
-   "slide": 196,
-   "heading": 8,
-   "slots": [
+  "title": {
+   "library_slide": 0,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     4.4,
+     1.89,
+     8.21,
+     1.59
+    ],
+    "max_pt": 44.0,
+    "sample": "DFS Tech Slide Library"
+   },
+   "content": [
     {
-     "text": 25,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      4.4,
+      1.89,
+      8.21,
+      1.59
+     ],
+     "max_pt": 28.0,
+     "sample": "DFS Tech Slide Library"
     },
     {
-     "text": 24,
-     "icons": []
-    },
-    {
-     "text": 26,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      4.4,
+      3.52,
+      8.21,
+      0.73
+     ],
+     "max_pt": null,
+     "sample": "Last Updated: 30 March 2026"
     }
    ],
-   "always_delete": []
+   "graphics": []
   },
-  "roadmap_4": {
-   "slide": 198,
-   "heading": 118,
-   "slots": [
+  "agenda": {
+   "library_slide": 1,
+   "headline": {
+    "kind": "text",
+    "rect": [
+     3.21,
+     2.27,
+     6.91,
+     1.03
+    ],
+    "max_pt": 32.0,
+    "sample": "Do not edit assets in this PPT. | This is a shared file. Do "
+   },
+   "content": [
     {
-     "text": 134,
-     "icons": []
-    },
-    {
-     "text": 136,
-     "icons": []
-    },
-    {
-     "text": 138,
-     "icons": []
-    },
-    {
-     "text": 140,
-     "icons": []
+     "kind": "text",
+     "rect": [
+      0.8,
+      3.55,
+      11.73,
+      0.45
+     ],
+     "max_pt": 18.0,
+     "sample": "Right click on your preferred slide > select copy > paste th"
     }
    ],
-   "always_delete": []
-  },
-  "quote_panel": {
-   "slide": 248,
-   "heading": 12,
-   "slots": [
-    {
-     "text": 10,
-     "icons": []
-    },
-    {
-     "text": 8,
-     "icons": []
-    },
-    {
-     "text": 14,
-     "icons": []
-    },
-    {
-     "text": 17,
-     "icons": []
-    }
-   ],
-   "always_delete": []
+   "graphics": []
   }
  },
- "categories": {
-  "bullets": [
-   "bullets2",
-   "bullets3",
-   "bullets5",
-   "exec_pillars",
-   "list_blocks4",
-   "steps_5"
-  ],
-  "two_col": [
-   "two_col",
-   "compare_3"
-  ],
-  "chart": [
-   "chart_line",
-   "chart_bar"
-  ],
-  "section": [
-   "section"
-  ],
-  "closing": [
-   "closing"
-  ]
- },
- "styles": [
-  "bullets2",
-  "bullets3",
-  "bullets5",
-  "chart_bar",
-  "chart_line",
-  "closing",
-  "compare_3",
-  "exec_pillars",
-  "list_blocks4",
-  "quote_panel",
-  "roadmap_4",
-  "section",
-  "steps_5",
-  "timeline_3",
-  "timeline_4",
-  "two_col"
+ "exemplars": [
+  {
+   "id": "title_quarterly",
+   "archetype": "title",
+   "tags": [
+    "opening",
+    "review",
+    "quarterly",
+    "board",
+    "kickoff"
+   ],
+   "why_good": "Deck title is the deck's single claim, not a topic label; subtitle carries audience and date.",
+   "geometry_source": {
+    "library_slide": 0
+   },
+   "spec": {
+    "archetype": "title",
+    "title": "Churn fell to 2.1% \u2014 the retention bet paid off",
+    "subtitle": "Customer success review \u00b7 Q2 2026 \u00b7 Leadership team",
+    "speaker_notes": "Open with the one number the room cares about, then preview the three drivers."
+   }
+  },
+  {
+   "id": "agenda_five",
+   "archetype": "agenda",
+   "tags": [
+    "agenda",
+    "sections",
+    "overview",
+    "structure"
+   ],
+   "why_good": "Six or fewer plain section names; the agenda promises the arc, it doesn't argue it.",
+   "geometry_source": {
+    "library_slide": 1
+   },
+   "spec": {
+    "archetype": "agenda",
+    "title": "Today: how we cut churn and what we scale next",
+    "bullets": [
+     "Where churn stood in January",
+     "The three retention bets",
+     "What the data shows",
+     "Cost of the program",
+     "Scaling decisions"
+    ],
+    "speaker_notes": "Set expectations: forty minutes, decisions needed on items four and five."
+   }
+  },
+  {
+   "id": "divider_numbered",
+   "archetype": "section_divider",
+   "tags": [
+    "section",
+    "part",
+    "chapter",
+    "transition"
+   ],
+   "why_good": "Two-to-five words on a dark field; the auto number carries sequence, the title carries the claim.",
+   "geometry_source": {
+    "library_slide": 26
+   },
+   "spec": {
+    "archetype": "section_divider",
+    "title": "The three retention bets",
+    "subtitle": "Onboarding, pricing, proactive support",
+    "speaker_notes": "Transition: from the problem to what we actually did about it."
+   }
+  },
+  {
+   "id": "bullets_parallel",
+   "archetype": "content_bullets",
+   "tags": [
+    "findings",
+    "reasons",
+    "drivers",
+    "list",
+    "points"
+   ],
+   "why_good": "Assertive sentence headline; every bullet starts with a verb (parallel grammar); each quantified; 5 max.",
+   "geometry_source": {
+    "library_slide": 40
+   },
+   "spec": {
+    "archetype": "content_bullets",
+    "title": "Onboarding rework drove the biggest churn reduction",
+    "bullets": [
+     "Cut time-to-first-value from 14 days to 3",
+     "Raised week-one activation 38%",
+     "Halved support tickets from new accounts",
+     "Lifted 90-day retention 11 points"
+    ],
+    "icons": [
+     "time",
+     "growth",
+     "check",
+     "people"
+    ],
+    "speaker_notes": "Each bullet is one measured effect of the January onboarding rework; details in appendix."
+   }
+  },
+  {
+   "id": "bullets_risks",
+   "archetype": "content_bullets",
+   "tags": [
+    "risks",
+    "concerns",
+    "issues",
+    "watchlist"
+   ],
+   "why_good": "Risk slides stay parallel too: noun-phrase risks each with a number attached, never vague adjectives.",
+   "geometry_source": {
+    "library_slide": 40
+   },
+   "spec": {
+    "archetype": "content_bullets",
+    "title": "Two risks could stall the gains by Q4",
+    "bullets": [
+     "Support headcount flat while accounts grow 25%",
+     "Legacy plan migration touches 4,100 customers"
+    ],
+    "icons": [
+     "risk",
+     "people"
+    ],
+    "speaker_notes": "Both risks have owners; the asks on the closing slide fund the mitigations."
+   }
+  },
+  {
+   "id": "chart_trend",
+   "archetype": "content_chart",
+   "tags": [
+    "trend",
+    "over time",
+    "trajectory",
+    "monthly",
+    "quarterly",
+    "revenue",
+    "growth"
+   ],
+   "why_good": "Line for a trend over time; sort declared as time; annotations carry the reading, the headline carries the message.",
+   "geometry_source": {
+    "library_slide": 255
+   },
+   "spec": {
+    "archetype": "content_chart",
+    "title": "Churn halved in five months, and the slope is still down",
+    "chart": {
+     "kind": "line",
+     "categories": [
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun"
+     ],
+     "series": [
+      {
+       "name": "Monthly churn %",
+       "values": [
+        4.2,
+        3.6,
+        3.1,
+        2.5,
+        2.1
+       ]
+      }
+     ],
+     "sort": "time"
+    },
+    "bullets": [
+     "Steepest drop after onboarding rework",
+     "June is the best month on record"
+    ],
+    "speaker_notes": "One series, one message. The annotations point at the two inflection points."
+   }
+  },
+  {
+   "id": "chart_compare",
+   "archetype": "content_chart",
+   "tags": [
+    "comparison",
+    "by segment",
+    "breakdown",
+    "versus",
+    "bar"
+   ],
+   "why_good": "Bar for comparison across categories; sorted by value so the ranking is the picture.",
+   "geometry_source": {
+    "library_slide": 255
+   },
+   "spec": {
+    "archetype": "content_chart",
+    "title": "Enterprise accounts churn at a third of the SMB rate",
+    "chart": {
+     "kind": "bar",
+     "categories": [
+      "SMB",
+      "Mid-market",
+      "Enterprise"
+     ],
+     "series": [
+      {
+       "name": "Churn %",
+       "values": [
+        3.4,
+        1.9,
+        1.1
+       ]
+      }
+     ],
+     "sort": "value_desc"
+    },
+    "speaker_notes": "The mix shift toward enterprise is itself a retention strategy."
+   }
+  },
+  {
+   "id": "compare_before_after",
+   "archetype": "comparison",
+   "tags": [
+    "before",
+    "after",
+    "old",
+    "new",
+    "was",
+    "now"
+   ],
+   "why_good": "Two columns, strictly parallel rows, every claim quantified \u2014 the reader compares line by line.",
+   "geometry_source": {
+    "library_slide": 156
+   },
+   "spec": {
+    "archetype": "comparison",
+    "title": "The new onboarding removes every early friction point",
+    "columns": [
+     {
+      "head": "Before (Q4 2025)",
+      "items": [
+       "14 days to first value",
+       "6 manual setup steps",
+       "22% week-one activation"
+      ]
+     },
+     {
+      "head": "After (Q2 2026)",
+      "items": [
+       "3 days to first value",
+       "Zero-touch setup",
+       "60% week-one activation"
+      ]
+     }
+    ],
+    "speaker_notes": "Same three rows on both sides so the deltas read instantly."
+   }
+  },
+  {
+   "id": "compare_options",
+   "archetype": "comparison",
+   "tags": [
+    "options",
+    "alternatives",
+    "pros",
+    "cons",
+    "choose",
+    "decision"
+   ],
+   "why_good": "Three options with parallel structure; the deck takes a position in the headline.",
+   "geometry_source": {
+    "library_slide": 156
+   },
+   "spec": {
+    "archetype": "comparison",
+    "title": "Build on the platform team \u2014 it's half the cost of buying",
+    "columns": [
+     {
+      "head": "Build in-house",
+      "items": [
+       "$310K first year",
+       "9-month timeline",
+       "Full data control"
+      ]
+     },
+     {
+      "head": "Buy vendor",
+      "items": [
+       "$640K first year",
+       "3-month timeline",
+       "Data leaves VPC"
+      ]
+     },
+     {
+      "head": "Hybrid",
+      "items": [
+       "$420K first year",
+       "6-month timeline",
+       "Partial control"
+      ]
+     }
+    ],
+    "speaker_notes": "Recommendation is build; timeline risk is the honest tradeoff to discuss."
+   }
+  },
+  {
+   "id": "stat_headline",
+   "archetype": "big_stat",
+   "tags": [
+    "metric",
+    "kpi",
+    "headline number",
+    "record",
+    "milestone"
+   ],
+   "why_good": "One number at display size with a plain label; the support line says why it matters. Nothing else competes.",
+   "geometry_source": {
+    "library_slide": 79
+   },
+   "spec": {
+    "archetype": "big_stat",
+    "title": "Retention is now the growth engine",
+    "stat": {
+     "value": "134%",
+     "label": "Net revenue retention, June 2026"
+    },
+    "support": "Up nine points since usage-based pricing shipped in Q1.",
+    "speaker_notes": "Pause on this slide. If the room remembers one number, it's this one."
+   }
+  },
+  {
+   "id": "quote_customer",
+   "archetype": "quote",
+   "tags": [
+    "customer",
+    "testimonial",
+    "voice",
+    "feedback",
+    "said"
+   ],
+   "why_good": "A real voice lands what a bullet can't; attribution is specific (name, role, company).",
+   "geometry_source": {
+    "library_slide": 248
+   },
+   "spec": {
+    "archetype": "quote",
+    "title": "",
+    "quote": "We migrated 40 stores in a weekend and nobody noticed. That never happens.",
+    "attribution": "Dana Whitfield, VP Operations, Corewell Retail",
+    "speaker_notes": "Corewell was a save from the January cohort \u2014 proof the playbook works on at-risk accounts."
+   }
+  },
+  {
+   "id": "timeline_rollout",
+   "archetype": "timeline_process",
+   "tags": [
+    "rollout",
+    "plan",
+    "phases",
+    "steps",
+    "sequence",
+    "launch"
+   ],
+   "why_good": "Numbered ONLY because it is a true sequence; labels 2-4 words, details quantified.",
+   "geometry_source": {
+    "library_slide": 192
+   },
+   "spec": {
+    "archetype": "timeline_process",
+    "title": "Scaling to all segments takes four gated phases",
+    "steps": [
+     {
+      "label": "Pilot",
+      "detail": "50 accounts, July"
+     },
+     {
+      "label": "SMB rollout",
+      "detail": "All 3,200 accounts, August"
+     },
+     {
+      "label": "Mid-market",
+      "detail": "September, gated on NPS \u2265 45"
+     },
+     {
+      "label": "Enterprise",
+      "detail": "White-glove, October"
+     }
+    ],
+    "speaker_notes": "Each phase has an exit gate; we stop the train if the gate fails."
+   }
+  },
+  {
+   "id": "two_col_feature",
+   "archetype": "two_column",
+   "tags": [
+    "feature",
+    "product",
+    "screenshot",
+    "narrative",
+    "story"
+   ],
+   "why_good": "Narrative on the left, evidence on the right; the text side obeys the same 40-word budget.",
+   "geometry_source": {
+    "library_slide": 41
+   },
+   "spec": {
+    "archetype": "two_column",
+    "title": "Self-serve migration removed our biggest onboarding queue",
+    "bullets": [
+     "Customers migrate without a support ticket",
+     "Average migration now 41 minutes",
+     "Rollback is one click for 30 days"
+    ],
+    "stat": {
+     "value": "87%",
+     "label": "Migrations completed fully self-serve"
+    },
+    "speaker_notes": "The right panel is the proof point; the bullets say what changed."
+   }
+  },
+  {
+   "id": "table_kpis",
+   "archetype": "table",
+   "tags": [
+    "kpi",
+    "dashboard",
+    "exact",
+    "values",
+    "targets",
+    "actuals"
+   ],
+   "why_good": "A table only because exact values matter; 4 columns, rows sorted by the delta column.",
+   "geometry_source": {
+    "library_slide": 113
+   },
+   "spec": {
+    "archetype": "table",
+    "title": "Every retention KPI beat its Q2 target",
+    "table": {
+     "headers": [
+      "Metric",
+      "Target",
+      "Actual",
+      "Delta"
+     ],
+     "rows": [
+      [
+       "Churn %",
+       "2.8",
+       "2.1",
+       "+0.7"
+      ],
+      [
+       "NRR %",
+       "128",
+       "134",
+       "+6"
+      ],
+      [
+       "Activation %",
+       "50",
+       "60",
+       "+10"
+      ],
+      [
+       "NPS",
+       "42",
+       "47",
+       "+5"
+      ]
+     ]
+    },
+    "speaker_notes": "Read the delta column top to bottom \u2014 all green, sorted by size of beat."
+   }
+  },
+  {
+   "id": "closing_asks",
+   "archetype": "closing_cta",
+   "tags": [
+    "close",
+    "thanks",
+    "next steps",
+    "ask",
+    "decision"
+   ],
+   "why_good": "The close repeats the ask, not the content; contact and date make the follow-up concrete.",
+   "geometry_source": {
+    "library_slide": 283
+   },
+   "spec": {
+    "archetype": "closing_cta",
+    "title": "Approve the two headcount asks and we scale this in Q3",
+    "subtitle": "Decisions by Friday \u00b7 retention@atlas.dev",
+    "speaker_notes": "End on the decision, not on thank-you. Follow-ups booked for Thursday."
+   }
+  },
+  {
+   "id": "stat_cost",
+   "archetype": "big_stat",
+   "tags": [
+    "cost",
+    "savings",
+    "efficiency",
+    "roi"
+   ],
+   "why_good": "Money stat with the timeframe in the label \u2014 a naked number invites the wrong question.",
+   "geometry_source": {
+    "library_slide": 79
+   },
+   "spec": {
+    "archetype": "big_stat",
+    "title": "The program pays for itself eleven times over",
+    "stat": {
+     "value": "$2.3M",
+     "label": "Retained ARR attributable to the program, H1 2026"
+    },
+    "support": "Program cost $210K fully loaded over the same period.",
+    "speaker_notes": "Attribution method in appendix; conservative counting \u2014 only saves with a logged intervention."
+   }
+  }
  ]
 }

@@ -1,229 +1,141 @@
-"""DFS exemplar engine: copy curated, designed template slides from the slide
-library into a generated deck and fill them through EXPLICIT per-exemplar maps
-(shape ids) — no reading-order heuristics. Unused slots are deleted with their
-icon shapes; hidden duplicate frames present in the library are always removed.
+"""Layout-archetype exemplar engine (v2).
+
+dfs_exemplars.json carries 1–2 schema-valid exemplar SPECS per archetype —
+assertive sentence headlines, parallel bullet grammar, quantified evidence,
+speaker notes — each anchored to a real slide in dfs_library.pptx via
+geometry_source (extracted geometry, never invented). retrieve_exemplars()
+selects the top-K whose tags match a request's content shape; the server
+injects them into the generation prompt (small tiers lean on them hardest —
+k defaults low to respect small-model context budgets).
+
+The TypeScript mirror (server/src/pipeline/exemplars.ts) implements the same
+scoring over the same manifest for prompt assembly in the app server (which
+ships no Python); this module is canonical for tests, evals, and tooling.
 """
 import json
 import re
-from copy import deepcopy
 from pathlib import Path
 
-from pptx import Presentation
-from pptx.chart.data import CategoryChartData
-from pptx.dml.color import RGBColor
-from pptx.util import Pt
-
 HERE = Path(__file__).resolve().parents[2] / "skills/pptx/templates"
+_BUNDLED = Path(__file__).resolve().parent / "templates"
+
+_STOP = frozenset(
+    "a an and are as at be by for from has have how in is it of on or our the "
+    "this that to was we what which with your make makes made get give show me my".split()
+)
+
+# content-shape hints: request phrasing → archetype affinity
+_SHAPE_HINTS = {
+    "content_chart": ["chart", "graph", "trend", "over time", "monthly", "quarterly", "growth", "revenue", "funnel", "metrics"],
+    "big_stat": ["metric", "kpi", "number", "record", "milestone", "headline", "roi", "savings"],
+    "comparison": ["versus", "vs", "compare", "comparison", "competitor", "options", "pros", "cons", "before", "after"],
+    "timeline_process": ["timeline", "roadmap", "phases", "steps", "plan", "rollout", "launch", "process", "sequence"],
+    "table": ["table", "dashboard", "exact", "targets", "actuals", "breakdown"],
+    "quote": ["quote", "testimonial", "customer said", "voice", "feedback"],
+    "two_column": ["screenshot", "feature", "side by side", "narrative"],
+    "content_bullets": ["points", "reasons", "findings", "drivers", "risks", "summary"],
+    "section_divider": ["sections", "parts", "chapters"],
+    "agenda": ["agenda", "overview"],
+    "title": ["deck", "presentation", "review", "pitch"],
+    "closing_cta": ["ask", "decision", "next steps", "closing"],
+}
 
 
-class ExemplarDeck:
-    def __init__(self, out_prs):
-        self.out = out_prs
-        self.lib = Presentation(str(HERE / "dfs_library.pptx"))
-        manifest = json.loads((HERE / "dfs_exemplars.json").read_text())
-        self.exemplars = manifest["exemplars"]
-        self.categories = manifest["categories"]
-        self.rotation = {}
-        self.used = set()
+def _load_manifest() -> dict:
+    for base in (HERE, _BUNDLED):
+        path = base / "dfs_exemplars.json"
+        if path.exists():
+            return json.loads(path.read_text())
+    raise FileNotFoundError("dfs_exemplars.json not found")
 
-    def has(self, category):
-        return bool(self.categories.get(category))
 
-    def styles(self):
-        return list(self.exemplars.keys())
+def _tokens(text: str) -> set:
+    return {t for t in re.findall(r"[a-z0-9%$]+", str(text).lower()) if t not in _STOP}
 
-    def pick(self, category, item_count, chart_kind=None):
-        """Smallest exemplar whose slot capacity fits; charts match the requested
-        kind and are single-use per deck (their chart part is a shared object)."""
-        names = self.categories.get(category, [])
-        if not names:
-            return None
-        if category == "chart":
-            preferred = [n for n in names if self.exemplars[n].get("kind") == (chart_kind or "bar")]
-            ordered = preferred + [n for n in names if n not in preferred]
-            for name in ordered:
-                if name not in self.used:
-                    self.used.add(name)
-                    return name
-            return None
-        fitting = sorted(
-            (n for n in names),
-            key=lambda n: (len(self.exemplars[n]["slots"]) < item_count, len(self.exemplars[n]["slots"])),
+
+def retrieve_exemplars(spec_request, k: int = 3) -> list:
+    """Top-K exemplars for a request. `spec_request` is the user's request text
+    (or a dict with a "text" key). Scoring is deterministic: tag-token overlap
+    + content-shape hint hits, with archetype diversity (max one exemplar per
+    archetype until every scored archetype is represented)."""
+    text = spec_request.get("text") if isinstance(spec_request, dict) else spec_request
+    req_tokens = _tokens(text or "")
+    low = str(text or "").lower()
+    manifest = _load_manifest()
+
+    scored = []
+    for exemplar in manifest["exemplars"]:
+        tag_hits = sum(1 for tag in exemplar["tags"] if _tokens(tag) & req_tokens)
+        hint_hits = sum(1 for hint in _SHAPE_HINTS.get(exemplar["archetype"], []) if hint in low)
+        score = tag_hits * 2 + hint_hits
+        scored.append((score, exemplar["id"], exemplar))
+    scored.sort(key=lambda t: (-t[0], t[1]))
+
+    picked, seen_archetypes = [], set()
+    for score, _, exemplar in scored:  # diversity pass: one per archetype first
+        if score > 0 and exemplar["archetype"] not in seen_archetypes:
+            picked.append(exemplar)
+            seen_archetypes.add(exemplar["archetype"])
+        if len(picked) == k:
+            return picked
+    for score, _, exemplar in scored:  # backfill: next-best regardless of archetype
+        if exemplar not in picked:
+            picked.append(exemplar)
+        if len(picked) == k:
+            break
+    return picked
+
+
+def format_exemplars(exemplars: list) -> str:
+    """Prompt block: compact spec JSON with the why, per exemplar."""
+    parts = []
+    for e in exemplars:
+        parts.append(
+            f"### {e['archetype']} — {e['why_good']}\n{json.dumps(e['spec'], separators=(',', ':'))}"
         )
-        return fitting[0] if fitting else None
+    return "\n".join(parts)
 
-    # ---------- copy ----------
 
-    def _blank_layout(self):
-        for layout in self.out.slide_layouts:
-            if layout.name == "Blank":
-                return layout
-        return self.out.slide_layouts[-1]
+# ── dev utility: regenerate template_geometry from the real library ─────────
+def extract_geometry(library_path: Path, anchors: dict) -> dict:
+    """Extract headline/content/graphics rects per archetype from anchor slides
+    in dfs_library.pptx — the manifest's geometry is measured, never invented."""
+    from pptx import Presentation
 
-    def _copy(self, slide_idx):
-        src = self.lib.slides[slide_idx]
-        new = self.out.slides.add_slide(self._blank_layout())
-        for shp in list(new.shapes):
-            shp._element.getparent().remove(shp._element)
-        rid_map = {}
-        for rId, rel in src.part.rels.items():
-            if rel.is_external:
-                continue
-            if rel.reltype.endswith(("/image", "/chart", "/media", "/package")):
-                rid_map[rId] = new.part.relate_to(rel.target_part, rel.reltype)
-        for shp in src.shapes:
-            new.shapes._spTree.append(deepcopy(shp._element))
-        for el in new.shapes._spTree.iter():
-            for attr, val in list(el.attrib.items()):
-                if val in rid_map and (attr.endswith("}embed") or attr.endswith("}id") or attr.endswith("}link")):
-                    el.attrib[attr] = rid_map[val]
-        return new
+    emu = 914400.0
+    prs = Presentation(str(library_path))
+    out = {}
+    for archetype, idx in anchors.items():
+        infos = []
 
-    # ---------- fill ----------
-
-    @staticmethod
-    def _by_id(slide, shape_id):
-        for sh in slide.shapes:
-            if sh.shape_id == shape_id:
-                return sh
-        return None
-
-    @staticmethod
-    def _delete(slide, shape_id):
-        for sh in list(slide.shapes):
-            if sh.shape_id == shape_id:
-                sh._element.getparent().remove(sh._element)
-                return
-
-    @staticmethod
-    def _set_text(shape, text, para_index=0, clear_rest=True):
-        if shape is None or not getattr(shape, "has_text_frame", False):
-            return
-        paras = shape.text_frame.paragraphs
-        if not paras:
-            shape.text_frame.text = text
-            return
-        target = paras[min(para_index, len(paras) - 1)]
-        runs = target.runs
-        if runs:
-            runs[0].text = text
-            for run in runs[1:]:
-                run.text = ""
-        else:
-            target.text = text
-        if clear_rest:
-            for i, para in enumerate(paras):
-                if i == para_index:
-                    continue
-                for run in para.runs:
-                    run.text = ""
-
-    @staticmethod
-    def _fill_lines(shape, lines):
-        """Fill a multi-paragraph frame with up to len(paras) lines, clearing extras."""
-        if shape is None or not getattr(shape, "has_text_frame", False):
-            return
-        paras = shape.text_frame.paragraphs
-        for i, para in enumerate(paras):
-            text = str(lines[i]) if i < len(lines) else ""
-            runs = para.runs
-            if runs:
-                runs[0].text = text
-                for run in runs[1:]:
-                    run.text = ""
-            else:
-                para.text = text
-
-    def build_slide(self, name, heading, items, chart_spec=None, notes=None):
-        spec = self.exemplars[name]
-        slide = self._copy(spec["slide"])
-
-        for shape_id in spec.get("always_delete", []):
-            self._delete(slide, shape_id)
-
-        heading_shape = self._by_id(slide, spec["heading"])
-        self._set_text(heading_shape, heading)
-        style = spec.get("heading_style")
-        if style and heading_shape is not None and getattr(heading_shape, "has_text_frame", False):
-            size = style.get("size")
-            if size and len(heading) > 32:  # long headings shrink so they never overlap content
-                size = max(12, int(size * 0.7))
-            for run in heading_shape.text_frame.paragraphs[0].runs:
-                if size:
-                    run.font.size = Pt(size)
-                if style.get("bold"):
-                    run.font.bold = True
-                if style.get("color"):
-                    run.font.color.rgb = RGBColor.from_string(style["color"])
-        if "subtitle" in spec:
-            subtitle = str(items[0]) if items else ""
-            items = items[1:] if items else items
-            self._set_text(self._by_id(slide, spec["subtitle"]), subtitle)
-
-        queue = list(items)
-        if "left" in spec:  # two-col: the left frame takes the first half
-            left_lines = queue[: max(1, len(queue) // 2)]
-            queue = queue[len(left_lines):]
-            self._fill_lines(self._by_id(slide, spec["left"]), left_lines)
-
-        for slot in spec["slots"]:
-            if queue:
-                self._set_text(self._by_id(slide, slot["text"]), str(queue.pop(0)))
-            else:
-                self._delete(slide, slot["text"])
-                for icon_id in slot.get("icons", []):
-                    self._delete(slide, icon_id)
-
-        if "sidebar" in spec:
-            sidebar = self._by_id(slide, spec["sidebar"])
-            if queue:
-                self._fill_lines(sidebar, queue)
-                queue = []
-            else:
-                self._delete(slide, spec["sidebar"])
-                if "sidebar_frame" in spec:
-                    self._delete(slide, spec["sidebar_frame"])
-
-        if spec.get("chart") and chart_spec and chart_spec.get("series"):
-            for shape in slide.shapes:
-                if getattr(shape, "has_chart", False):
-                    data = CategoryChartData()
-                    labels = [str(c) for c in chart_spec.get("labels") or []] or ["—"]
-                    data.categories = labels
-                    for series in chart_spec.get("series") or []:
-                        values = list(series.get("values") or [])
-                        values = (values + [0] * len(labels))[: len(labels)]
-                        data.add_series(series.get("name", "series"), values)
-                    shape.chart.replace_data(data)
-                    shape.chart.has_title = False  # the slide banner carries the heading
-                    break
-
-        self._sweep_placeholders(slide)
-        if notes:
-            slide.notes_slide.notes_text_frame.text = str(notes)
-        return slide
-
-    _PLACEHOLDER_LINE = re.compile(
-        r"^\s*(insert\b.*|placeholder|title|topic|lorem ipsum.*|presenter names?.*|#\s*minutes.*"
-        r"|x{1,3}%|#{1,3}%.*|date\s*[–-]\s*date|chart title|\d?\.?\s*milestone \d.*"
-        r"|bullet point \d.*|your text here|description:\s*insert.*|metric title|#{2,})\s*$",
-        re.I | re.S,
-    )
-
-    def _sweep_placeholders(self, slide):
-        """After mapped fills, clear ANY remaining placeholder-pattern paragraph
-        anywhere on the slide (incl. inside groups) — template residue like
-        'Insert description here.' must never ship."""
         def walk(shapes):
             for sh in shapes:
                 if sh.shape_type == 6 and hasattr(sh, "shapes"):
                     walk(sh.shapes)
                     continue
-                if not getattr(sh, "has_text_frame", False):
+                try:
+                    rect = [round(sh.left / emu, 2), round(sh.top / emu, 2),
+                            round(sh.width / emu, 2), round(sh.height / emu, 2)]
+                except Exception:
                     continue
-                for para in sh.text_frame.paragraphs:
-                    text = para.text.strip()
-                    if text and self._PLACEHOLDER_LINE.match(text):
-                        for run in para.runs:
-                            run.text = ""
-        walk(slide.shapes)
+                if getattr(sh, "has_chart", False):
+                    infos.append({"kind": "chart", "rect": rect})
+                elif getattr(sh, "has_table", False):
+                    infos.append({"kind": "table", "rect": rect})
+                elif getattr(sh, "has_text_frame", False) and sh.text_frame.text.strip():
+                    sizes = [r.font.size.pt for p in sh.text_frame.paragraphs
+                             for r in p.runs if r.font.size]
+                    infos.append({"kind": "text", "rect": rect,
+                                  "max_pt": max(sizes) if sizes else None,
+                                  "sample": sh.text_frame.text.strip().replace("\n", " | ")[:60]})
+
+        walk(prs.slides[idx].shapes)
+        texts = [i for i in infos if i["kind"] == "text" and i["rect"][1] < 6.5]
+        texts.sort(key=lambda i: ((i["max_pt"] or 0), -i["rect"][1]), reverse=True)
+        out[archetype] = {
+            "library_slide": idx,
+            "headline": texts[0] if texts else None,
+            "content": texts[1:5],
+            "graphics": [i for i in infos if i["kind"] in ("chart", "table")],
+        }
+    return out

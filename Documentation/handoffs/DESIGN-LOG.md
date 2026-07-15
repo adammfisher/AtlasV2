@@ -263,6 +263,46 @@ known A/B/C coupling); `position_overrides` tier gating is wired in C.
 validators beyond builder checks (collision, contrast, content audit at the FILE
 level, post-render bleed scan, fix loop) land in E.
 
+---
+
+## 2026-07-15 — Deliverable D: archetype exemplar engine
+
+**What changed**
+- `skills/pptx/templates/dfs_exemplars.json` v2: 16 exemplars covering all 12
+  archetypes (2× content_bullets/content_chart/comparison/big_stat), each
+  `{id, archetype, tags[], why_good, geometry_source, spec}` where `spec` is a
+  schema-valid slide demonstrating the doctrine — assertive sentence headlines,
+  parallel verb-led bullets, quantified evidence, required speaker_notes. All 16
+  validated against the B schema + content audit (0 errors).
+- Geometry EXTRACTED, not invented: `template_geometry` carries measured
+  headline/content/graphics rects + font sizes from anchor slides in the real
+  dfs_library.pptx (e.g. title slide headline 44pt @ (4.4,1.89); closing 36pt;
+  chart-slide headline strip full-width at y≈0.9); each exemplar's
+  `geometry_source` names its anchor library slide. Extractor lives in
+  `exemplar_engine.extract_geometry()` for regeneration.
+- `exemplar_engine.py` rewritten: the old shape-id slide copier (dead code since C)
+  replaced by `retrieve_exemplars(spec_request, k=3)` — deterministic scoring
+  (tag-token overlap ×2 + content-shape hint hits) with an archetype-diversity
+  pass — plus `format_exemplars()` for prompt blocks.
+- `server/src/pipeline/exemplars.ts`: TypeScript mirror of the same scoring over
+  the same manifest (the app server assembles prompts and ships no Python; the
+  Python module stays canonical for tests/tooling). Wired into `officePrompt()`:
+  pptx requests get a 3-exemplar block ("match their structure and copy
+  discipline, never their content").
+
+**Proof**
+- 16/16 exemplar specs schema-valid.
+- Retrieval parity: 4 representative queries return IDENTICAL picks from Python
+  and TS (revenue review → table_kpis/chart_trend/title_quarterly; competitor
+  comparison → compare_before_after/chart_compare/compare_options; launch plan →
+  timeline_rollout/two_col_feature/agenda_five; investor teaser →
+  quote_customer/stat_headline/stat_cost). `tsc --noEmit` clean.
+
+**Workstream interleaving note** — the parallel routing session committed while
+this deliverable's orchestrator hunks were staged; the `officePrompt` exemplar
+wiring therefore ships inside commit `3fab614` (brain/eval) rather than this one.
+Content is correct and reviewed; flagged here for archaeology.
+
 ### Open questions carried into A–G
 - The 12-archetype schema renames fields (`layout`→`archetype`, `heading`→`title`,
   `notes`→`speaker_notes`): the office **edit** flows re-emit full JSON against the
