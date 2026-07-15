@@ -287,6 +287,10 @@ export function ChatView({
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean; pasted?: string }>
   >([]);
+  // X1 response style per conversation (presets; custom via API sample call)
+  const [chatStyle, setChatStyle] = useState<string>('normal');
+  useEffect(() => setChatStyle('normal'), [convId]);
+
   // X6 voice dictation via the Web Speech API — free, on-device/browser, and
   // hidden entirely on unsupported browsers (graceful degrade per spec)
   const [listening, setListening] = useState(false);
@@ -785,6 +789,16 @@ export function ChatView({
               ) : (
                 <Msg key={m.id} who="assistant">
                   {m.kind === 'text' && m.toolCalls ? <ToolChips chips={m.toolCalls} /> : null}
+                  {m.kind === 'text' && m.thinking ? (
+                    <details className="mb-2 rounded-lg px-3 py-2" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
+                      <summary className="text-xs cursor-pointer" style={{ color: C.mute, fontFamily: sans }}>
+                        Thinking
+                      </summary>
+                      <pre className="text-xs mt-1.5 whitespace-pre-wrap" style={{ color: C.sub, fontFamily: sans }}>
+                        {m.thinking}
+                      </pre>
+                    </details>
+                  ) : null}
                   <div style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
                     <RichText text={m.text ?? ''} />
                   </div>
@@ -1050,6 +1064,28 @@ export function ChatView({
                       <Globe size={15} style={{ color: webSearch ? C.accent : C.mute }} /> Web search
                       {webSearch ? <Check size={15} style={{ color: C.accent, marginLeft: 'auto' }} /> : <span className="ml-auto text-xs" style={{ color: C.mute }}>Off</span>}
                     </button>
+                    <div className="px-3 pt-2 pb-1 text-xs uppercase tracking-wider" style={{ color: C.mute, fontFamily: sans }}>
+                      Response style
+                    </div>
+                    {(['normal', 'concise', 'explanatory', 'formal'] as const).map((st) => (
+                      <button
+                        key={st}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-sm capitalize"
+                        style={{ color: chatStyle === st ? C.accent : C.text, fontFamily: sans }}
+                        onClick={() => {
+                          if (!convId) return;
+                          setChatStyle(st);
+                          void fetch(`/api/conversations/${convId}/style`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ style: st }),
+                          });
+                        }}
+                      >
+                        {st}
+                        {chatStyle === st ? <Check size={13} style={{ marginLeft: 'auto' }} /> : null}
+                      </button>
+                    ))}
                   </div>
                 </>
               )}

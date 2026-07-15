@@ -41,6 +41,7 @@ export interface TextMessage {
   kind: 'text';
   text: string;
   feedback?: 'up' | 'down' | '' | null;
+  thinking?: string;
   toolCalls?: Array<{ tool: string; connector: string }>;
   attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
 }

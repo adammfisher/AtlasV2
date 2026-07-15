@@ -14,10 +14,33 @@ async function newChat(page: import('@playwright/test').Page): Promise<void> {
 test.describe('X polish', () => {
   test.afterAll(cleanupMarked);
 
-  test('@red X1 style presets selectable per chat', async ({ page }) => {
+  test('X1 style presets selectable per chat, and they change the output', async ({ page }) => {
     await newChat(page);
-    const styles = page.locator('text=/concise|explanatory|formal/i, button[title*="tyle"]');
-    expect(await styles.count(), 'no style presets surface').toBeGreaterThan(0);
+    // send once so the conversation exists, then set the style
+    await composer(page).fill(`${MARK} hello`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 60_000);
+    await page.locator('button:has(svg.lucide-plus)').last().click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'concise', exact: true }).click();
+    await page.waitForTimeout(600);
+    await page.locator('div.fixed.inset-0').last().click({ force: true }).catch(() => undefined);
+    await composer(page).fill(`${MARK} Why is the sky blue?`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 90_000);
+    const conciseLen = ((await page.locator('.chat-md').last().innerText()) ?? '').length;
+    expect(conciseLen, 'concise style produced an answer').toBeGreaterThan(10);
+    // same question, explanatory — must be substantially longer
+    await page.locator('button:has(svg.lucide-plus)').last().click();
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'explanatory', exact: true }).click();
+    await page.waitForTimeout(600);
+    await page.locator('div.fixed.inset-0').last().click({ force: true }).catch(() => undefined);
+    await composer(page).fill(`${MARK} Why is the sky blue? (again please)`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 90_000);
+    const explLen = ((await page.locator('.chat-md').last().innerText()) ?? '').length;
+    expect(explLen, `explanatory (${explLen}) should exceed concise (${conciseLen}) by 1.5x`).toBeGreaterThan(conciseLen * 1.5);
   });
 
   test('X2 userName preference reaches the model', async ({ page }) => {

@@ -6,7 +6,7 @@ import { composer, waitIdle, cleanupMarked, MARK } from './helpers';
 test.describe('V2 thinking-persist', () => {
   test.afterAll(cleanupMarked);
 
-  test('@red thinking block visible in history after reload', async ({ page }) => {
+  test('thinking block visible in history after reload', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);

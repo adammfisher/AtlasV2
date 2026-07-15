@@ -244,6 +244,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
     if (routed.intent === 'chat') {
       sse(res, 'route', { intent: 'chat' }); // client drops the router row for plain chat
       let full = '';
+      let thinkingFull = ''; // V2: reasoning persists with the message
       const tStream = Date.now();
       let tFirst: number | null = null;
       const chips: Array<{ tool: string; connector: string }> = [];
@@ -280,8 +281,10 @@ chatRouter.post('/:id/messages', async (req, res) => {
         'Be direct, concise, and concrete.';
       // web search is on by default; needed here for the citations instruction
       const webEnabled = getSetting('webSearchEnabled') !== '0';
+      const convStyle = getSetting(`style:${conv.id}`) ?? '';
       const system = [
         PERSONA,
+        convStyle,
         webEnabled
           ? 'CITATIONS: when your answer draws on web_search or web_fetch results, cite each key claim inline as a markdown link to its source URL — [source title](url). Never invent URLs; only link URLs that appeared in tool results.'
           : '',
@@ -375,7 +378,10 @@ chatRouter.post('/:id/messages', async (req, res) => {
         {
           signal: abort.signal,
           thinking: thinking === true,
-          onThinking: (delta) => sse(res, 'thinking', { delta }),
+          onThinking: (delta) => {
+            thinkingFull += delta;
+            sse(res, 'thinking', { delta });
+          },
         },
       );
       try {
@@ -392,14 +398,22 @@ chatRouter.post('/:id/messages', async (req, res) => {
         // dropping everything the user watched stream in
         if (abort.signal.aborted) {
           if (full) {
-            await persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
+            await persistAssistant('text', {
+              text: full,
+              ...(chips.length ? { toolCalls: chips } : {}),
+              ...(thinkingFull ? { thinking: thinkingFull } : {}),
+            });
             scheduleExtraction(conv.id, conv.project_id);
           }
           return;
         }
         throw err;
       }
-      const id = await persistAssistant('text', chips.length ? { text: full, toolCalls: chips } : { text: full });
+      const id = await persistAssistant('text', {
+        text: full,
+        ...(chips.length ? { toolCalls: chips } : {}),
+        ...(thinkingFull ? { thinking: thinkingFull } : {}),
+      });
       scheduleExtraction(conv.id, conv.project_id);
       sse(res, 'done', { messageId: id });
       return;

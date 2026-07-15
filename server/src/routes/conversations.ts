@@ -273,6 +273,41 @@ body{font-family:-apple-system,Segoe UI,sans-serif;max-width:760px;margin:2rem a
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/** X1 response styles (claude.ai parity): preset per conversation, or a
+ * custom descriptor generated once from a pasted writing sample. */
+const STYLE_PRESETS: Record<string, string> = {
+  normal: '',
+  concise: 'STYLE: Be maximally concise. Short sentences, no preamble, no recap, no filler. Prefer fragments over prose where meaning survives.',
+  explanatory: 'STYLE: Be explanatory. Define terms on first use, show reasoning step by step, add a concrete example for each abstract point.',
+  formal: 'STYLE: Formal professional register. No contractions, no colloquialisms, complete sentences, measured tone.',
+};
+
+conversationsRouter.post('/:id/style', (req, res) => {
+  void (async () => {
+    const { style, sample } = req.body as { style?: string; sample?: string };
+    if (sample?.trim()) {
+      // one model call turns a pasted writing sample into a style descriptor
+      const { completeText } = await import('../llama/json.js');
+      const descriptor = await completeText(
+        [
+          { role: 'system', content: 'Describe the writing style of the sample in 2-3 imperative sentences an AI assistant could follow (tone, sentence length, vocabulary, structure). Output only the description.' },
+          { role: 'user', content: sample.slice(0, 4000) },
+        ],
+        { maxTokens: 200, temperature: 0.3 },
+      );
+      setSetting(`style:${req.params.id}`, `STYLE: ${descriptor.trim()}`);
+      res.json({ ok: true, style: 'custom', descriptor: descriptor.trim() });
+      return;
+    }
+    if (style === undefined || !(style in STYLE_PRESETS)) {
+      res.status(400).json({ error: `style must be one of ${Object.keys(STYLE_PRESETS).join(', ')} (or pass sample)` });
+      return;
+    }
+    setSetting(`style:${req.params.id}`, STYLE_PRESETS[style] ?? '');
+    res.json({ ok: true, style });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
 /** Per-conversation "remember this chat" toggle (memory capture + recall). */
 conversationsRouter.post('/:id/remember', (req, res) => {
   const { enabled } = req.body as { enabled?: boolean };
