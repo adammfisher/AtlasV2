@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { allowedModels, modelAllowed } from '../lib/account.js';
 import os from 'node:os';
 import { scanModels } from '../llama/models.js';
 import { llamaState, llamaRssGB, auxState, ensureAux } from '../llama/spawn.js';
@@ -28,7 +29,7 @@ function registry() {
   return {
     // Config-driven catalog (models.config.json). `available` gates selection:
     // bedrock models need the connection; api models need their key env set.
-    bedrockModels: MODEL_KEYS.map((key) => {
+    bedrockModels: MODEL_KEYS.filter((k) => modelAllowed(k)).map((key) => {
       const m = modelCatalog()[key]!;
       return { id: key, name: m.name, sub: m.sub, provider: m.provider, available: m.available, vision: m.vision };
     }),
@@ -67,7 +68,11 @@ modelsRouter.post('/refresh', (_req, res) => {
 modelsRouter.post('/select', (req, res) => {
   const { id } = req.body as { id?: string };
   if (!id || !MODEL_KEYS.includes(id)) {
-    res.status(400).json({ error: 'unknown model — choose Claude Haiku 4.5 or Claude Sonnet 5' });
+    res.status(400).json({ error: 'unknown model' });
+    return;
+  }
+  if (!modelAllowed(id)) {
+    res.status(403).json({ error: `this account is limited to: ${allowedModels().join(', ')}` });
     return;
   }
   if (!bedrockSettings().connected) {

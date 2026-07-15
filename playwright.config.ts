@@ -12,6 +12,7 @@ import { defineConfig } from '@playwright/test';
  */
 export default defineConfig({
   testDir: 'tests/e2e',
+  globalSetup: './tests/e2e/global-setup.ts',
   workers: 1,
   timeout: 240_000,
   expect: { timeout: 20_000 },
@@ -19,6 +20,7 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: process.env.ATLAS_BASE ?? 'http://127.0.0.1:5173',
+    storageState: 'tests/e2e/.auth-state.json',
     viewport: { width: 1600, height: 1000 },
     screenshot: 'only-on-failure',
     permissions: ['clipboard-read', 'clipboard-write'],

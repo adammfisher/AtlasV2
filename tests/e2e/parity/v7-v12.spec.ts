@@ -51,11 +51,11 @@ test.describe('V7-V12 conversation surfaces', () => {
     await page.waitForTimeout(300);
     await expect(page.getByText('Export all', { exact: true })).toBeVisible({ timeout: 5_000 });
     // both endpoints serve real content
-    const zip = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/export.zip`);
+    const zip = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/export.zip`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
     expect(zip.status).toBe(200);
     expect(zip.headers.get('content-type')).toContain('zip');
     const convs = await api<Array<{ id: string }>>('/conversations');
-    const j = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/${convs[0]!.id}/export?format=json`);
+    const j = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/${convs[0]!.id}/export?format=json`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
     expect(j.status).toBe(200);
     const parsed = (await j.json()) as { messages?: unknown[] };
     expect(Array.isArray(parsed.messages)).toBe(true);

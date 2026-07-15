@@ -201,10 +201,19 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('atlas_token');
   const res = await fetch(`/api${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
   });
+  if (res.status === 401) {
+    localStorage.removeItem('atlas_token');
+    window.dispatchEvent(new CustomEvent('atlas-unauth'));
+  }
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     const message = body.error ?? `${res.status} ${res.statusText}`;

@@ -96,7 +96,7 @@ test.describe('C5-C12 artifact surfaces', () => {
 
     // per-version download must work for BOTH versions via the panel/API
     for (const v of [1, 2]) {
-      const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${art!.id}/versions/${v}/download`);
+      const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${art!.id}/versions/${v}/download`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
       expect(res.ok, `v${v} download → ${res.status}`).toBe(true);
     }
     // UI flow: open the panel, select v1 in the version list → Restore appears
@@ -143,7 +143,7 @@ test.describe('C5-C12 artifact surfaces', () => {
     // panel download affordance
     const dl = page.getByRole('button', { name: /download/i }).or(page.locator('a[download], [title*="ownload"]'));
     expect(await dl.count(), 'a visible download affordance in chat/panel').toBeGreaterThan(0);
-    const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${art!.id}/versions/${art!.ver}/download`);
+    const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${art!.id}/versions/${art!.ver}/download`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
     expect(res.ok).toBe(true);
   });
 });

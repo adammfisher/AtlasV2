@@ -12,6 +12,7 @@ import { settingsRouter } from './routes/settings.js';
 import { conversationsRouter } from './routes/conversations.js';
 import { chatRouter } from './routes/chat.js';
 import { skillsRouter } from './routes/skills.js';
+import { authRouter } from './routes/auth.js';
 import { pluginsRouter } from './routes/plugins.js';
 import { modelsRouter } from './routes/models.js';
 import { artifactsRouter } from './routes/artifacts.js';
@@ -44,6 +45,38 @@ if (!IS_LAMBDA) {
 
 // 4. HTTP API
 const app = express();
+
+// ---- accounts: bind every request to its workspace (users.config.json) ----
+// Open: login, health, internal sweeps (EventBridge), static assets. Everything
+// else under /api requires a token; the ALS context partitions the data layer.
+const loadedAccounts = new Set<string>();
+app.use((req, res, next) => {
+  const open =
+    !req.path.startsWith('/api') ||
+    req.path === '/api/auth/login' ||
+    req.path === '/api/health' ||
+    req.path.startsWith('/api/internal/');
+  const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  const cookie = /(?:^|;\s*)atlas_token=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
+  void (async () => {
+    const { verifyToken, runAsAccount } = await import('./lib/account.js');
+    const user = bearer || cookie ? await verifyToken(bearer || cookie || '') : null;
+    if (!user && !open) {
+      res.status(401).json({ error: 'not signed in' });
+      return;
+    }
+    const run = (): void => {
+      if (user && !loadedAccounts.has(user)) {
+        loadedAccounts.add(user);
+        void refreshSettings(); // lazy first load of this account's settings cache
+      }
+      next();
+    };
+    if (user) runAsAccount(user, run);
+    else run();
+  })().catch(() => res.status(401).json({ error: 'auth failed' }));
+});
+
 // uploads carry base64 files (own 40mb parser) — mount BEFORE the global 2mb
 // json limit or any file over ~1.4MB is rejected before reaching the route
 app.use('/api/uploads', uploadsRouter);
@@ -75,7 +108,7 @@ app.get('/api/health', (_req, res) => {
 // EventBridge-invoked internal endpoints (Lambda replaces in-process timers)
 app.post('/api/internal/sweep', (req, res) => {
   import('./memory/engine.js')
-    .then(({ sweepPendingNow }) => sweepPendingNow())
+    .then(({ sweepAllAccounts }) => sweepAllAccounts())
     .then((n) => res.json({ ok: true, processed: n }))
     .catch((err: Error) => res.status(500).json({ error: err.message }));
 });
@@ -86,6 +119,7 @@ app.post('/api/internal/consolidate', (req, res) => {
     .catch((err: Error) => res.status(500).json({ error: err.message }));
 });
 
+app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/conversations', chatRouter); // POST /:id/messages (SSE) — registered first

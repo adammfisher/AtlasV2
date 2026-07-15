@@ -43,12 +43,18 @@ const DIM = 1024;
 
 export type Scope = string; // 'user' | projectId
 
+import { accountPrefix, currentAccount } from '../lib/account.js';
+
 function scopePk(scope: Scope): string {
-  return scope === 'user' ? 'S#u#default' : `S#p#${scope}`;
+  // account partition rides the pk — primary = '' keeps pre-accounts memory
+  const base = scope === 'user' ? 'S#u#default' : `S#p#${scope}`;
+  return `${accountPrefix()}${base}`;
 }
 
 function indexName(scope: Scope): string {
-  const name = scope === 'user' ? 'user-mem' : `proj-${scope}-mem`;
+  // vector indexes are physical resources — namespaced per account too
+  const acct = accountPrefix() ? `${currentAccount()}-` : '';
+  const name = scope === 'user' ? `${acct}user-mem` : `${acct}proj-${scope}-mem`;
   return name.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 63);
 }
 

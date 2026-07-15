@@ -13,3 +13,4 @@ playwright-report/
 !tests/e2e/fixtures/*.png
 dist-lambda/
 build/
+tests/e2e/.auth-state.json

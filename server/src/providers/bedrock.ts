@@ -22,6 +22,7 @@ import { repoRoot } from '../config.js';
 import { getSetting, setSetting } from '../db/db.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from '../llama/client.js';
+import { modelAllowed, allowedModels, runAsAccount } from '../lib/account.js';
 
 export interface BedrockSettings {
   connected: boolean;
@@ -106,9 +107,14 @@ export function activeModelKey(): string {
 
 /** The full model definition for the active selection (always defined). */
 export function activeModelDef(): ModelDef {
+  // account model limits (users.config.json): a selection outside the
+  // account's allowlist clamps to its first allowed model — enforcement can't
+  // live only in the picker, the inference path must refuse too
+  const first = allowedModels()[0];
   return (
-    MODEL_DEFS.find((m) => m.key === activeModelKey()) ??
-    MODEL_DEFS.find((m) => m.key === DEFAULT_MODEL_KEY) ??
+    MODEL_DEFS.find((m) => m.key === activeModelKey() && modelAllowed(m.key)) ??
+    MODEL_DEFS.find((m) => m.key === first) ??
+    MODEL_DEFS.find((m) => m.key === DEFAULT_MODEL_KEY && modelAllowed(m.key)) ??
     MODEL_DEFS[0]!
   );
 }
@@ -125,7 +131,9 @@ export function activeModelId(): string {
 }
 
 export function bedrockSettings(): BedrockSettings {
-  const raw = getSetting('bedrock');
+  // the AWS connection is SYSTEM state — every account shares it (accounts
+  // partition workspace data, not infrastructure)
+  const raw = runAsAccount('adammfisher', () => getSetting('bedrock'));
   if (!raw) return { connected: false, region: 'us-east-1', profile: 'default', modelId: activeModelId() };
   return JSON.parse(raw) as BedrockSettings;
 }
@@ -147,9 +155,11 @@ export async function connectBedrock(region: string, profile: string): Promise<s
   const client = new BedrockClient({ region, ...(process.env.AWS_LAMBDA_FUNCTION_NAME ? {} : { credentials: fromIni({ profile }) }) });
   const out = await client.send(new ListFoundationModelsCommand({ byProvider: 'anthropic' }));
   const ids = (out.modelSummaries ?? []).map((m) => m.modelId ?? '').filter(Boolean);
-  setSetting(
-    'bedrock',
-    JSON.stringify({ connected: true, region, profile, modelId: activeModelId() } satisfies BedrockSettings),
+  runAsAccount('adammfisher', () =>
+    setSetting(
+      'bedrock',
+      JSON.stringify({ connected: true, region, profile, modelId: activeModelId() } satisfies BedrockSettings),
+    ),
   );
   if (!isModelKey(getSetting('selectedModel'))) setSetting('selectedModel', DEFAULT_MODEL_KEY);
   logTo('app', `bedrock connected: ${region}/${profile} (${ids.length} anthropic models)`);

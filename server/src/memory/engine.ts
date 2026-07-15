@@ -287,6 +287,17 @@ export function scheduleExtraction(convId: string, projectId: string): void {
 let sweeping = false;
 
 /** Process due extractions. Returns how many rows were handled. */
+/** Sweep every account's queue — the ALS default would silently serve only
+ * the primary account's pending extractions. */
+export async function sweepAllAccounts(): Promise<number> {
+  const { accounts, runAsAccount } = await import('../lib/account.js');
+  let total = 0;
+  for (const a of accounts()) {
+    total += await runAsAccount(a.username, () => sweepPendingNow());
+  }
+  return total;
+}
+
 export async function sweepPendingNow(): Promise<number> {
   if (sweeping) return 0;
   sweeping = true;
@@ -316,7 +327,7 @@ export async function sweepPendingNow(): Promise<number> {
 }
 
 export function startExtractionQueue(): void {
-  setInterval(() => void sweepPendingNow(), SWEEP_MS);
+  setInterval(() => void sweepAllAccounts(), SWEEP_MS);
 }
 
 /** Just-in-time cross-chat memory: before recalling for a message, extract any

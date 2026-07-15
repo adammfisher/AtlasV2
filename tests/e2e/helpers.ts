@@ -7,7 +7,15 @@ export const API = `${BASE_ORIGIN}/api`;
 export const MARK = '[e2e]'; // title marker — teardown deletes marked conversations
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
+  const token = process.env.ATLAS_TEST_TOKEN;
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers as Record<string, string> | undefined),
+    },
+  });
   if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${path} → ${res.status}: ${await res.text()}`);
   return (await res.json()) as T;
 }

@@ -45,7 +45,7 @@ test.describe('X4 streaming resilience', () => {
     await page.close();
     await new Promise((r) => setTimeout(r, 4_000));
     // server must be healthy and the partial persisted (abort path)
-    const health = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/health`);
+    const health = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/health`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
     expect(health.status).toBe(200);
     const detail = await api<{ messages: Array<{ role: string; kind: string; text?: string }> }>(`/conversations/${convId}`);
     const assistant = detail.messages.filter((m) => m.role === 'assistant' && m.kind === 'text').pop();

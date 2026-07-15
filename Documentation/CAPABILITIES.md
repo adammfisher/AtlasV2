@@ -92,7 +92,16 @@ unless marked otherwise. Last verified: 2026-07-15.
 | Knowledge files | Uploads index into project knowledge (chunked + embedded); page-level RAG answers in other chats; answers cite the source file as a chip |
 | Memory UI | Modal browse/edit of both scopes; per-chat remember toggle |
 
-## 8 · Platform
+## 8 · Accounts (added 2026-07-15)
+
+| Capability | Features |
+|---|---|
+| Sign-in | Simple username/password login (users.config.json — no Cognito by design); stateless HMAC tokens; 30-day cookie + header auth; server-side 401 gate on every API |
+| Workspace separation | COMPLETE per-account partitioning: chats, projects, artifacts, memory (including vector indexes), settings, model selection — verified by spec (cross-account access is a 404, not a leak) |
+| Model limits | Per-account model allowlist enforced at the picker, the select API (403) AND the inference path (out-of-list selections clamp) — adammfisher: all models; susan: Haiku + Nova; demo: Nova only |
+| Zero migration | The primary account owns all pre-accounts data (empty partition prefix); other accounts start clean |
+
+## 8b · Platform
 
 | Capability | Features |
 |---|---|

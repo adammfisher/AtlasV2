@@ -49,7 +49,16 @@ export const newId = (prefix: string): string =>
 
 const pad = (n: number, w = 13): string => String(n).padStart(w, '0');
 
-async function queryAll(pk: string, skPrefix?: string): Promise<Record<string, unknown>[]> {
+import { accountPrefix } from '../lib/account.js';
+
+/** Every pk is namespaced per account — the primary account's prefix is ''
+ * so pre-accounts data belongs to it (zero migration). One choke point. */
+function acct(pk: string): string {
+  return `${accountPrefix()}${pk}`;
+}
+
+async function queryAll(pkRaw: string, skPrefix?: string): Promise<Record<string, unknown>[]> {
+  const pk = acct(pkRaw);
   const items: Record<string, unknown>[] = [];
   let lastKey: Record<string, unknown> | undefined;
   do {
@@ -68,28 +77,40 @@ async function queryAll(pk: string, skPrefix?: string): Promise<Record<string, u
   return items;
 }
 
-async function getItem<T>(pk: string, sk: string): Promise<T | undefined> {
-  const out = await ddb().send(new GetCommand({ TableName: TABLE, Key: { pk, sk }, ConsistentRead: true }));
+async function getItem<T>(pkRaw: string, sk: string): Promise<T | undefined> {
+  const out = await ddb().send(new GetCommand({ TableName: TABLE, Key: { pk: acct(pkRaw), sk }, ConsistentRead: true }));
   return out.Item as T | undefined;
 }
 
 async function putItem(item: Record<string, unknown>): Promise<void> {
-  await ddb().send(new PutCommand({ TableName: TABLE, Item: item }));
+  await ddb().send(new PutCommand({ TableName: TABLE, Item: { ...item, pk: acct(String(item.pk)) } }));
 }
 
-async function deleteItem(pk: string, sk: string): Promise<void> {
-  await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk, sk } }));
+async function deleteItem(pkRaw: string, sk: string): Promise<void> {
+  await ddb().send(new DeleteCommand({ TableName: TABLE, Key: { pk: acct(pkRaw), sk } }));
 }
 
 /* ---------------- settings (sync reads via write-through cache) ------------ */
 
-const settingsCache = new Map<string, string>();
+// per-ACCOUNT caches — settings are workspace state (model, active project)
+const settingsCaches = new Map<string, Map<string, string>>();
 let settingsLoaded = false;
+
+function settingsCache(): Map<string, string> {
+  const key = accountPrefix();
+  let m = settingsCaches.get(key);
+  if (!m) {
+    m = new Map();
+    settingsCaches.set(key, m);
+  }
+  return m;
+}
 
 export async function loadSettings(): Promise<void> {
   const items = await queryAll('SETTINGS');
-  settingsCache.clear();
-  for (const i of items) settingsCache.set(i.sk as string, i.value as string);
+  const m = settingsCache();
+  m.clear();
+  for (const i of items) m.set(i.sk as string, i.value as string);
   settingsLoaded = true;
 }
 
@@ -101,18 +122,18 @@ export function settingsReady(): boolean {
 }
 
 export function getSetting(key: string): string | null {
-  return settingsCache.get(key) ?? null;
+  return settingsCache().get(key) ?? null;
 }
 
 export function setSetting(key: string, value: string): void {
-  settingsCache.set(key, value);
+  settingsCache().set(key, value);
   void putItem({ pk: 'SETTINGS', sk: key, value }).catch((err: Error) =>
     console.error(`[appdb] setting persist failed ${key}: ${err.message}`),
   );
 }
 
 export async function setSettingSync(key: string, value: string): Promise<void> {
-  settingsCache.set(key, value);
+  settingsCache().set(key, value);
   await putItem({ pk: 'SETTINGS', sk: key, value });
 }
 
@@ -185,7 +206,7 @@ export async function touchConversation(id: string, fields: Partial<Pick<Convers
   await ddb().send(
     new UpdateCommand({
       TableName: TABLE,
-      Key: { pk: 'CONV', sk: id },
+      Key: { pk: acct('CONV'), sk: id },
       UpdateExpression: `SET ${sets.join(', ')}`,
       ExpressionAttributeValues: vals,
       ConditionExpression: 'attribute_exists(pk)',
@@ -264,7 +285,7 @@ export async function setArtifactCurrentVersion(id: string, version: number): Pr
   await ddb().send(
     new UpdateCommand({
       TableName: TABLE,
-      Key: { pk: 'ART', sk: id },
+      Key: { pk: acct('ART'), sk: id },
       UpdateExpression: 'SET current_version = :v',
       ExpressionAttributeValues: { ':v': version },
     }),
@@ -424,7 +445,7 @@ export async function bumpPending(convId: string, attempts: number, dueAt: numbe
   await ddb().send(
     new UpdateCommand({
       TableName: TABLE,
-      Key: { pk: 'PENDING', sk: convId },
+      Key: { pk: acct('PENDING'), sk: convId },
       UpdateExpression: 'SET attempts = :a, due_at = :d',
       ExpressionAttributeValues: { ':a': attempts, ':d': dueAt },
     }),

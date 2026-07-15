@@ -14,6 +14,7 @@ import { PluginsView } from './views/Plugins/PluginsView';
 import { SkillsView } from './views/Skills/SkillsView';
 import { ArtifactsGallery } from './views/Artifacts/ArtifactsGallery';
 import { ProjectsView } from './views/Projects/ProjectsView';
+import { LoginView } from './views/Login/LoginView';
 
 /** deep-link: /c/<convId> restores that chat on refresh. */
 function convFromUrl(): string | null {
@@ -22,6 +23,14 @@ function convFromUrl(): string | null {
 }
 
 export default function App() {
+  // simple accounts (users.config.json): a token gates the whole app; the
+  // server 401s everything else, so the gate is honest, not cosmetic
+  const [signedIn, setSignedIn] = useState<boolean>(() => Boolean(localStorage.getItem('atlas_token')));
+  useEffect(() => {
+    const onUnauth = () => setSignedIn(false);
+    window.addEventListener('atlas-unauth', onUnauth);
+    return () => window.removeEventListener('atlas-unauth', onUnauth);
+  }, []);
   const [view, setView] = useState<View>('chat');
   const [activeConv, setActiveConv] = useState<string | null>(convFromUrl());
   const [rightPanel, setRightPanel] = useState<
@@ -193,6 +202,8 @@ export default function App() {
       setRightPanel({ kind: 'detail', artifactId: ref.artifactId });
     }
   };
+
+  if (!signedIn) return <LoginView onSignedIn={() => { setSignedIn(true); window.location.reload(); }} />;
 
   return (
     <div className="flex w-full" style={{ height: '100vh', background: C.bg, overflow: 'hidden' }}>
