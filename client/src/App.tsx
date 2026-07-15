@@ -229,7 +229,7 @@ export default function App() {
           onToggleTheme={toggleTheme}
         />
       </div>
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {view === 'chat' && incognitoConv === effectiveConv && incognitoConv !== null ? (
           <div
             className="px-4 py-1.5 text-xs text-center"
@@ -238,7 +238,7 @@ export default function App() {
             Incognito chat — not saved to recents, no memory capture, deleted when you leave
           </div>
         ) : null}
-        <div className="flex-1 flex min-w-0">
+        <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden">
         {view === 'chat' ? (
           <ChatView
             convId={effectiveConv}
