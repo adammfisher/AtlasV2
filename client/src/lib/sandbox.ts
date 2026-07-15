@@ -128,8 +128,12 @@ export async function buildReactSrcdoc(
       plugins: [vfs],
       logLevel: 'silent',
     });
-    const code = result.outputFiles?.find((f) => f.path.endsWith('.js'))?.text ?? '';
-    const css = result.outputFiles?.find((f) => f.path.endsWith('.css'))?.text ?? '';
+    // write:false output paths vary: '<stdout>' for a single output, entry-
+    // derived names when css splits out. Filtering on endsWith('.js') silently
+    // dropped the whole bundle in the single-output case (blank frames).
+    const outs = result.outputFiles ?? [];
+    const css = outs.find((f) => f.path.endsWith('.css'))?.text ?? '';
+    const code = (outs.find((f) => f.path.endsWith('.js')) ?? outs.find((f) => !f.path.endsWith('.css')))?.text ?? '';
     const [react, reactDom] = await Promise.all([
       vendorText('react.production.min.js'),
       vendorText('react-dom.production.min.js'),

@@ -262,6 +262,9 @@ export function ArtifactPreview({
   });
 
   const [srcdoc, setSrcdoc] = useState<string | null>(null);
+  // C5 "try fixing" (claude.ai parity): a failed bundle offers a one-click
+  // repair request routed into the chat composer
+  const [fixError, setFixError] = useState<string | null>(null);
   const [chips, setChips] = useState<Array<{ ok: boolean; label: string }>>([]);
   const [netAttempts, setNetAttempts] = useState(0);
   const [parseChip, setParseChip] = useState<{ ok: boolean; label: string } | null>(null);
@@ -292,7 +295,12 @@ export function ArtifactPreview({
         setChips([
           { ok: result.ok, label: result.ok ? `Bundle · ${result.ms}ms` : `Bundle failed` },
         ]);
-        if (!result.ok && result.error) setSrcdoc(`<pre style="color:#d4ad6a">${result.error}</pre>`);
+        if (!result.ok && result.error) {
+          setSrcdoc(`<pre style="color:#d4ad6a">${result.error}</pre>`);
+          setFixError(result.error);
+        } else {
+          setFixError(null);
+        }
       } else if (content.kind === 'site') {
         const result = buildSiteSrcdoc(content.files ?? {});
         if (cancelled) return;
@@ -329,7 +337,24 @@ export function ArtifactPreview({
           ]
         : []),
     ];
-    return <SandboxFrame srcdoc={srcdoc} height={height} chips={allChips} />;
+    return (
+      <div>
+        <SandboxFrame srcdoc={srcdoc} height={height} chips={allChips} />
+        {fixError ? (
+          <button
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent('atlas-fix-artifact', { detail: `Fix this build error in the artifact: ${fixError}` }),
+              )
+            }
+            className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: 'rgba(212,173,106,0.15)', color: '#d4ad6a', border: '1px solid rgba(212,173,106,0.4)' }}
+          >
+            Try fixing
+          </button>
+        ) : null}
+      </div>
+    );
   }
 
   if (kind === 'product') return null; // product renders its own sections in the panel

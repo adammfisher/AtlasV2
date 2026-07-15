@@ -25,12 +25,12 @@ async function create(page: import('@playwright/test').Page, prompt: string): Pr
 test.describe('C5-C12 artifact surfaces', () => {
   test.afterAll(cleanupMarked);
 
-  test('@red C5 react: renders, state works; broken code shows error + fix affordance', async ({ page }) => {
+  test('C5 react: renders, state works; broken code shows error + fix affordance', async ({ page }) => {
     const t0 = Date.now();
     await create(page, 'Create an interactive React counter component with a button labeled "Increment" and the count shown in an element with id "count".');
     expect(await latest('react', t0), 'react artifact created').toBeTruthy();
     const frame = page.frameLocator('iframe').last();
-    await expect(frame.locator('#count, [id*=count], button')).toBeVisible({ timeout: 60_000 });
+    await expect(frame.locator('#count, [id*=count], button').first()).toBeVisible({ timeout: 60_000 });
     const btn = frame.getByRole('button', { name: /increment/i }).first();
     await btn.click();
     await btn.click();

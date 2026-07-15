@@ -322,6 +322,17 @@ export function ChatView({
     setListening(true);
   };
 
+  // "Try fixing" from a failed artifact bundle sends a repair request
+  useEffect(() => {
+    const onFix = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail) void send(detail);
+    };
+    window.addEventListener('atlas-fix-artifact', onFix);
+    return () => window.removeEventListener('atlas-fix-artifact', onFix);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convId]);
+
   // a send attempted while uploads were in flight — fires when they finish
   const [queuedSend, setQueuedSend] = useState<string | null>(null);
   useEffect(() => {
