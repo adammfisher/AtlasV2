@@ -157,7 +157,7 @@ export const WORKFLOWS: Workflow[] = [
     intent: 'Build a new PowerPoint presentation from a request.',
     triggers: {
       verbs: [...CREATE_VERBS],
-      nounObjects: ['deck', 'presentation', 'slides', 'slideshow', 'pitch', 'pitch deck', 'powerpoint'],
+      nounObjects: ['deck', 'presentation', 'slides', 'slide', 'slideshow', 'pitch', 'pitch deck', 'powerpoint'],
       fileTypeContext: ['pptx'],
       predicates: ['noEditTarget'],
     },
@@ -177,7 +177,7 @@ export const WORKFLOWS: Workflow[] = [
     intent: 'Write a new Word document, report, memo, letter, or brief.',
     triggers: {
       verbs: ['write', 'create', 'draft', 'make', 'compose', 'put together'],
-      nounObjects: ['document', 'report', 'memo', 'letter', 'one-pager', 'essay', 'brief', 'word doc', 'writeup'],
+      nounObjects: ['document', 'report', 'memo', 'cover letter', 'letter to', 'one-pager', 'essay', 'brief', 'word doc', 'writeup', 'charter'],
       fileTypeContext: ['docx'],
       predicates: ['noEditTarget'],
     },
@@ -196,7 +196,7 @@ export const WORKFLOWS: Workflow[] = [
     id: 'create-xlsx',
     intent: 'Build a new spreadsheet, workbook, budget, model, or tracker.',
     triggers: {
-      verbs: ['create', 'build', 'make', 'model', 'generate'],
+      verbs: ['create', 'build', 'make', 'generate'],
       nounObjects: ['spreadsheet', 'workbook', 'budget', 'model', 'tracker', 'excel', 'sheet'],
       fileTypeContext: ['xlsx', 'csv'],
       predicates: ['noEditTarget'],
@@ -238,7 +238,7 @@ export const WORKFLOWS: Workflow[] = [
       'Produce a standalone text document as a markdown artifact (long text, creative writing, or structured reference).',
     triggers: {
       verbs: ['write', 'draft', 'create', 'compose'],
-      nounObjects: ['doc', 'notes', 'guide', 'plan', 'poem', 'story', 'outline', 'readme', 'spec', 'checklist'],
+      nounObjects: ['doc', 'notes', 'guide', 'plan', 'poem', 'story', 'outline', 'readme', 'spec', 'checklist', 'blog post', 'article', 'post'],
       fileTypeContext: ['md'],
       predicates: ['noEditTarget'],
     },
@@ -343,7 +343,7 @@ export const WORKFLOWS: Workflow[] = [
     id: 'edit-md',
     intent: 'Edit an existing markdown/text artifact with targeted updates or a rewrite.',
     triggers: {
-      verbs: [...EDIT_VERBS, 'shorten', 'lengthen', 'expand', 'condense'],
+      verbs: [...EDIT_VERBS],
       nounObjects: ['doc', 'notes', 'guide', 'plan', 'text', 'draft', 'section', 'paragraph'],
       fileTypeContext: ['md'],
       predicates: ['artifactInContext'],

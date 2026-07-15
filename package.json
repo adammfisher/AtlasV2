@@ -15,6 +15,9 @@
     "test:stage4-smoke": "tsx scripts/test/stage4-smoke.ts",
     "mock:kc": "tsx scripts/test/mock-kc.ts",
     "test:memory-eval": "tsx scripts/test/memory-eval.ts",
+    "test:behavior-block": "tsx scripts/test/orchestration/behavior-block.test.ts",
+    "test:routing": "tsx scripts/test/orchestration/run-routing.ts",
+    "test:e2e-brain": "tsx scripts/test/orchestration/run-e2e.ts",
     "test:e2e": "playwright test"
   },
   "pnpm": {

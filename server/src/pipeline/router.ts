@@ -73,9 +73,6 @@ function wf(id: WorkflowId): Workflow {
 function verbsOf(ids: WorkflowId[]): string[] {
   return [...new Set(ids.flatMap((id) => wf(id).triggers.verbs ?? []))];
 }
-function nounsOf(ids: WorkflowId[]): string[] {
-  return [...new Set(ids.flatMap((id) => wf(id).triggers.nounObjects ?? []))];
-}
 
 const EDIT_IDS: WorkflowId[] = ['edit-pptx', 'edit-docx', 'edit-xlsx', 'edit-pdf', 'edit-md', 'edit-code-artifact', 'edit-visual-artifact'];
 const CREATE_IDS: WorkflowId[] = [
@@ -83,17 +80,17 @@ const CREATE_IDS: WorkflowId[] = [
   'create-diagram', 'create-svg', 'create-react-app', 'create-site', 'create-code-artifact',
 ];
 
+// Derived from the registry triggers (single source of truth). The ambiguous
+// families (remember/forget/convert and the new/another anti-signals) use the
+// precise RE_* patterns below instead of raw word lists — greedy word matches
+// (save/note/new) caused misroutes; the regexes keep precision high.
 const EDIT_VERBS = verbsOf(EDIT_IDS);
 const CREATE_VERBS = verbsOf(CREATE_IDS);
-const REMEMBER_VERBS = verbsOf(['remember-fact']);
-const FORGET_VERBS = verbsOf(['forget-fact']);
-const CONVERT_VERBS = verbsOf(['convert-between-formats']);
 const DOWNLOAD_VERBS = verbsOf(['export-download-request']);
 const SUMMARIZE_VERBS = verbsOf(['read-summarize-file']);
 const ANALYZE_VERBS = verbsOf(['data-analysis-on-file']);
 const MULTIFILE_VERBS = verbsOf(['multi-file-synthesis']);
 const IMAGE_VERBS = verbsOf(['image-understanding']);
-const EDIT_ANTI = [...new Set(EDIT_IDS.flatMap((id) => wf(id).triggers.antiSignals ?? []))];
 // anaphoric follow-up modifiers (from followup-anaphora triggers)
 const FOLLOWUP_TOKENS = [...verbsOf(['followup-anaphora']), 'redo', 'condense', 'expand', 'casual'];
 
@@ -146,6 +143,37 @@ function matchCreate(message: string): { id: WorkflowId; skill: SkillId } | null
 
 const URL_RE = /(https?:\/\/|www\.)\S+/i;
 
+// High-precision intent patterns for the ambiguous families the LLM fumbles.
+// Kept intentionally narrow (precision over recall) — a miss just falls through
+// to Stage 2, but a false positive would misroute a real request.
+const RE_RECALL = /\b(do you (remember|recall)|what did i (say|tell|give|mention)|what (is|was) my|what'?s my|remind me what)\b/i;
+const RE_REMEMBER = /\b(remember|memoriz(e|ing)|keep in mind|make a note|note that|save that|jot down|don'?t forget|do not forget)\b/i;
+const RE_FORGET = /\b(forget|stop remembering|delete that memory|unsave|remove that (fact|memory))\b/i;
+const RE_HARM =
+  /\b(malware|ransomware|keylogger|spyware|phishing|botnet)\b|\bbuild (a |an )?(bomb|explosive|weapon)\b|\bpick (a |the )?lock\b|\bbreak into\b|\bstalk\b|\bpoison\b|\b(steal|stealing|harvest)\b[\s\S]{0,24}\b(password|login|credential|bank)\b/i;
+const RE_MCP =
+  /\b(jira|slack|github|gitlab|trello|asana|linear|notion)\b|\bticket\b|\bthe connector\b|#\w+|\bopen issues\b|\bcalendar event\b|\bpull request\b|\badd a row\b|\b(from|in) the database\b/i;
+const RE_WEB =
+  /\b(latest|current(ly)?|recent(ly)?|today|tonight|right now|this (week|morning|year)|last night|yesterday|breaking)\b|\bwho won\b|\b(score|price) of\b|\bstock price\b|\bnews\b|\bweather\b/i;
+const RE_PROJECT_DOC =
+  /\b(the spec|the docs?|documentation|the requirements?|project (docs|knowledge)|architecture doc|our (spec|docs))\b|\baccording to the\b|\bper the\b|\bin the docs?\b/i;
+const RE_CONVERT = /\b(convert|turn|export|save|render|make)\b[\s\S]{0,30}\b(into|as|to)\b|\bconvert\b/i;
+const RE_WANT = /\b(i need|i want|i'?d like|can you (make|build|create|whip up|put together|generate|draft)|how about|let'?s (make|build|create))\b/i;
+const RE_QUESTION = /\?|^\s*(what|who|when|where|why|how|which|is|are|do|does|can|could)\b/i;
+// a real "produce something" verb — used to gate edit-by-reference and to keep
+// image/web questions from being stolen by weak create-noun/verb overlaps.
+const RE_STRONG_CREATE = /\b(create|make|build|generate|draft|write|design|produce|compose|draw|put together)\b/i;
+// research/analysis lead verb → multi-step research (before a create deliverable steals it)
+const RE_RESEARCH = /^\s*(research|compare|investigate|evaluate|assess|do a deep dive|deep dive)\b/i;
+
+/** Explicit "make a NEW/SEPARATE artifact" phrasing that blocks edit inference. */
+function createAnti(message: string): boolean {
+  return (
+    /\b(from scratch|brand[- ]new|separate)\b/i.test(message) ||
+    /\b(new|another|a second|a different|fresh)\s+(deck|presentation|slide deck|slides|document|doc|report|memo|spreadsheet|sheet|workbook|pdf|diagram|flowchart|icon|logo|site|website|page|version|one|topic)\b/i.test(message)
+  );
+}
+
 // ─── STAGE 1: deterministic pre-router ───────────────────────────────────────
 interface Stage1Hit {
   workflowId: WorkflowId;
@@ -162,77 +190,99 @@ function stage1(message: string, signals: RouterSignals): Stage1Hit | null {
   const targetPresent = signals.artifactInContext || signals.fileUploadPresent;
   const hasCreate = matchCreate(m);
   const isEdit = anyWord(m, EDIT_VERBS);
-  const isAnti = anyWord(m, EDIT_ANTI);
+  const cAnti = createAnti(m);
+  const createVerb = anyWord(m, CREATE_VERBS) || RE_WANT.test(m);
+  const isData = (signals.uploadKinds ?? []).some((k) => /csv|xlsx|xls/i.test(k));
 
-  // 1) explicit remember / forget imperative
-  if (anyWord(m, FORGET_VERBS)) return { workflowId: 'forget-fact' };
-  if (anyWord(m, REMEMBER_VERBS)) return { workflowId: 'remember-fact' };
+  // 1) harmful request → refuse (defense-in-depth; the model also refuses)
+  if (RE_HARM.test(m)) return { workflowId: 'refuse-decline' };
 
-  // 2) mixed intent: analyze/summarize an upload AND create a deliverable from it
+  // 2) memory question → recall (before the remember imperative)
+  if (RE_RECALL.test(m)) return { workflowId: 'recall-from-memory' };
+
+  // 3) remember / forget imperative
+  if (RE_REMEMBER.test(m)) return { workflowId: 'remember-fact' };
+  if (RE_FORGET.test(m)) return { workflowId: 'forget-fact' };
+
+  // 4) mixed intent: analyze/summarize an upload AND create a deliverable from it
+  //    (before convert, so "go over this report and turn it into a deck" chains)
   if (signals.fileUploadPresent && anyWord(m, [...SUMMARIZE_VERBS, ...ANALYZE_VERBS]) && hasCreate) {
-    const isData = (signals.uploadKinds ?? []).some((k) => /csv|xlsx|xls/i.test(k)) || anyWord(m, ANALYZE_VERBS);
-    const first: WorkflowId = isData ? 'data-analysis-on-file' : 'read-summarize-file';
+    const first: WorkflowId = isData || anyWord(m, ANALYZE_VERBS) ? 'data-analysis-on-file' : 'read-summarize-file';
     return { workflowId: first, orderedPlan: [first, hasCreate.id] };
   }
 
-  // 3) explicit edit of a present artifact/upload (THE primary modify-bug fix)
-  if (isEdit && targetPresent && !isAnti) {
+  // 5) conversion to a named target format from a present source
+  if (targetPresent && RE_CONVERT.test(m) && targetFormatSkill(m)) {
+    return { workflowId: 'convert-between-formats' };
+  }
+
+  // 6) download / export of a present artifact (convert already handled "as PDF")
+  if (signals.artifactInContext && anyWord(m, DOWNLOAD_VERBS)) {
+    return { workflowId: 'export-download-request' };
+  }
+
+  // 7) explicit edit of a present artifact/upload (THE primary modify-bug fix)
+  if (isEdit && targetPresent && !cAnti) {
     const editId = editWorkflowForKind(targetKind);
     if (editId) return { workflowId: editId };
   }
 
-  // 4) anaphoric follow-up that modifies the last artifact ("shorter", "again", "formal")
-  if (
-    signals.lastMsgProducedArtifact &&
-    anyWord(m, FOLLOWUP_TOKENS) &&
-    !hasCreate &&
-    !isEdit
-  ) {
+  // 8) a real produce-verb naming the existing artifact's OWN type ("make the deck darker")
+  if (signals.artifactInContext && hasCreate && !cAnti && hasCreate.skill === targetKind && RE_STRONG_CREATE.test(m)) {
+    const editId = editWorkflowForKind(targetKind);
+    if (editId) return { workflowId: editId };
+  }
+
+  // 9) anaphoric follow-up modifying the last artifact ("shorter", "again", "expand on that")
+  if (signals.lastMsgProducedArtifact && anyWord(m, FOLLOWUP_TOKENS) && !hasCreate && !isEdit) {
     return { workflowId: 'followup-anaphora' };
   }
 
-  // 5) conversion to another format
-  if (anyWord(m, CONVERT_VERBS) && targetPresent) {
-    return { workflowId: 'convert-between-formats' };
+  // 10) a pasted URL to read
+  if ((signals.urlInMessage || URL_RE.test(m)) && anyWord(m, [...SUMMARIZE_VERBS, 'read', 'open', 'fetch', 'check', 'what does this say'])) {
+    return { workflowId: 'fetch-url-then-answer' };
   }
 
-  // 6) download / export of a present artifact
-  if (anyWord(m, DOWNLOAD_VERBS) && signals.artifactInContext) {
-    return { workflowId: 'export-download-request' };
+  // 11) image + a question/vision cue → describe/OCR (never a new artifact)
+  if (signals.imageUploadPresent && (RE_QUESTION.test(m) || anyWord(m, [...IMAGE_VERBS, 'read', 'extract', 'show', 'see'])) && !RE_STRONG_CREATE.test(m)) {
+    return { workflowId: 'image-understanding' };
   }
 
-  // 7) a pasted URL to read
-  if (signals.urlInMessage || URL_RE.test(m)) {
-    if (anyWord(m, [...SUMMARIZE_VERBS, 'read', 'open', 'fetch', 'check', 'what does this say'])) {
-      return { workflowId: 'fetch-url-then-answer' };
-    }
-  }
-
-  // 8/9) uploaded file: analyze (data) vs summarize/read
+  // 12) single uploaded file: analyze (data) vs summarize/read
   if (signals.fileUploadPresent && !signals.multipleUploads) {
-    const isData = (signals.uploadKinds ?? []).some((k) => /csv|xlsx|xls/i.test(k));
     if (isData && anyWord(m, ANALYZE_VERBS)) return { workflowId: 'data-analysis-on-file' };
     if (anyWord(m, SUMMARIZE_VERBS)) return { workflowId: 'read-summarize-file' };
   }
 
-  // 10) multiple uploads to combine/compare
+  // 13) multiple uploads to combine/compare
   if (signals.multipleUploads && anyWord(m, MULTIFILE_VERBS)) {
     return { workflowId: 'multi-file-synthesis' };
   }
 
-  // 11) image understanding
-  if (signals.imageUploadPresent && anyWord(m, [...IMAGE_VERBS, 'read', 'extract'])) {
-    return { workflowId: 'image-understanding' };
-  }
+  // 14) request maps to an external system → MCP tool
+  if (RE_MCP.test(m) && !targetPresent) return { workflowId: 'mcp-tool-invocation' };
 
-  // 12) explicit create of a unique deliverable — but not if it's also clearly an edit
-  if (hasCreate && anyWord(m, CREATE_VERBS)) {
-    // ambiguous both-edit-and-create with a target → let Stage 2 decide
-    if (isEdit && targetPresent && !isAnti) return null;
+  // 15) research/analysis lead verb → multi-step research
+  if (RE_RESEARCH.test(m) && !targetPresent) return { workflowId: 'multi-step-research' };
+
+  // 16) real-time / post-cutoff query → web search
+  if (RE_WEB.test(m) && !targetPresent && !RE_STRONG_CREATE.test(m)) return { workflowId: 'web-search-then-answer' };
+
+  // 17) question grounded in project knowledge/docs
+  if (RE_PROJECT_DOC.test(m) && RE_QUESTION.test(m) && !targetPresent) return { workflowId: 'project-knowledge-qa' };
+
+  // 18) explicit create of a unique deliverable — unless it's clearly an edit
+  if (hasCreate && createVerb) {
+    if (isEdit && targetPresent && !cAnti) return null; // ambiguous edit/create → Stage 2
     return { workflowId: hasCreate.id };
   }
 
   return null;
+}
+
+/** Stage-1-only result (deterministic; no LLM). Exposed for offline eval. */
+export function preRoute(input: RouterInput): { workflowId: WorkflowId; orderedPlan?: WorkflowId[] } | null {
+  return stage1(input.message, input.signals);
 }
 
 // ─── STAGE 2: LLM classification over a narrowed candidate set ────────────────
@@ -330,7 +380,18 @@ interface LlmResult {
   reasoning?: string;
 }
 
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 async function classifyAtTier(input: RouterInput, tier: ModelTier, candidates: WorkflowId[]): Promise<LlmResult | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await classifyOnce(input, tier, candidates);
+    if (res) return res;
+    if (attempt === 0) await sleep(400); // transient throttle/parse hiccup — one retry
+  }
+  return null;
+}
+
+async function classifyOnce(input: RouterInput, tier: ModelTier, candidates: WorkflowId[]): Promise<LlmResult | null> {
   const modelKey = resolveTierModel(tier);
   const schema = routeSchema(candidates);
   const turns = input.history.slice(-6).map((t) => `${t.role}: ${t.content.slice(0, 300)}`);

@@ -16,6 +16,7 @@ function bedrockModule(): typeof bedrock {
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
 import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile, officeDoctrineCheck } from './validate.js';
+import { retrieveExemplars, formatExemplars } from './exemplars.js';
 import { OrchestrationError, injectEditContext, type ArtifactKind, type EditState } from './artifactContext.js';
 import {
   createArtifact,
@@ -103,10 +104,22 @@ const UNITS: Record<string, string> = {
 };
 
 function officePrompt(skill: LoadedSkill, instructions: string, text: string, context?: string): string {
+  // pptx: inject top-K archetype exemplars matched to the request's content
+  // shape (small tiers copy their structure; frontier keeps latitude within
+  // the same hard numbers — see the SKILL.md tier phrasing block)
+  const exemplarBlock =
+    skill.id === 'pptx'
+      ? (() => {
+          const picked = retrieveExemplars(text, 3);
+          return picked.length
+            ? `\nEXEMPLARS — schema-valid slides showing the expected quality bar. Match their structure and copy discipline, never their content:\n${formatExemplars(picked)}`
+            : '';
+        })()
+      : '';
   return `You are a document-generation backend. You produce ONLY a raw JSON object conforming exactly
 to the schema described below. No markdown, no code fences, no prose, no extra keys.
 SCHEMA (described): ${JSON.stringify(skill.schema)}
-DESIGN GUIDANCE: ${skill.guidance}
+DESIGN GUIDANCE: ${skill.guidance}${exemplarBlock}
 PROJECT INSTRUCTIONS: ${instructions || '(none)'}${
     context
       ? `\n\nCONVERSATION CONTEXT — the request refers to this discussion; use its specifics (names, numbers, structure, any content already drafted) to fill the document. Do NOT ignore it and do NOT emit a generic placeholder document:\n${context}`

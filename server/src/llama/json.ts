@@ -1,7 +1,6 @@
 import { config } from '../config.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from './client.js';
-import { bedrockActive } from '../providers/bedrock.js';
 import { cloudReady, completeJson as cloudCompleteJson, completeText as cloudCompleteText } from '../providers/dispatch.js';
 
 export interface JsonCallOptions {

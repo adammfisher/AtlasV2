@@ -76,22 +76,91 @@ and `test:e2e-brain` → `scripts/test/orchestration/run-e2e.ts`.
 
 ---
 
-## Build status
+## Build status — COMPLETE ✅
 
-| Deliverable | Status |
-|---|---|
-| Phase 0 — verify A/B/C | ✅ done |
-| A — workflow registry | ⏳ next |
-| D — edit-state reinjection | pending |
-| B — three-stage router | pending |
-| C — rules block | pending |
-| E — eval harness + gates | pending |
+| Deliverable | Status | Artifact |
+|---|---|---|
+| Phase 0 — verify A/B/C | ✅ | this log |
+| A — workflow registry | ✅ | `server/src/pipeline/workflows.ts` (35 workflows) |
+| D — edit-state reinjection | ✅ | `server/src/pipeline/artifactContext.ts` + orchestrator/chat wiring |
+| B — three-stage router | ✅ | `router.ts` + `router.types.ts` + dispatch/bedrock capability |
+| C — rules block | ✅ | `context.ts` `buildBehaviorBlock` (versioned, tiered) |
+| E — eval harness + gates | ✅ | `scripts/test/orchestration/*` — ALL GATES PASS |
 
-### Next step
-Deliverable A: `server/src/pipeline/workflows.ts` — 35 canonical workflows, single source of
-truth for the router's Stage-1 trigger tables.
+## FINAL GATE RESULTS (all tiers, real router against Bedrock)
 
-### Open questions
-- Uploaded-file editing (edit an office file the user just uploaded, vs a generated artifact)
-  requires extracting the upload to a JSON projection first. The gates focus on generated
-  artifacts; upload-edit is a follow-up. Noted, not yet built.
+### Routing (`pnpm test:routing`, 305 cases × 3 tiers)
+
+| tier | overall | edit-vs-describe | unambiguous | escalation | clarify |
+|---|---|---|---|---|---|
+| small (nova) | 98.0% | **100%** | **100%** | 1.0% | 1.0% |
+| mid (haiku) | 99.3% | **100%** | **100%** | 1.0% | 2.3% |
+| frontier (sonnet) | 99.3% | **100%** | **100%** | 0.0% | 2.3% |
+
+Hard gates — edit-vs-describe = 100% (all tiers), unambiguous ≥ 95% (100% all tiers),
+overall ≥ 85% (98–99.3% all tiers): **ALL PASS**. Confusion matrices in
+`docs/orchestration/confusion-<tier>.md`; misses in `docs/orchestration/last-run.md`.
+
+- **273/305 cases resolve in Stage 1 (deterministic, no LLM)** — including 58/58 edit-vs-describe.
+  So the modify-bug fix is tier-independent: nova and sonnet both hit 100% on it with no model call.
+- The ONLY residual misses are in the *ambiguous* class ("help me with this file" → read-summarize),
+  which is not hard-gated. Pushing these toward clarify was deliberately NOT done — it would trade
+  away the 100% unambiguous score. The clarify rate stays 1–2.3% (no over-clarifying).
+- **Escalation rate 0–1%** — far below the ~40% that would justify defaulting small→mid. The small
+  tier stands on its own; no tier-default change needed.
+
+### E2E edit-contract (`pnpm test:e2e-brain`) — 31/31 PASS
+
+- G1 state missing → `OrchestrationError`/`EDIT_STATE_UNAVAILABLE` thrown **100%** (13/13). Never describes.
+- G2 present state reinjected under `<current_artifact>` with a non-describe contract (5/5).
+- G3 every modify request routes to an edit-* workflow, deterministically (7/7).
+- G4 **live md edits (real Bedrock) produce a MODIFIED artifact whose source differs from the prior
+  version — an artifact, never a text description** (6/6).
+
+## How the modify-bug is permanently fixed (defense in depth)
+
+1. **Routing** — Stage-1 deterministic rule: edit-verb (or a produce-verb on the artifact's own type)
+   + an artifact/upload in context ⇒ the matching `edit-*` workflow at confidence 1.0, no LLM. 100%
+   on every tier.
+2. **Reinjection** — `runEditDoc` loads `latestPayload` and injects it via `injectEditContext`
+   (`<current_artifact>` + "output the full corrected state, never a description").
+3. **Loud failure** — if state can't load, `OrchestrationError('EDIT_STATE_UNAVAILABLE')` is thrown
+   before any model dispatch; the chat route surfaces a clarifying question. It can NEVER fall back to
+   describing.
+
+## Open questions / follow-ups
+- **Uploaded-file editing**: editing an office file the user just uploaded (vs a generated artifact)
+  needs the upload extracted to a JSON projection first. The router already classifies it as an edit,
+  and `loadLatestState` correctly returns null → `EDIT_STATE_UNAVAILABLE` (honest clarify) until the
+  projection-on-upload path is built. Follow-up, not a regression.
+- **Real-office-lambda e2e**: G4 proves the contract for text artifacts (md, no lambda). The office
+  (pptx/docx/xlsx/pdf) full round-trip is covered at the reinjection boundary (G1/G2) + existing
+  pipeline tests; a live office-lambda edit e2e is a nice-to-have, deliberately not gated on external
+  lambda availability (would be flaky).
+- **Ambiguous class**: 2–6 "vague verb + a file" cases per tier route to read/analyze instead of
+  clarify. Acceptable (not hard-gated); tightening risks the unambiguous gate.
+
+### Commands
+`pnpm test:routing` · `pnpm test:e2e-brain` · `pnpm test:behavior-block`
+`tsx scripts/test/orchestration/build-dataset.ts` (regenerate dataset) ·
+`tsx scripts/test/orchestration/det-check.ts` (offline Stage-1 coverage, no Bedrock)
+
+### Routing gate run (baseline)
+
+| tier | overall | edit-vs-describe | unambiguous | escalation | clarify |
+|---|---|---|---|---|---|
+| small | 86.2% | 94.8% | 88.8% | 1.6% | 1.0% |
+| mid | 89.5% | 94.8% | 91.7% | 1.3% | 2.6% |
+| frontier | 88.5% | 94.8% | 90.3% | 0.0% | 3.9% |
+
+Gates: FAILURES ✗ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on all tiers)
+
+### Routing gate run (iter1)
+
+| tier | overall | edit-vs-describe | unambiguous | escalation | clarify |
+|---|---|---|---|---|---|
+| small | 98.0% | 100.0% | 100.0% | 1.0% | 1.0% |
+| mid | 99.3% | 100.0% | 100.0% | 1.0% | 2.3% |
+| frontier | 99.3% | 100.0% | 100.0% | 0.0% | 2.3% |
+
+Gates: ALL PASS ✅ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on all tiers)
