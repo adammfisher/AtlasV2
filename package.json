@@ -18,6 +18,7 @@
     "test:behavior-block": "tsx scripts/test/orchestration/behavior-block.test.ts",
     "test:routing": "tsx scripts/test/orchestration/run-routing.ts",
     "test:e2e-brain": "tsx scripts/test/orchestration/run-e2e.ts",
+    "test:design": "tsx scripts/test/design_eval.ts",
     "test:e2e": "playwright test"
   },
   "pnpm": {

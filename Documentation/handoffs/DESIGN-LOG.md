@@ -363,6 +363,76 @@ the findings — never a false success, no gate loosened.
 - Thumbnails: flag ON → 3 JPEGs in meta; flag OFF (default) → absent.
 - `tsc --noEmit` clean.
 
+---
+
+## 2026-07-15 — Deliverable F: design eval + before/after
+
+**Harness** — `scripts/test/design_eval.ts` (`npm run test:design`) + scorer
+`scripts/test/design_score.py`. 18 fixed, doctrine-correct specs (13 pptx, 2
+docx, 2 xlsx, 1 pdf — the exact prompt list from the spec). Deterministic by
+design: the eval exercises schemas → builders → gates without any model.
+BEFORE runs extract the pre-doctrine builders from git (parent of commit A) and
+feed them the SAME content auto-downgraded to the old schema vocabulary; both
+eras' output FILES are scored by the same current gates (visual_gate_pptx,
+docx styles/hierarchy, xlsx recalc+frozen+formats+table+print-area, pdf
+footer-counter+table-break). Stop-on-failure: every AFTER failure was
+root-caused and fixed at the source — no gate was loosened.
+
+**Fixes the eval forced (root causes, not workarounds)**
+1. Gate bug: text inside a filled autoshape was contrast-checked against the
+   slide background instead of the shape's own fill (timeline node numbers are
+   white-on-teal 3.01:1 large text, not white-on-white). Gate now uses the
+   shape's own fill as the text's effective background.
+2. Timeline step labels rendered in fixed 0.5" frames — two-word labels wrap at
+   18pt bold and overflow. Labels now fit-stepped (18→14) with measured frame
+   heights; details reposition below the measured label.
+3. Comparison items rendered in fixed 0.95" boxes but stacked by measured step —
+   adjacent boxes collided. Item frames now take their measured height.
+4. The 96pt quote glyph sat in a 1.4" frame (measured need 1.96") and would have
+   collided with the quote text once resized — glyph frame now sized from
+   line-height math and moved clear.
+
+**Results (same 18 specs, same gates, both eras)**
+
+| Metric | BEFORE (pre-doctrine) | AFTER (doctrine) |
+|---|---|---|
+| Pass rate | 2/18 | **18/18** |
+| Total findings | 85 | **0** |
+
+| Eval | Kind | Before | After |
+|---|---|---|---|
+| 01-q3-revenue-review | pptx | 4 findings | pass |
+| 02-series-a-pitch | pptx | 4 findings | pass |
+| 03-product-launch | pptx | 4 findings | pass |
+| 04-competitive-comparison | pptx | 8 findings | pass |
+| 05-case-study | pptx | 8 findings | pass |
+| 06-post-mortem | pptx | 4 findings | pass |
+| 07-board-kpis | pptx | 5 findings | pass |
+| 08-marketing-funnel | pptx | 4 findings | pass |
+| 09-all-hands | pptx | 10 findings | pass |
+| 10-research-summary | pptx | 4 findings | pass |
+| 11-investor-teaser | pptx | 8 findings | pass |
+| 12-two-column-feature | pptx | 5 findings | pass |
+| 13-okr-review | pptx | 8 findings | pass |
+| 14-project-report | docx | pass | pass |
+| 15-redline-memo | docx | pass | pass |
+| 16-budget-model | xlsx | 4 findings | pass |
+| 17-sales-pipeline | xlsx | 4 findings | pass |
+| 18-client-report | pdf | 1 findings | pass |
+
+BEFORE findings were dominated by: overflow (unmeasured text in fixed frames),
+contrast (9.5pt gray footers, chart palettes), no frozen header/number formats/
+table styles (xlsx), missing page counter (pdf). The two BEFORE docx passes are
+real: the old docx builder already used named heading styles, and the scorer
+checks paragraph runs (old table-header direct formatting sits in cell runs —
+noted as a scorer blind spot; the AFTER builder's own named-styles-only check
+covers cells).
+
+Rendered spot check: `04-competitive-comparison` — 3-column comparison panels,
+parallel rows, banded table with dk2 header, no accent line under titles.
+Vision-rubric scoring stays available behind `ATLAS_VISION_CRITIQUE=1` (advisory;
+not used for the pass/fail above).
+
 ### Open questions carried into A–G
 - The 12-archetype schema renames fields (`layout`→`archetype`, `heading`→`title`,
   `notes`→`speaker_notes`): the office **edit** flows re-emit full JSON against the

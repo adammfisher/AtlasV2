@@ -398,12 +398,15 @@ def r_comparison(ctx, slide, sidx, spec):
             fit = D.fit_text(item, w - 0.9, 0.9, 18, 14, spacing=1.08)
             if fit["overflow"]:
                 ctx.overflows.append({"slide": sidx, "frame": f"column {c + 1}", "detail": "item overflow"})
+            # frame height = measured height (fixed heights taller than the
+            # stacking step collide — the visual gate caught exactly that)
+            item_h = D.required_height_in(item, w - 0.9, fit["size"], spacing=1.08) + 0.06
             marker = slide.shapes.add_shape(
                 MSO_SHAPE.OVAL, Emu(D.emu(x + 0.3)), Emu(D.emu(yy + 0.1)), Emu(D.emu(0.1)), Emu(D.emu(0.1)))
             _fill(marker, "accent")
             tb = slide.shapes.add_textbox(
                 Emu(D.emu(x + 0.55)), Emu(D.emu(yy)),
-                Emu(D.emu(w - 0.9)), Emu(D.emu(0.95)))
+                Emu(D.emu(w - 0.9)), Emu(D.emu(item_h)))
             tf = tb.text_frame
             tf.word_wrap = True
             para = tf.paragraphs[0]
@@ -411,7 +414,7 @@ def r_comparison(ctx, slide, sidx, spec):
             run = para.add_run()
             run.text = str(item)
             _font(run.font, "text", fit["size"])
-            yy += max(0.55, D.required_height_in(item, w - 0.9, fit["size"], spacing=1.08) + 0.12)
+            yy += item_h + 0.12
     _footer(ctx, slide, sidx)
 
 
@@ -435,7 +438,9 @@ def r_big_stat(ctx, slide, sidx, spec):
 
 def r_quote(ctx, slide, sidx, spec):
     _bg(slide, "dominant_dark")
-    glyph = slide.shapes.add_textbox(Emu(D.emu(D.MARGIN)), Emu(D.emu(1.1)), Emu(D.emu(1.5)), Emu(D.emu(1.4)))
+    # glyph frame sized to its measured 96pt line height, clear of the quote text
+    glyph_h = D.line_height_in(96, bold=True, spacing=1.0) + 0.1
+    glyph = slide.shapes.add_textbox(Emu(D.emu(D.MARGIN)), Emu(D.emu(0.55)), Emu(D.emu(1.5)), Emu(D.emu(glyph_h)))
     para = glyph.text_frame.paragraphs[0]
     run = para.add_run()
     run.text = "“"
@@ -470,15 +475,18 @@ def r_timeline(ctx, slide, sidx, spec):
         run = para.add_run()
         run.text = str(i + 1)
         _font(run.font, "text_inverse", 18, bold=True)  # >=14pt bold on teal: 3:1 large-text bar
+        label_fit = D.fit_text(step["label"], w, 0.9, 18, 14, bold=True, spacing=1.05)
+        label_h = D.required_height_in(step["label"], w, label_fit["size"], bold=True, spacing=1.05) + 0.06
         label = slide.shapes.add_textbox(
-            Emu(D.emu(x)), Emu(D.emu(mid + 0.85)), Emu(D.emu(w)), Emu(D.emu(0.5)))
+            Emu(D.emu(x)), Emu(D.emu(mid + 0.85)), Emu(D.emu(w)), Emu(D.emu(label_h)))
+        label.text_frame.word_wrap = True
         para = label.text_frame.paragraphs[0]
         run = para.add_run()
         run.text = str(step["label"])
-        _font(run.font, "text", 18, bold=True)
+        _font(run.font, "text", label_fit["size"], bold=True)
         if step.get("detail"):
             detail = slide.shapes.add_textbox(
-                Emu(D.emu(x)), Emu(D.emu(mid + 1.35)), Emu(D.emu(w)), Emu(D.emu(0.85)))
+                Emu(D.emu(x)), Emu(D.emu(mid + 0.95 + label_h)), Emu(D.emu(w)), Emu(D.emu(0.85)))
             tf = detail.text_frame
             tf.word_wrap = True
             para = tf.paragraphs[0]

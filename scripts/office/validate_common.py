@@ -469,6 +469,7 @@ def visual_gate_pptx(path: Path, template: str | None = None) -> list:
                 rects.append((rect, is_footer, getattr(shape, "has_text_frame", False)))
 
             if getattr(shape, "has_text_frame", False):
+                own_fill = _fill_hex(shape, theme_hex)  # text on a filled autoshape sits on ITS fill
                 paras = _run_specs(shape.text_frame)
                 if paras:
                     total_h = 0.0
@@ -487,12 +488,13 @@ def visual_gate_pptx(path: Path, template: str | None = None) -> list:
                         fg = _resolve_hex(color, theme_hex) if color else theme_hex.get("dk1")
                         if fg is None:
                             continue
-                        behind = bg_hex
-                        best_area = None
-                        for (px, py, pw, ph), phex in filled_panels:
-                            if px <= x + 0.02 and py <= y + 0.02 and px + pw >= x + w - 0.02 and py + ph >= y + h - 0.02:
-                                if best_area is None or pw * ph < best_area:
-                                    behind, best_area = phex, pw * ph
+                        behind = own_fill or bg_hex
+                        if own_fill is None:
+                            best_area = None
+                            for (px, py, pw, ph), phex in filled_panels:
+                                if px <= x + 0.02 and py <= y + 0.02 and px + pw >= x + w - 0.02 and py + ph >= y + h - 0.02:
+                                    if best_area is None or pw * ph < best_area:
+                                        behind, best_area = phex, pw * ph
                         ratio = D.contrast(fg, behind)
                         large = size >= 18.0 or (size >= 14.0 and bold)
                         threshold = 3.0 if large else 4.5
