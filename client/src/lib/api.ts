@@ -227,6 +227,8 @@ export const api = {
   health: () => request<Health>('/health'),
   settings: () => request<Settings>('/settings'),
   me: () => request<{ username: string; models: string[]; ttlMs: number }>('/auth/me'),
+  artifactConversation: (id: string) => request<{ convId: string | null }>(`/artifacts/${id}/conversation`),
+  deleteArtifact: (id: string) => request<{ ok: boolean }>(`/artifacts/${id}`, { method: 'DELETE' }),
   patchSettings: (patch: Settings) =>
     request<{ ok: boolean }>('/settings', { method: 'PATCH', body: JSON.stringify(patch) }),
   projects: () => request<Project[]>('/projects'),

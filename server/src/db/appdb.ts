@@ -316,6 +316,21 @@ export async function putVersion(v: ArtifactVersionRow): Promise<void> {
   await putItem({ pk: `ARTV#${v.artifact_id}`, sk: pad(v.version, 6), ...v });
 }
 
+/** Delete an artifact and all its versions (product states/projections are
+ * scoped under the artifact and go stale harmlessly). */
+export async function deleteArtifact(id: string): Promise<void> {
+  const versions = await listVersions(id);
+  for (const v of versions) await deleteItem(`ARTV#${id}`, pad(v.version, 6));
+  await deleteItem('ART', id);
+}
+
+/** Persist a resolved conversation link on an artifact (backfill for rows
+ * created before conv_id existed). */
+export async function setArtifactConversation(id: string, convId: string): Promise<void> {
+  const row = await getArtifactRow(id);
+  if (row) await putArtifact({ ...row, conv_id: convId });
+}
+
 /* ---------------- skills + plugins ---------------- */
 
 export async function skillEnabledStates(): Promise<Record<string, number>> {

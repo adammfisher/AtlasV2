@@ -1,9 +1,10 @@
 /** X7 cross-chat artifacts gallery (claude.ai parity): every artifact across
  * every project, filterable by kind and project, with per-row download. */
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Download, Presentation, FileText, FileSpreadsheet, BookOpen, GitBranch, Layers, Box, Braces, FileCode } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, Trash2, Presentation, FileText, FileSpreadsheet, BookOpen, GitBranch, Layers, Box, Braces, FileCode } from 'lucide-react';
 import { C, sans, serif, mono } from '../../theme/tokens';
+import { api } from '../../lib/api';
 
 interface Row {
   id: string;
@@ -38,10 +39,38 @@ export function ArtifactsGallery({
 }) {
   const [kind, setKind] = useState<string>('All');
   const [project, setProject] = useState<string>('All');
+  const [busy, setBusy] = useState<string | null>(null); // artifact id being opened/deleted
+  const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ['artifacts-gallery'],
     queryFn: async () => (await fetch('/api/artifacts')).json() as Promise<Row[]>,
   });
+
+  // click-through: new artifacts carry convId; older ones resolve on demand
+  const open = async (r: Row): Promise<void> => {
+    if (r.convId) {
+      onOpen(r.convId, r.id);
+      return;
+    }
+    setBusy(r.id);
+    try {
+      const { convId } = await api.artifactConversation(r.id);
+      onOpen(convId, r.id);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (r: Row): Promise<void> => {
+    if (!window.confirm(`Delete "${r.name}"? This can't be undone.`)) return;
+    setBusy(r.id);
+    try {
+      await api.deleteArtifact(r.id);
+      await queryClient.invalidateQueries({ queryKey: ['artifacts-gallery'] });
+    } finally {
+      setBusy(null);
+    }
+  };
   const rows = useMemo(() => {
     let out = data ?? [];
     if (kind !== 'All') out = out.filter((r) => r.kind === kind);
@@ -95,9 +124,9 @@ export function ArtifactsGallery({
             <div
               key={r.id}
               role="button"
-              onClick={() => onOpen(r.convId, r.id)}
-              className="flex items-center gap-3 rounded-xl px-4 py-2.5 cursor-pointer transition-colors"
-              style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
+              onClick={() => void open(r)}
+              className="group flex items-center gap-3 rounded-xl px-4 py-2.5 cursor-pointer transition-colors"
+              style={{ background: C.panel, border: `1px solid ${C.borderSoft}`, opacity: busy === r.id ? 0.5 : 1 }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.border)}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.borderSoft)}
               title={`Open ${r.name}`}
@@ -123,6 +152,19 @@ export function ArtifactsGallery({
               >
                 <Download size={14} />
               </a>
+              <button
+                title={`Delete ${r.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void remove(r);
+                }}
+                className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: C.mute }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = C.amber)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = C.mute)}
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           );
         })}

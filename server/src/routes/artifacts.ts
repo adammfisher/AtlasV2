@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { statSync, existsSync, readFileSync } from 'node:fs';
+import { statSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -14,6 +14,10 @@ import {
   listArtifacts,
   getArtifactRow,
   setArtifactCurrentVersion,
+  deleteArtifact,
+  setArtifactConversation,
+  listConversations,
+  listMessages,
   listVersions,
   getVersion,
   listProductStates,
@@ -243,6 +247,62 @@ artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
     } catch (err) {
       res.status(502).json({ error: err instanceof Error ? err.message : String(err) });
     }
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Resolve which conversation created this artifact — for gallery rows made
+ * before conv_id was stored. Scans the account's conversations, caches the
+ * answer on the artifact so the next click is instant. */
+artifactsRouter.get('/:id/conversation', (req, res) => {
+  void (async () => {
+    const row = await getArtifactRow(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'artifact not found' });
+      return;
+    }
+    if (row.conv_id) {
+      res.json({ convId: row.conv_id });
+      return;
+    }
+    // scan pipeline messages for a reference to this artifact
+    for (const c of await listConversations()) {
+      const msgs = await listMessages(c.id);
+      const hit = msgs.some((m) => {
+        if (m.kind !== 'pipeline') return false;
+        const p = JSON.parse(m.payload) as { artifact?: { artifactId?: string } };
+        return p.artifact?.artifactId === req.params.id;
+      });
+      if (hit) {
+        await setArtifactConversation(req.params.id, c.id).catch(() => undefined);
+        res.json({ convId: c.id });
+        return;
+      }
+    }
+    res.json({ convId: null });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Delete an artifact (all versions + local/S3 files). */
+artifactsRouter.delete('/:id', (req, res) => {
+  void (async () => {
+    const row = await getArtifactRow(req.params.id);
+    if (!row) {
+      res.status(404).json({ error: 'artifact not found' });
+      return;
+    }
+    // best-effort local file cleanup; S3 mirror ages out on its own
+    for (const v of await listVersions(req.params.id)) {
+      if (v.file_path && existsSync(v.file_path)) {
+        try {
+          rmSync(v.file_path, { recursive: true, force: true });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    await deleteArtifact(req.params.id);
+    logTo('app', `artifact deleted: ${req.params.id} (${row.name})`);
+    res.json({ ok: true });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
