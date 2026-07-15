@@ -226,6 +226,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<Health>('/health'),
   settings: () => request<Settings>('/settings'),
+  me: () => request<{ username: string; models: string[]; ttlMs: number }>('/auth/me'),
   patchSettings: (patch: Settings) =>
     request<{ ok: boolean }>('/settings', { method: 'PATCH', body: JSON.stringify(patch) }),
   projects: () => request<Project[]>('/projects'),

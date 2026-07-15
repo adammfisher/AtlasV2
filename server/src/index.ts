@@ -54,6 +54,7 @@ app.use((req, res, next) => {
   const open =
     !req.path.startsWith('/api') ||
     req.path === '/api/auth/login' ||
+    req.path === '/api/auth/logout' ||
     req.path === '/api/health' ||
     req.path.startsWith('/api/internal/');
   const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');

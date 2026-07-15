@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost, LogOut } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
 import { Badge } from './Badge';
@@ -50,13 +50,14 @@ export function Sidebar({
         return [...local, ...(searchHits ?? []).filter((c) => !ids.has(c.id))];
       })()
     : convs;
-  const initials =
-    userName
-      .split(/\s+/)
-      .map((w) => w[0] ?? '')
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || 'A';
+  // the signed-in ACCOUNT (not the display-name setting) — drives the footer
+  const { data: me } = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api.me(),
+    staleTime: 60_000,
+  });
+  const accountName = me?.username ?? userName;
+  const initials = accountName.slice(0, 2).toUpperCase() || 'A';
   const bedrockConnected = registry?.bedrock.connected ?? false;
   const bedrockRegion = registry?.bedrock.region ?? 'us-east-1';
 
@@ -247,10 +248,7 @@ export function Sidebar({
             {initials}
           </span>
           <span className="text-sm" style={{ color: C.text, fontFamily: sans }}>
-            {userName}
-          </span>
-          <span className="text-xs" style={{ color: C.mute, fontFamily: sans }}>
-            · Enterprise
+            {accountName}
           </span>
           <button
             onClick={onToggleTheme}
@@ -260,7 +258,19 @@ export function Sidebar({
           >
             {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
-          <Settings2 size={15} className="cursor-pointer" style={{ color: C.mute }} />
+          <button
+            onClick={() => {
+              void fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+                localStorage.removeItem('atlas_token');
+                window.location.reload();
+              });
+            }}
+            className="p-1 rounded"
+            title="Sign out"
+            style={{ color: C.mute }}
+          >
+            <LogOut size={15} />
+          </button>
         </div>
       </div>
     </div>

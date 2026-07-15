@@ -5,7 +5,7 @@
  * paths ride along). Every account is a fully separate workspace.
  */
 import { Router } from 'express';
-import { checkLogin, issueToken, currentAccount, allowedModels } from '../lib/account.js';
+import { checkLogin, issueToken, currentAccount, allowedModels, TOKEN_TTL_MS } from '../lib/account.js';
 
 export const authRouter = Router();
 
@@ -22,15 +22,21 @@ authRouter.post('/login', (req, res) => {
       return;
     }
     const token = await issueToken(acct.username);
-    res.setHeader(
-      'Set-Cookie',
-      `atlas_token=${token}; Path=/; Max-Age=${30 * 86400}; SameSite=Lax`,
-    );
-    res.json({ ok: true, token, username: acct.username, models: acct.models });
+    // cookie lifespan matches the token TTL (12h) — the token expiry is the
+    // real enforcement; the cookie Max-Age just avoids sending a dead one
+    res.setHeader('Set-Cookie', `atlas_token=${token}; Path=/; Max-Age=${Math.floor(TOKEN_TTL_MS / 1000)}; SameSite=Lax`);
+    res.json({ ok: true, token, username: acct.username, models: acct.models, expiresInMs: TOKEN_TTL_MS });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
-/** Who am I + what can I use (drives the client's model picker). */
+/** Sign out: clear the cookie. The token is stateless, so the client also
+ * drops its stored copy — there's no server session to invalidate. */
+authRouter.post('/logout', (_req, res) => {
+  res.setHeader('Set-Cookie', 'atlas_token=; Path=/; Max-Age=0; SameSite=Lax');
+  res.json({ ok: true });
+});
+
+/** Who am I + what can I use (drives the footer + model picker). */
 authRouter.get('/me', (_req, res) => {
-  res.json({ username: currentAccount(), models: allowedModels() });
+  res.json({ username: currentAccount(), models: allowedModels(), ttlMs: TOKEN_TTL_MS });
 });

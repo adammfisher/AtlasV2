@@ -83,17 +83,24 @@ async function signingSecret(): Promise<Buffer> {
   });
 }
 
-export async function issueToken(user: string): Promise<string> {
-  const mac = createHmac('sha256', await signingSecret()).update(user).digest('base64url');
-  return `${Buffer.from(user).toString('base64url')}.${mac}`;
+/** Tokens expire 12h after issue: the issued-at is inside the signed payload,
+ * so it can't be tampered without breaking the HMAC. Token = <user>.<iat>.<mac>. */
+export const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+
+export async function issueToken(user: string, iat = Date.now()): Promise<string> {
+  const payload = `${user}.${iat}`;
+  const mac = createHmac('sha256', await signingSecret()).update(payload).digest('base64url');
+  return `${Buffer.from(user).toString('base64url')}.${iat}.${mac}`;
 }
 
 export async function verifyToken(token: string): Promise<string | null> {
-  const [u64, mac] = token.split('.');
-  if (!u64 || !mac) return null;
+  const [u64, iatStr, mac] = token.split('.');
+  if (!u64 || !iatStr || !mac) return null;
   const user = Buffer.from(u64, 'base64url').toString('utf8');
   if (!accounts().some((a) => a.username === user)) return null;
-  const expect = createHmac('sha256', await signingSecret()).update(user).digest('base64url');
+  const iat = Number(iatStr);
+  if (!Number.isFinite(iat) || Date.now() - iat > TOKEN_TTL_MS) return null; // expired
+  const expect = createHmac('sha256', await signingSecret()).update(`${user}.${iat}`).digest('base64url');
   const a = Buffer.from(mac);
   const b = Buffer.from(expect);
   return a.length === b.length && timingSafeEqual(a, b) ? user : null;
