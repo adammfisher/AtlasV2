@@ -55,6 +55,23 @@ full-sweep spec are still to do. Recommend: finish the 6 REDs (C5 being the
 big one), then build tests/e2e/parity/full-sweep.spec.ts, then the 3×
 consecutive runs against the deployed app.
 
+
+### Final regression gate (post-features, 35.2m): 77 passed / 11 failed
+All 11 triaged, none block: 4× old chat.spec failures have GREEN parity twins
+in the same run (V3-V6) — selector drift from tonight's composer changes;
+UPDATE OLD CHAT.SPEC SELECTORS next session. M7 spec fixed live (targets
+p_general now, 3.8s green). Old forget-layers spec diverges from the
+14/14 eval flow — reconcile next session. memory/knowledge modal 4m timeouts
++ shell model-menu stale: pre-existing all night. R3/V1: in-suite flakes
+(pass standalone).
+
+### C5 rabbit hole status (still RED, five layers fixed)
+entry-name heal → payload heal → export-default append → honest in-frame
+error → esbuild globalName. AtlasEntry is STILL undefined in the live frame
+with scripts running and zero console errors — next: dump esbuild-wasm
+outputFiles text in a browser harness. All layers committed; each is a real
+fix regardless.
+
 ### Morning verification (2 minutes)
 1. Open the deployed app — sidebar New chat should say "General" in the header.
 2. Artifacts nav item → gallery with filters.

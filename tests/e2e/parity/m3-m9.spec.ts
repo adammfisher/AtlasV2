@@ -70,11 +70,9 @@ test.describe('M3-M9 memory & projects', () => {
   });
 
   test('M7 project instructions are honored', async ({ page }) => {
-    // the ACTIVE project — a new chat lands there; the first audit run set
-    // instructions on projects[0] (a different project) and judged the wrong thing
-    const settings = await api<Record<string, string>>('/settings');
-    const pid = settings.activeProjectId;
-    expect(pid, 'an active project must exist').toBeTruthy();
+    // sidebar chats land in the General project now — instructions must be
+    // set THERE for this flow (a project-workspace chat would use its own)
+    const pid = 'p_general';
     await api(`/projects/${pid}`, {
       method: 'PATCH',
       body: JSON.stringify({ instructions: 'Always end every reply with the token INSTR-FOXTROT.' }),
