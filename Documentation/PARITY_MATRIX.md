@@ -46,7 +46,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | C2 | docx create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | create→headings→edit→v2, python-docx validated, 34s |
 | C3 | xlsx create with WORKING formulas + edit | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | real =formulas present (not baked values), edit→v2, 31s |
 | C4 | pdf create + edit round-trip | 🟢 | parity/c1-c4-office.spec.ts 2026-07-14 | pages+text verified via pdfplumber, edit→v2, 35s |
-| C5 | react artifact: renders, stateful, error surface + fix affordance | 🔴 | parity/c5-c12-artifacts.spec.ts ✘ 2026-07-14 | component iframe content never became reachable in 60s — investigate panel auto-open vs nested-frame locator before trusting; fix-affordance half untested as a result |
+| C5 | react artifact: renders, stateful, error surface + fix affordance | 🔴 | 3 instrumented repros 2026-07-14/15 | root causes peeled: (1) Nova emits App.js not /App.jsx → healEntryFile fixes entry resolution (payload+disk); (2) bundle now compiles (92ms, was 'Bundle failed' — error chip DOES surface); remaining: emitted code mounts a blank frame on Nova 2 Lite (model-output quality) + no 'try fixing' affordance. Next: react SKILL.md mount contract + retry affordance |
 | C6 | html/site artifact: sandboxed, no cookie access | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | sandbox attr present, no allow-same-origin |
 | C7 | svg artifact | 🟢 | parity spec 3/3 consecutive 2026-07-14 | FIXED: extractSvg cuts the <svg> span out of prose-wrapped emissions before validate+persist (both generate and edit paths) |
 | C8 | mermaid artifact + graceful syntax errors | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | invalid source surfaced a visible parse error |

@@ -15,7 +15,7 @@ function bedrockModule(): typeof bedrock {
   return bedrock;
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
-import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg } from './validate.js';
+import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile } from './validate.js';
 import {
   createArtifact,
   addVersion,
@@ -368,12 +368,15 @@ export async function runCreateDoc(opts: {
     }
 
     if (skill.id === 'react' || skill.id === 'site') {
-      const files = (p.files ?? {}) as Record<string, string>;
+      const entry = skill.id === 'react' ? String(p.entry ?? '/App.jsx') : '/index.html';
+      // heal BEFORE persisting: the client bundler consumes p.files (the
+      // payload), so the healed map must land there, not just on disk
+      const files = healEntryFile((p.files ?? {}) as Record<string, string>, entry);
+      p.files = files;
       name = skill.id === 'react' ? 'component' : 'preview-site';
       ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
       const dir = versionDir(opts.projectId, artifactId, 1);
       writeVersionFiles(dir, files);
-      const entry = skill.id === 'react' ? String(p.entry ?? '/App.jsx') : '/index.html';
       if (!files[entry]) throw new PipelineError(`entry file ${entry} missing from emitted files`);
       pushStep(ctx, { state: 'ok', label: 'Files persisted', detail: `${Object.keys(files).length} files · entry ${entry}` });
       pushStep(ctx, { state: 'ok', label: 'Sandbox', detail: 'bundles client-side · CSP locked · offline' });
@@ -706,7 +709,9 @@ DESIGN GUIDANCE: ${skill.guidance}`;
     changed.push(...changedFiles.map((_, i) => i));
     writeVersionFiles(dir, files);
     const entry = skill.id === 'react' ? String((edited as Record<string, unknown>).entry ?? '/App.jsx') : '/index.html';
-    if (!files[entry]) throw new PipelineError(`entry file ${entry} missing from emitted files`);
+    const healedEdit = healEntryFile(files, entry);
+    if (!healedEdit[entry]) throw new PipelineError(`entry file ${entry} missing from emitted files`);
+    Object.assign(files, healedEdit);
     pushStep(ctx, { state: 'ok', label: 'Files persisted', detail: `${Object.keys(files).length} files · entry ${entry}` });
     const meta = `${Object.keys(files).length} files · bundled offline`;
     const ver = await addVersion(opts.artifactId, {

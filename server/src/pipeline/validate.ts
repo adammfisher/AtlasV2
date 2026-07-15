@@ -107,6 +107,24 @@ export function stripFences(source: string): string {
  * inside react/site file strings instead of real newlines — the rendered page
  * then shows "\n" as text. Caught here so the repair loop fixes it honestly.
  */
+/** Heal a file map whose entry file arrived under a near-miss name — models
+ * (esp. non-Claude tiers) emit App.js, app.jsx, /src/App.jsx or index.jsx for
+ * a demanded /App.jsx. Deterministic: prefer a case/extension/path variant,
+ * else a SINGLE jsx/js file; never guess between multiple candidates. */
+export function healEntryFile(files: Record<string, string>, entry: string): Record<string, string> {
+  if (files[entry]) return files;
+  const base = entry.replace(/^\//, '').toLowerCase().replace(/\.(jsx|js|tsx|ts)$/, '');
+  const names = Object.keys(files);
+  const variant = names.find((n) => {
+    const stripped = n.toLowerCase().replace(/^.*\//, '').replace(/\.(jsx|js|tsx|ts)$/, '');
+    return stripped === base || stripped === 'index';
+  });
+  const scripts = names.filter((n) => /\.(jsx|js|tsx)$/i.test(n));
+  const source = variant ?? (scripts.length === 1 ? scripts[0] : undefined);
+  if (!source) return files;
+  return { ...files, [entry]: files[source]! };
+}
+
 export function validateFileMap(
   files: Record<string, string>,
 ): { ok: true } | { ok: false; error: string } {
