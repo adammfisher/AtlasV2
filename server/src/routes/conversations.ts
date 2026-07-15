@@ -25,18 +25,28 @@ conversationsRouter.get('/', (req, res) => {
     .catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
-conversationsRouter.post('/', (req, res) => {
-  const body = req.body as { projectId?: string };
-  const projectId = body.projectId ?? getSetting('activeProjectId');
-  if (!projectId) {
-    res.status(400).json({ error: 'no active project' });
-    return;
+/** Unscoped chats live in a neutral "General" project (claude.ai parity: a
+ * sidebar New Chat must NOT inherit whatever project happens to be active —
+ * that leaked project instructions and memory scope into general chats). */
+async function ensureGeneralProject(): Promise<string> {
+  const { getProject, putProject } = await import('../db/appdb.js');
+  if (!(await getProject('p_general'))) {
+    await putProject({ id: 'p_general', name: 'General', instructions: '', settings: '{}', created_at: now() });
   }
+  return 'p_general';
+}
+
+conversationsRouter.post('/', (req, res) => {
+  void (async () => {
+  const body = req.body as { projectId?: string };
+  // explicit projectId = a chat started inside that project's workspace;
+  // everything else is a general chat
+  const projectId = body.projectId ?? (await ensureGeneralProject());
   const id = newId('c');
   const t = now();
-  putConversation({ id, project_id: projectId, title: 'New chat', created_at: t, updated_at: t })
-    .then(() => res.status(201).json({ id, projectId, title: 'New chat', created_at: t, updated_at: t }))
-    .catch((err: Error) => res.status(502).json({ error: err.message }));
+  await putConversation({ id, project_id: projectId, title: 'New chat', created_at: t, updated_at: t });
+  res.status(201).json({ id, projectId, title: 'New chat', created_at: t, updated_at: t });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 /** Rename (claude.ai parity). */

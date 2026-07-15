@@ -129,8 +129,9 @@ export default function App() {
     // guard: some onClick handlers may pass an event — only accept a string id
     const scopedPid = typeof projectId === 'string' ? projectId : undefined;
     const msg = typeof message === 'string' ? message : undefined;
-    const pid = scopedPid ?? activeProjectId;
-    void api.createConversation(pid).then((c) => {
+    // sidebar New Chat is GENERAL (no project) — only a chat started from a
+    // project workspace passes scopedPid and stays in that project
+    void api.createConversation(scopedPid).then((c) => {
       void queryClient.invalidateQueries({ queryKey: ['conversations'] });
       if (scopedPid) setActiveProject(scopedPid);
       if (msg?.trim()) setAutoSend({ convId: c.id, text: msg.trim(), attachments });

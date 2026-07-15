@@ -58,10 +58,10 @@ const prevActive = (await j<Record<string, string>>('/settings')).activeProjectI
 try {
   console.log('— setup: fact + conversation per project');
   await j('/settings', { method: 'PATCH', body: JSON.stringify({ activeProjectId: pA.id }) });
-  const cA = await j<Conversation>('/conversations', { method: 'POST', body: '{}' });
+  const cA = await j<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({ projectId: pA.id }) });
   await chat(cA.id, 'Remember for this project: the vault passphrase is AMETHYST-ANVIL. Acknowledge briefly.');
   await j('/settings', { method: 'PATCH', body: JSON.stringify({ activeProjectId: pB.id }) });
-  const cB = await j<Conversation>('/conversations', { method: 'POST', body: '{}' });
+  const cB = await j<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({ projectId: pB.id }) });
   await chat(cB.id, 'Remember for this project: the vault passphrase is BASALT-BANNER. Acknowledge briefly.');
 
   console.log('— conversation scoping');
@@ -84,7 +84,7 @@ try {
 
   console.log('— cross-project chat probe');
   await j('/settings', { method: 'PATCH', body: JSON.stringify({ activeProjectId: pA.id }) });
-  const cA2 = await j<Conversation>('/conversations', { method: 'POST', body: '{}' });
+  const cA2 = await j<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({ projectId: pA.id }) });
   const answer = await chat(cA2.id, 'What is the vault passphrase? Answer with just the passphrase.');
   check('chat in A never surfaces B\'s passphrase', !/BASALT-BANNER/.test(answer), answer.slice(0, 200));
 } finally {
