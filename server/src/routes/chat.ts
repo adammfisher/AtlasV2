@@ -125,7 +125,7 @@ import {
 } from '../pipeline/orchestrator.js';
 import { lastPipelineArtifact } from '../pipeline/artifacts.js';
 import { OrchestrationError } from '../pipeline/artifactContext.js';
-import { buildContext } from '../pipeline/context.js';
+import { buildContext, buildBehaviorBlock } from '../pipeline/context.js';
 
 function sse(res: Response, event: string, data: unknown): void {
   if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -309,6 +309,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
       const convStyle = getSetting(`style:${conv.id}`) ?? '';
       const system = [
         PERSONA,
+        // versioned, tier-appropriate behavior rules (create-vs-edit-vs-describe,
+        // artifact-vs-inline, honesty, when-to-search) — the always-on brain rules
+        buildBehaviorBlock(),
         convStyle,
         webEnabled
           ? 'CITATIONS: when your answer draws on web_search or web_fetch results, cite each key claim inline as a markdown link to its source URL — [source title](url). Never invent URLs; only link URLs that appeared in tool results.'
