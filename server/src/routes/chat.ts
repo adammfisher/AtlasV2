@@ -477,6 +477,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         skillId,
         text: `${text.trim()}${attachedDocs}`,
         projectId: conv.project_id,
+        convId: conv.id,
         instructions,
         context: priorContext || undefined,
         routerMs,

@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost, LogOut } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost, LogOut } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
-import { Badge } from './Badge';
 import { NavItem } from './NavItem';
 import type { View } from '../lib/store';
 import { api, type Conversation, type ModelsRegistry, type Health } from '../lib/api';
@@ -58,8 +57,6 @@ export function Sidebar({
   });
   const accountName = me?.username ?? userName;
   const initials = accountName.slice(0, 2).toUpperCase() || 'A';
-  const bedrockConnected = registry?.bedrock.connected ?? false;
-  const bedrockRegion = registry?.bedrock.region ?? 'us-east-1';
 
   return (
     <div
@@ -70,9 +67,6 @@ export function Sidebar({
         <span style={{ fontFamily: serif, fontSize: 21, color: C.text, letterSpacing: '-0.01em' }}>
           Atlas
         </span>
-        <Badge color={C.blue} dim={C.blueDim} icon={Cloud}>
-          Bedrock
-        </Badge>
       </div>
 
       <div className="px-2.5">

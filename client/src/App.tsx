@@ -40,6 +40,8 @@ export default function App() {
   const [autoSend, setAutoSend] = useState<{ convId: string; text: string; attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }> } | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [incognitoConv, setIncognitoConv] = useState<string | null>(null);
+  // gallery → chat: artifact to open once the target conversation is active
+  const [pendingArtifact, setPendingArtifact] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(currentTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const queryClient = useQueryClient();
@@ -78,10 +80,17 @@ export default function App() {
     const path = view === 'chat' && effectiveConv ? `/c/${effectiveConv}` : '/';
     if (window.location.pathname !== path) window.history.replaceState({}, '', path);
   }, [effectiveConv, view]);
-  // the artifact/preview panel belongs to a chat — moving to another chat closes it
+  // the artifact/preview panel belongs to a chat — moving to another chat closes
+  // it, UNLESS we're navigating specifically to open an artifact (gallery click)
   useEffect(() => {
-    setRightPanel(null);
     setLiveGen(null);
+    if (pendingArtifact) {
+      setRightPanel({ kind: 'detail', artifactId: pendingArtifact });
+      setPendingArtifact(null);
+    } else {
+      setRightPanel(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveConv]);
   // back/forward navigation
   useEffect(() => {
@@ -274,7 +283,22 @@ export default function App() {
           <PluginsView plugins={plugins ?? []} projects={projects ?? []} activeProject={activeProjectId} />
         ) : null}
         {view === 'skills' ? <SkillsView skills={skills ?? []} /> : null}
-        {view === 'artifacts' ? <ArtifactsGallery projects={projects ?? []} /> : null}
+        {view === 'artifacts' ? (
+          <ArtifactsGallery
+            projects={projects ?? []}
+            onOpen={(convId, artifactId) => {
+              setView('chat');
+              // same conv (or no conv link): open the panel directly. Different
+              // conv: stash it and let the conv-change effect open it after nav
+              if (convId && convId !== effectiveConv) {
+                setPendingArtifact(artifactId);
+                setActiveConv(convId);
+              } else {
+                setRightPanel({ kind: 'detail', artifactId });
+              }
+            }}
+          />
+        ) : null}
         {view === 'projects' ? (
           <ProjectsView
             projects={projects ?? []}

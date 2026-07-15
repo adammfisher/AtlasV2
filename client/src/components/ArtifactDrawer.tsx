@@ -72,18 +72,7 @@ export function ArtifactDrawer({
     queryFn: () => api.conversation(convId as string),
     enabled: convId !== null,
   });
-  const { data: all } = useQuery({
-    queryKey: ['artifacts-all'],
-    queryFn: async () => {
-      const res = await fetch('/api/artifacts');
-      if (!res.ok) throw new Error('artifacts unavailable');
-      return res.json() as Promise<Array<{ id: string; name: string; kind: string; ver: number; meta: string; project: string; state: string | null }>>;
-    },
-  });
-
   const inConv = conversationArtifacts(conv?.messages ?? []);
-  const inConvIds = new Set(inConv.map((a) => a.artifactId));
-  const elsewhere = (all ?? []).filter((a) => !inConvIds.has(a.id));
 
   return (
     <div
@@ -103,12 +92,9 @@ export function ArtifactDrawer({
         </button>
       </div>
       <div className="px-4 py-3 overflow-y-auto flex-1">
-        <div className="text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
-          In this conversation
-        </div>
         {inConv.length === 0 ? (
           <div className="text-xs mb-3" style={{ color: C.mute, fontFamily: sans }}>
-            Nothing generated in this chat yet.
+            Nothing generated in this chat yet. Everything across chats lives in the Artifacts gallery.
           </div>
         ) : (
           inConv.map((a) => (
@@ -121,23 +107,6 @@ export function ArtifactDrawer({
               onClick={() => onSelect(a.artifactId as string)}
             />
           ))
-        )}
-        {elsewhere.length > 0 && (
-          <>
-            <div className="text-xs font-medium uppercase tracking-wider mt-4 mb-1.5" style={{ color: C.mute, fontFamily: sans }}>
-              All artifacts
-            </div>
-            {elsewhere.map((a) => (
-              <Row
-                key={a.id}
-                icon={KIND_ICONS[a.kind] ?? 'file-text'}
-                name={a.name}
-                sub={`v${a.ver} · ${a.project}${a.meta ? ` · ${a.meta}` : ''}`}
-                badge={a.kind === 'product' ? (a.state ?? 'product') : undefined}
-                onClick={() => onSelect(a.id)}
-              />
-            ))}
-          </>
         )}
       </div>
     </div>

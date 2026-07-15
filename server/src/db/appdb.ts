@@ -261,6 +261,7 @@ export async function findMessage(convId: string, messageId: string): Promise<Me
 export interface ArtifactRow {
   id: string;
   project_id: string;
+  conv_id?: string; // the conversation that created it (for gallery → open chat)
   name: string;
   kind: string;
   current_version: number;

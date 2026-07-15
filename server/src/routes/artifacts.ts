@@ -63,6 +63,7 @@ async function zipDir(dir: string): Promise<Buffer> {
 interface ArtifactRow {
   id: string;
   project_id: string;
+  conv_id?: string;
   name: string;
   kind: string;
   current_version: number;
@@ -75,6 +76,7 @@ async function summarize(a: ArtifactRow) {
   return {
     id: a.id,
     projectId: a.project_id,
+    convId: a.conv_id ?? null,
     project: a.project_name,
     name: a.name,
     kind: a.kind,

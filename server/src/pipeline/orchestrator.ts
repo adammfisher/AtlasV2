@@ -298,6 +298,7 @@ export async function runCreateDoc(opts: {
   skillId: SkillId;
   text: string;
   projectId: string;
+  convId?: string;
   instructions: string;
   context?: string;
   routerMs: number;
@@ -351,7 +352,7 @@ export async function runCreateDoc(opts: {
     const p = payload as Record<string, unknown>;
     if (skill.id === 'product') {
       name = `${slug(String(p.name ?? 'product'))}.product.json`;
-      ({ id: artifactId } = await createArtifact(opts.projectId, name, 'product'));
+      ({ id: artifactId } = await createArtifact(opts.projectId, name, 'product', opts.convId));
       const dir = versionDir(opts.projectId, artifactId, 1);
       const file = path.join(dir, 'definition.json');
       writeFileSync(file, JSON.stringify(payload, null, 2));
@@ -374,7 +375,7 @@ export async function runCreateDoc(opts: {
       const files = healEntryFile((p.files ?? {}) as Record<string, string>, entry);
       p.files = files;
       name = skill.id === 'react' ? 'component' : 'preview-site';
-      ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
+      ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id, opts.convId));
       const dir = versionDir(opts.projectId, artifactId, 1);
       writeVersionFiles(dir, files);
       if (!files[entry]) throw new PipelineError(`entry file ${entry} missing from emitted files`);
@@ -397,7 +398,7 @@ export async function runCreateDoc(opts: {
         `${skill.id}-document`,
     );
     name = `${slug(title)}.${skill.id}`;
-    ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
+    ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id, opts.convId));
     const dir = versionDir(opts.projectId, artifactId, 1);
     const outFile = path.join(dir, name);
     pushStep(ctx, { state: 'pending', label: `build_${skill.id}.py`, detail: 'compiling' });
@@ -481,7 +482,7 @@ export async function runCreateDoc(opts: {
       : skill.id === 'mermaid'
         ? 'diagram.mmd'
         : 'graphic.svg';
-  ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id));
+  ({ id: artifactId } = await createArtifact(opts.projectId, name, skill.id, opts.convId));
   const dir = versionDir(opts.projectId, artifactId, 1);
   const outFile = path.join(dir, name);
   writeFileSync(outFile, emitted);

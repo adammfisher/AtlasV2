@@ -91,7 +91,15 @@ function render(name: string, ex: OfficeExtract, range?: string): string {
     const head = `${name} — ${ex.slides.length} slide${ex.slides.length === 1 ? '' : 's'}${
       idx.length < ex.slides.length ? ` (showing ${idx.length})` : ''
     }`;
-    return [head, ...idx.map((i) => renderSlide(i, ex.slides![i]!))].join('\n\n').slice(0, READ_CAP);
+    const d = ex.design;
+    // lead with look & feel so the model can discuss the deck's design
+    const design = d
+      ? `Visual design: ${d.aspect}, palette ${d.palette.slice(0, 4).join(' ')}, fonts ${d.fonts.slice(0, 3).join(', ') || 'theme default'}${d.images ? `, ${d.images} images` : ''}${d.charts ? `, ${d.charts} charts` : ''}`
+      : '';
+    return [head, design, ...idx.map((i) => renderSlide(i, ex.slides![i]!))]
+      .filter(Boolean)
+      .join('\n\n')
+      .slice(0, READ_CAP);
   }
   if (ex.sheets) {
     const head = `${name} — ${ex.sheets.length} sheet${ex.sheets.length === 1 ? '' : 's'}`;

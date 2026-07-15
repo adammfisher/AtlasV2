@@ -37,9 +37,10 @@ export async function createArtifact(
   projectId: string,
   name: string,
   kind: string,
+  convId?: string,
 ): Promise<{ id: string }> {
   const id = newId('a');
-  await putArtifact({ id, project_id: projectId, name, kind, current_version: 0, created_at: now() });
+  await putArtifact({ id, project_id: projectId, conv_id: convId, name, kind, current_version: 0, created_at: now() });
   return { id };
 }
 

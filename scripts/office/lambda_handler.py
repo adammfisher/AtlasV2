@@ -128,6 +128,77 @@ def _slide_text(i, sl):
     return "\n".join(parts)
 
 
+def _deck_design(prs):
+    """Analyze the deck's LOOK & FEEL so the model can discuss design, not just
+    text: dominant colors, fonts, slide size/aspect, and the layout mix. Pure
+    python-pptx — no rendering."""
+    from collections import Counter
+
+    colors, fonts, sizes = Counter(), Counter(), Counter()
+    pics = tables = charts = 0
+    for slide in prs.slides:
+        for sh in slide.shapes:
+            if sh.shape_type == 13:  # PICTURE
+                pics += 1
+            if getattr(sh, "has_table", False):
+                tables += 1
+            if getattr(sh, "has_chart", False):
+                charts += 1
+            try:
+                if sh.fill.type == 1:
+                    colors[f"#{sh.fill.fore_color.rgb}"] += 1
+            except Exception:
+                pass
+            if getattr(sh, "has_text_frame", False):
+                for p in sh.text_frame.paragraphs:
+                    for r in p.runs:
+                        # skip theme-token font refs (+mj-lt, +mn-lt) — not real names
+                        if r.font.name and not r.font.name.startswith("+"):
+                            fonts[r.font.name] += 1
+                        try:
+                            if r.font.color and r.font.color.type is not None:
+                                colors[f"#{r.font.color.rgb}"] += 1
+                        except Exception:
+                            pass
+                        if r.font.size:
+                            sizes[round(r.font.size.pt)] += 1
+    emu = 914400.0
+    w, h = prs.slide_width / emu, prs.slide_height / emu
+    aspect = "16:9" if abs(w / h - 16 / 9) < 0.05 else ("4:3" if abs(w / h - 4 / 3) < 0.05 else f"{w:.1f}x{h:.1f}in")
+    return {
+        "slide_count": len(prs.slides._sldIdLst),
+        "aspect": aspect,
+        "size_in": [round(w, 1), round(h, 1)],
+        "palette": [c for c, _ in colors.most_common(6)],
+        "fonts": [f for f, _ in fonts.most_common(4)],
+        "font_sizes_pt": sorted({s for s, _ in sizes.most_common(6)}),
+        "images": pics,
+        "tables": tables,
+        "charts": charts,
+    }
+
+
+def _design_text(d):
+    lines = ["## Visual design (look & feel)"]
+    lines.append(f"- Format: {d['aspect']} ({d['size_in'][0]}×{d['size_in'][1]} in), {d['slide_count']} slides")
+    if d["palette"]:
+        lines.append(f"- Color palette: {', '.join(d['palette'])}")
+    if d["fonts"]:
+        lines.append(f"- Fonts: {', '.join(d['fonts'])}")
+    if d["font_sizes_pt"]:
+        lines.append(f"- Type sizes: {', '.join(str(s) + 'pt' for s in d['font_sizes_pt'])}")
+    visuals = []
+    if d["images"]:
+        visuals.append(f"{d['images']} images")
+    if d["charts"]:
+        visuals.append(f"{d['charts']} charts")
+    if d["tables"]:
+        visuals.append(f"{d['tables']} tables")
+    if visuals:
+        lines.append(f"- Visual elements: {', '.join(visuals)}")
+    return "\n".join(lines)
+
+
 def extract_preview(kind, file_bytes):
     """Structured preview extraction (pure-python, no LibreOffice). Returns
     {text, slides?, sheets?} so the client can render a readable preview in the
@@ -194,7 +265,12 @@ def extract_preview(kind, file_bytes):
                 svgs.append(None)
         out["slides"] = slides
         out["svgs"] = svgs  # visual preview (rendered from shapes, no LibreOffice)
-        out["text"] = "\n\n".join(_slide_text(i, sl) for i, sl in enumerate(slides))
+        design = _deck_design(prs)
+        out["design"] = design
+        text = "\n\n".join(_slide_text(i, sl) for i, sl in enumerate(slides))
+        if design:
+            text = f"{_design_text(design)}\n\n{text}"
+        out["text"] = text
     elif kind == "docx":
         from docx import Document
 

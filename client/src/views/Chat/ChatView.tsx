@@ -178,19 +178,37 @@ function ToolChips({ chips }: { chips: Array<{ tool: string; connector: string }
   );
 }
 
+// setup rows the user doesn't need to see (internal plumbing)
+const isSetupStep = (l: string): boolean => /^(Router|Skill loaded|Template|Escalated)/.test(l);
+// granular validator checks — collapsed into a single "Validated" line
+const isCheckStep = (l: string): boolean =>
+  /audit|sanity|round.?trip|grep|thumbnail|recalc|formula|parse check|render check|well-?formed|viewbox|page.?count|external (request|call)|compile|#ref|schema \(/i.test(
+    l,
+  ) && !/^build_/i.test(l);
+
 function PipelineCard({ m }: { m: PipelineMessageData }) {
+  const [expanded, setExpanded] = useState(false);
+  const steps = m.steps ?? [];
+
   if (m.edit) {
+    const shown = steps.filter((s) => !isCheckStep(s.label));
     return (
       <div className="rounded-xl px-3.5 py-2.5 mb-3" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
-        {m.steps.map((s) => (
+        {shown.map((s) => (
           <StepRow key={s.label} state={s.state} label={s.label} detail={s.detail} />
         ))}
       </div>
     );
   }
+
+  // primary phases shown individually; checks collapsed into one summary row
+  const primary = steps.filter((s) => !isSetupStep(s.label) && !isCheckStep(s.label));
+  const checks = steps.filter((s) => isCheckStep(s.label));
+  const anyCheckWarn = checks.some((s) => s.state === 'warn');
+
   return (
     <div className="rounded-xl px-3.5 py-3 mb-3" style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}>
-      <div className="flex items-center gap-2 mb-1.5">
+      <button className="w-full flex items-center gap-2 mb-1.5" onClick={() => setExpanded((v) => !v)}>
         <Zap size={13} style={{ color: C.accent }} />
         <span className="text-xs font-medium" style={{ color: C.text, fontFamily: sans }}>
           Document pipeline
@@ -205,10 +223,26 @@ function PipelineCard({ m }: { m: PipelineMessageData }) {
             {m.duration}
           </span>
         ) : null}
-      </div>
-      {m.steps.map((s) => (
+      </button>
+      {(expanded ? steps.filter((s) => !isCheckStep(s.label) || expanded) : primary).map((s) => (
         <StepRow key={s.label} state={s.state} label={s.label} detail={s.detail} />
       ))}
+      {checks.length > 0 && !expanded ? (
+        <StepRow
+          state={anyCheckWarn ? 'warn' : 'ok'}
+          label="Validated"
+          detail={`${checks.length} checks${anyCheckWarn ? ' · some skipped' : ''}`}
+        />
+      ) : null}
+      {steps.length > primary.length + Math.min(checks.length, 1) ? (
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="text-[11px] mt-0.5"
+          style={{ color: C.mute, fontFamily: sans }}
+        >
+          {expanded ? 'Hide detail' : 'Show detail'}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -721,11 +755,7 @@ export function ChatView({
             </span>
           )}
         </button>
-        {registry?.bedrock.connected ? (
-          <Badge color={C.blue} dim={C.blueDim} icon={Cloud}>
-            {selectedRow.name} · Amazon Bedrock
-          </Badge>
-        ) : (
+        {registry?.bedrock.connected ? null : (
           <Badge color={C.amber} dim={C.amberDim} icon={Cloud}>
             Not connected
           </Badge>

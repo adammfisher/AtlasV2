@@ -8,6 +8,7 @@ import { C, sans, serif, mono } from '../../theme/tokens';
 interface Row {
   id: string;
   projectId: string;
+  convId: string | null;
   name: string;
   kind: string;
   ver: number;
@@ -28,7 +29,13 @@ const KIND_ICON: Record<string, typeof FileText> = {
   md: FileCode,
 };
 
-export function ArtifactsGallery({ projects }: { projects: Array<{ id: string; name: string }> }) {
+export function ArtifactsGallery({
+  projects,
+  onOpen,
+}: {
+  projects: Array<{ id: string; name: string }>;
+  onOpen: (convId: string | null, artifactId: string) => void;
+}) {
   const [kind, setKind] = useState<string>('All');
   const [project, setProject] = useState<string>('All');
   const { data } = useQuery({
@@ -87,8 +94,13 @@ export function ArtifactsGallery({ projects }: { projects: Array<{ id: string; n
           return (
             <div
               key={r.id}
-              className="flex items-center gap-3 rounded-xl px-4 py-2.5"
+              role="button"
+              onClick={() => onOpen(r.convId, r.id)}
+              className="flex items-center gap-3 rounded-xl px-4 py-2.5 cursor-pointer transition-colors"
               style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = C.border)}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.borderSoft)}
+              title={`Open ${r.name}`}
             >
               <Icon size={16} style={{ color: C.accent, flexShrink: 0 }} />
               <span className="min-w-0 flex-1">
@@ -105,6 +117,7 @@ export function ArtifactsGallery({ projects }: { projects: Array<{ id: string; n
               <a
                 href={`/api/artifacts/${r.id}/versions/${r.ver}/download`}
                 title={`Download ${r.name}`}
+                onClick={(e) => e.stopPropagation()}
                 className="p-1.5 rounded-lg"
                 style={{ color: C.mute }}
               >

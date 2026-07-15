@@ -53,6 +53,17 @@ export interface Block {
   rows?: string[][];
 }
 
+export interface DeckDesign {
+  slide_count: number;
+  aspect: string;
+  size_in: [number, number];
+  palette: string[];
+  fonts: string[];
+  font_sizes_pt: number[];
+  images: number;
+  tables: number;
+  charts: number;
+}
 export interface OfficeExtract {
   kind: string;
   text: string;
@@ -60,6 +71,7 @@ export interface OfficeExtract {
   sheets?: Sheet[];
   blocks?: Block[];
   svgs?: Array<string | null>;
+  design?: DeckDesign; // pptx look & feel (colors, fonts, layout)
 }
 
 export interface ExtractSource {
