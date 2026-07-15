@@ -127,6 +127,9 @@ export function Sidebar({
           >
             {selected.size === convs.length ? 'Clear all' : 'Select all'}
           </button>
+          <a href="/api/conversations/export.zip" download title="Export all conversations (markdown + manifest)" style={{ color: C.sub }}>
+            Export all
+          </a>
           <button
             disabled={selected.size === 0}
             onClick={() => {

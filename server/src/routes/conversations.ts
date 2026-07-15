@@ -85,6 +85,39 @@ conversationsRouter.get('/search', (req, res) => {
 });
 
 /** Delete a message and everything after it (edit/regenerate support). */
+/** V8: export ALL conversations as a zip of markdown files (+ manifest.json). */
+conversationsRouter.get('/export.zip', (_req, res) => {
+  void (async () => {
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { mkdtempSync, writeFileSync, readFileSync } = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const run = promisify(execFile);
+    const convs = await listConversations();
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-export-'));
+    const manifest: Array<{ id: string; title: string; project_id: string; messages: number }> = [];
+    for (const c of convs) {
+      const msgs = await listMessages(c.id);
+      const lines = [`# ${c.title}`, ''];
+      for (const m of msgs) {
+        if (m.kind !== 'text') continue;
+        const payload = JSON.parse(m.payload) as { text?: string };
+        lines.push(`**${m.role === 'user' ? 'You' : 'Atlas'}:**`, '', payload.text ?? '', '');
+      }
+      const slug = c.title.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'chat';
+      writeFileSync(path.join(dir, `${slug}-${c.id.slice(-6)}.md`), lines.join('\n'));
+      manifest.push({ id: c.id, title: c.title, project_id: c.project_id, messages: msgs.length });
+    }
+    writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+    const zipPath = path.join(os.tmpdir(), `atlas-conversations-${Date.now()}.zip`);
+    await run('/usr/bin/zip', ['-r', '-q', zipPath, '.'], { cwd: dir });
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="atlas-conversations.zip"');
+    res.send(readFileSync(zipPath));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
 conversationsRouter.post('/:id/truncate', (req, res) => {
   const { messageId, inclusive } = req.body as { messageId?: string; inclusive?: boolean };
   void (async () => {
@@ -133,6 +166,13 @@ conversationsRouter.get('/:id/export', (req, res) => {
     const conv = await getConversation(req.params.id);
     if (!conv) {
       res.status(404).json({ error: 'conversation not found' });
+      return;
+    }
+    // ?format=json → the raw structured transcript (V8b)
+    if (req.query.format === 'json') {
+      const msgs = await listMessages(conv.id);
+      res.setHeader('Content-Disposition', `attachment; filename="${conv.id}.json"`);
+      res.json({ ...conv, messages: msgs.map((m) => ({ ...m, payload: JSON.parse(m.payload) as unknown })) });
       return;
     }
     const rows = await listMessages(conv.id);

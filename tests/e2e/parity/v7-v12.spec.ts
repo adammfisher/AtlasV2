@@ -45,15 +45,23 @@ test.describe('V7-V12 conversation surfaces', () => {
     expect(download.suggestedFilename()).toMatch(/\.md$/);
   });
 
-  test('@red V8b json export and all-conversations zip', async ({ page }) => {
+  test('V8b json export and all-conversations zip', async ({ page }) => {
     await page.goto('/');
-    // desired parity affordances that do not exist yet
-    const jsonExport = await page.locator('text=/export.*json/i').count();
-    const zipAll = await page.locator('text=/export all|download all/i').count();
-    expect(jsonExport + zipAll, 'no json/all-zip export surface').toBeGreaterThan(0);
+    await page.getByText('Edit', { exact: true }).first().click();
+    await page.waitForTimeout(300);
+    await expect(page.getByText('Export all', { exact: true })).toBeVisible({ timeout: 5_000 });
+    // both endpoints serve real content
+    const zip = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/export.zip`);
+    expect(zip.status).toBe(200);
+    expect(zip.headers.get('content-type')).toContain('zip');
+    const convs = await api<Array<{ id: string }>>('/conversations');
+    const j = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/${convs[0]!.id}/export?format=json`);
+    expect(j.status).toBe(200);
+    const parsed = (await j.json()) as { messages?: unknown[] };
+    expect(Array.isArray(parsed.messages)).toBe(true);
   });
 
-  test('@red V9 rename, search, bulk delete', async ({ page }) => {
+  test('V9 rename, search, bulk delete', async ({ page }) => {
     await page.goto('/');
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(400);
@@ -63,17 +71,24 @@ test.describe('V7-V12 conversation surfaces', () => {
     // rename lives behind Edit (manage mode) and uses window.prompt — answer
     // the native dialog, not a DOM input (Sidebar.tsx:210)
     page.once('dialog', (d) => void d.accept(`${MARK} AUDIT-RENAMED`));
-    await page.getByText('Edit', { exact: true }).first().click();
-    await page.waitForTimeout(400);
-    const pencil = page.locator('svg.lucide-pencil').first();
-    await expect(pencil, 'rename pencil in manage mode').toBeVisible({ timeout: 5_000 });
+    // the pencil is a HOVER-revealed control on the conversation row
+    const row = page.locator('button', { hasText: 'RENAME-TARGET' }).first();
+    await row.hover();
+    const pencil = page.locator('[title="Rename chat"]').first();
+    await expect(pencil, 'rename pencil on row hover').toBeVisible({ timeout: 5_000 });
     await pencil.click();
-    await page.waitForTimeout(800);
-    await page.getByText('Done', { exact: true }).first().click().catch(() => undefined);
-    // search filters
+    await page.waitForTimeout(1200);
+    // the rename must have landed server-side…
+    const convs = await api<Array<{ id: string; title: string }>>('/conversations');
+    const renamed = convs.find((c) => c.title.includes('AUDIT-RENAMED'));
+    expect(renamed, 'rename persisted via the prompt flow').toBeTruthy();
+    // …and content search must find it
+    const hits = await api<Array<{ id: string }>>(`/conversations/search?q=${encodeURIComponent('AUDIT-RENAMED')}`);
+    expect(hits.some((h) => h.id === renamed!.id), 'search finds the renamed chat').toBe(true);
+    // UI filter box narrows the list too
     const search = page.locator('input[placeholder*="Search"]').first();
     await search.fill('AUDIT-RENAMED');
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(800);
     await expect(page.getByText('AUDIT-RENAMED').first()).toBeVisible({ timeout: 5_000 });
     await search.fill('');
     // bulk delete via Edit mode handled by cleanupMarked teardown (API) —
