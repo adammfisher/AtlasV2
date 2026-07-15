@@ -30,7 +30,7 @@ export function KnowledgeModal({
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-6" style={{ background: C.scrim }} onClick={onClose}>
       <div
         className="rounded-2xl w-full flex flex-col"
         style={{ maxWidth: 620, maxHeight: '80%', background: C.bg, border: `1px solid ${C.border}` }}

@@ -16,69 +16,86 @@ import {
   Terminal,
   type LucideIcon,
 } from 'lucide-react';
+import { DEFAULT_THEME, isThemeName, type ThemeName } from './themes';
 
-/* Atlas palettes — modeled on Claude.ai's warm dark/light themes. C is a
- * mutable object: applyTheme() swaps its values in place and the App root
- * re-renders, so every `C.xxx` read at render time picks up the new theme. */
-const DARK = {
-  bg: '#262624',
-  sidebar: '#1f1e1c',
-  panel: '#2f2e2b',
-  panelHover: '#363430',
-  raised: '#383631',
-  border: '#3c3a36',
-  borderSoft: 'rgba(255,255,255,0.06)',
-  text: '#f0eee6',
-  sub: '#b8b4a9',
-  mute: '#85827a',
-  accent: '#d97757',
-  accentDim: 'rgba(217,119,87,0.14)',
-  green: '#8fbf7f',
-  greenDim: 'rgba(143,191,127,0.13)',
-  blue: '#82a8c8',
-  blueDim: 'rgba(130,168,200,0.13)',
-  purple: '#a995c9',
-  purpleDim: 'rgba(169,149,201,0.13)',
-  amber: '#d4ad6a',
-  amberDim: 'rgba(212,173,106,0.13)',
-};
+export { THEMES, THEME_NAMES, DEFAULT_THEME, isThemeName, type ThemeName } from './themes';
 
-const LIGHT: typeof DARK = {
-  bg: '#faf9f5',
-  sidebar: '#f0eee6',
-  panel: '#ffffff',
-  panelHover: '#f4f2ec',
-  raised: '#edeae1',
-  border: '#dcd8cc',
-  borderSoft: 'rgba(0,0,0,0.08)',
-  text: '#262624',
-  sub: '#57544b',
-  mute: '#8a867b',
-  accent: '#c65f3d',
-  accentDim: 'rgba(198,95,61,0.12)',
-  green: '#4d8a3b',
-  greenDim: 'rgba(77,138,59,0.12)',
-  blue: '#3f6f9c',
-  blueDim: 'rgba(63,111,156,0.12)',
-  purple: '#7460a0',
-  purpleDim: 'rgba(116,96,160,0.12)',
-  amber: '#a3782c',
-  amberDim: 'rgba(163,120,44,0.13)',
-};
+/* C maps Atlas's semantic names to the CSS custom properties declared in
+ * themes.ts. The values are var() references, not colors: an inline
+ * `style={{ background: C.panel }}` emits `background: var(--panel)` and the
+ * cascade resolves it against whatever [data-theme] is on <html>. That is why
+ * switching themes needs no re-render and no component ever holds a hex.
+ *
+ * Contract tokens are 1:1 with themes.ts. The rest are aliases kept so the ~700
+ * existing call sites read the same as they always did. */
+export const C = {
+  bg: 'var(--bg)',
+  /** sidebar, inputs and raised surfaces share one token in the contract */
+  sidebar: 'var(--panel)',
+  panel: 'var(--panel)',
+  panelHover: 'var(--elevated)',
+  raised: 'var(--elevated)',
+  /** `border` is the emphasized hairline; `borderSoft` the default one */
+  border: 'var(--border-strong)',
+  borderSoft: 'var(--border)',
+  text: 'var(--text-primary)',
+  sub: 'var(--text-secondary)',
+  mute: 'var(--text-faint)',
+  accent: 'var(--accent)',
+  accentHover: 'var(--accent-hover)',
+  accentActive: 'var(--accent-active)',
+  /** text/icon color on top of an accent fill — never plain white */
+  accentContrast: 'var(--accent-contrast)',
+  accentDim: 'var(--accent-dim)',
+  navActiveBg: 'var(--nav-active-bg)',
+  /** neutral hover tint; inverts with the scheme, unlike a fixed white wash */
+  hoverWash: 'var(--hover-wash)',
+  scrim: 'var(--scrim)',
+  shadowMenu: 'var(--shadow-menu)',
+  green: 'var(--status-green)',
+  greenDim: 'var(--status-green-dim)',
+  blue: 'var(--status-blue)',
+  blueDim: 'var(--status-blue-dim)',
+  purple: 'var(--status-purple)',
+  purpleDim: 'var(--status-purple-dim)',
+  amber: 'var(--status-amber)',
+  amberDim: 'var(--status-amber-dim)',
+  /** decorative only — the sandbox traffic light, not an error state */
+  red: 'var(--status-red)',
+} as const;
 
-export const C: typeof DARK = { ...DARK };
+/** A translucent wash of any token, for the handful of one-off tints the fixed
+ *  --*-dim tokens don't cover. Resolves against the live palette like any
+ *  other var(), so `wash(C.amber, 15)` re-tints itself on a theme swap. */
+export const wash = (token: string, pct: number): string =>
+  `color-mix(in srgb, ${token} ${pct}%, transparent)`;
 
-export type ThemeMode = 'dark' | 'light';
+const STORAGE_KEY = 'atlas-theme';
 
-export function currentTheme(): ThemeMode {
-  return (localStorage.getItem('atlas-theme') as ThemeMode) === 'light' ? 'light' : 'dark';
+/** Pre-token builds stored a light/dark mode under the same key. */
+const LEGACY: Record<string, ThemeName> = { dark: 'ember', light: 'daylight' };
+
+/** The persisted theme, or the default when unset/unreadable/retired. */
+export function currentTheme(): ThemeName {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    return DEFAULT_THEME; // storage disabled (private mode)
+  }
+  if (!saved) return DEFAULT_THEME;
+  if (isThemeName(saved)) return saved;
+  return LEGACY[saved] ?? DEFAULT_THEME;
 }
 
-export function applyTheme(mode: ThemeMode): void {
-  Object.assign(C, mode === 'light' ? LIGHT : DARK);
-  localStorage.setItem('atlas-theme', mode);
-  document.body.style.background = C.bg;
-  document.body.style.colorScheme = mode;
+/** Swap the palette and persist it. Takes effect on the next frame, no reload. */
+export function applyTheme(name: ThemeName): void {
+  document.documentElement.dataset.theme = name;
+  try {
+    localStorage.setItem(STORAGE_KEY, name);
+  } catch {
+    /* not persisting is survivable; the swap already happened */
+  }
 }
 
 export const serif = '"Tiempos Text", Georgia, "Times New Roman", serif';
@@ -99,9 +116,9 @@ export function tokenColor(token: string): { color: string; dim: string } {
     case 'amber':
       return { color: C.amber, dim: C.amberDim };
     case 'sub':
-      return { color: C.sub, dim: 'rgba(184,180,169,0.10)' };
+      return { color: C.sub, dim: wash(C.sub, 10) };
     case 'text':
-      return { color: C.text, dim: 'rgba(240,238,230,0.08)' };
+      return { color: C.text, dim: wash(C.text, 8) };
     default:
       return { color: C.sub, dim: C.borderSoft };
   }

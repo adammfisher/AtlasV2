@@ -62,7 +62,7 @@ export function ModelMenu({
           }}
           className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
           style={{ opacity: m.locked || !m.selectable ? 0.55 : 1 }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
           <span className="flex-1 min-w-0">

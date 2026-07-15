@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C, applyTheme, currentTheme, type ThemeMode } from './theme/tokens';
+import { C, wash, applyTheme, currentTheme, type ThemeName } from './theme/tokens';
 import { api, type ArtifactRef } from './lib/api';
 import type { View } from './lib/store';
 import { Sidebar } from './components/Sidebar';
@@ -42,15 +42,17 @@ export default function App() {
   const [incognitoConv, setIncognitoConv] = useState<string | null>(null);
   // gallery → chat: artifact to open once the target conversation is active
   const [pendingArtifact, setPendingArtifact] = useState<string | null>(null);
-  const [theme, setTheme] = useState<ThemeMode>(currentTheme());
+  const [theme, setTheme] = useState<ThemeName>(currentTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const queryClient = useQueryClient();
 
+  // The inline script in index.html already applied the saved palette before
+  // first paint; this re-asserts it on mount so a legacy or absent stored value
+  // gets normalized and written back under the new name.
   useEffect(() => applyTheme(theme), []); // initial mount only
-  const toggleTheme = () => {
-    // swap the palette BEFORE the re-render — useEffect would run after paint
-    // and leave the tree on the old colors (only body would flip)
-    const next = theme === 'dark' ? 'light' : 'dark';
+  const pickTheme = (next: ThemeName) => {
+    // applyTheme only flips [data-theme] — the cascade recolors the tree on its
+    // own. setTheme is here purely so the picker re-renders its checkmark.
     applyTheme(next);
     setTheme(next);
   };
@@ -231,7 +233,7 @@ export default function App() {
         <Menu size={16} />
       </button>
       {sidebarOpen && (
-        <div className="md:hidden fixed inset-0 z-30" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={() => setSidebarOpen(false)} />
+        <div className="md:hidden fixed inset-0 z-30" style={{ background: C.scrim }} onClick={() => setSidebarOpen(false)} />
       )}
       <div className={`${sidebarOpen ? 'max-md:flex' : 'max-md:hidden'} max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 md:flex md:static`}>
         <Sidebar
@@ -251,14 +253,14 @@ export default function App() {
           health={health}
           userName={userName}
           theme={theme}
-          onToggleTheme={toggleTheme}
+          onPickTheme={pickTheme}
         />
       </div>
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {view === 'chat' && incognitoConv === effectiveConv && incognitoConv !== null ? (
           <div
             className="px-4 py-1.5 text-xs text-center"
-            style={{ background: 'rgba(147,112,219,0.15)', color: '#b8a6e8', borderBottom: '1px solid rgba(147,112,219,0.3)' }}
+            style={{ background: wash(C.purple, 15), color: C.purple, borderBottom: `1px solid ${wash(C.purple, 30)}` }}
           >
             Incognito chat — not saved to recents, no memory capture, deleted when you leave
           </div>

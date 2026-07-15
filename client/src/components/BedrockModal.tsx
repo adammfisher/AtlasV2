@@ -43,7 +43,7 @@ export function BedrockModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center p-6"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: C.scrim }}
       onClick={onClose}
     >
       <div
@@ -89,7 +89,7 @@ export function BedrockModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={onClose}
             className="w-full py-2 rounded-lg text-sm font-medium"
-            style={{ background: C.accent, color: '#fff', fontFamily: sans }}
+            style={{ background: C.accent, color: C.accentContrast, fontFamily: sans }}
           >
             Done
           </button>
@@ -98,7 +98,7 @@ export function BedrockModal({ onClose }: { onClose: () => void }) {
             disabled={busy}
             onClick={connect}
             className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
-            style={{ background: C.accent, color: '#fff', fontFamily: sans, opacity: busy ? 0.7 : 1 }}
+            style={{ background: C.accent, color: C.accentContrast, fontFamily: sans, opacity: busy ? 0.7 : 1 }}
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : null} Connect
           </button>

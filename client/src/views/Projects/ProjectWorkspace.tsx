@@ -182,7 +182,7 @@ export function ProjectWorkspace({
             }}
           >
             {composerDrag && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl pointer-events-none" style={{ background: 'rgba(20,18,16,0.7)' }}>
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl pointer-events-none" style={{ background: C.scrim }}>
                 <span className="text-sm font-medium" style={{ color: C.accent, fontFamily: sans }}>Drop to attach to this chat</span>
               </div>
             )}
@@ -248,14 +248,14 @@ export function ProjectWorkspace({
                 {modelMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setModelMenu(false)} />
-                    <div className="absolute bottom-full mb-2 right-0 z-50 rounded-xl py-1 min-w-[220px]" style={{ background: C.raised, border: `1px solid ${C.border}`, boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}>
+                    <div className="absolute bottom-full mb-2 right-0 z-50 rounded-xl py-1 min-w-[220px]" style={{ background: C.raised, border: `1px solid ${C.border}`, boxShadow: C.shadowMenu }}>
                       {models.map((m) => (
                         <button
                           key={m.id}
                           onClick={() => m.available !== false && setModel(m.id)}
                           className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left"
                           style={{ color: m.available === false ? C.mute : C.text, opacity: m.available === false ? 0.5 : 1, fontFamily: sans }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                         >
                           <span className="flex-1 min-w-0 truncate">{m.name}</span>
@@ -269,7 +269,7 @@ export function ProjectWorkspace({
               <button
                 onClick={startChat}
                 className="flex items-center justify-center rounded-lg"
-                style={{ width: 30, height: 30, background: C.accent, color: '#fff' }}
+                style={{ width: 30, height: 30, background: C.accent, color: C.accentContrast }}
                 title="Start chat"
               >
                 <ArrowUp size={15} />
@@ -364,7 +364,7 @@ export function ProjectWorkspace({
                   style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
                 />
                 <div className="flex gap-2 mt-2">
-                  <button onClick={saveInstructions} className="px-3 py-1 rounded-lg text-xs font-medium" style={{ background: C.accent, color: '#fff', fontFamily: sans }}>Save</button>
+                  <button onClick={saveInstructions} className="px-3 py-1 rounded-lg text-xs font-medium" style={{ background: C.accent, color: C.accentContrast, fontFamily: sans }}>Save</button>
                   <button onClick={() => setEditingInstr(false)} className="px-3 py-1 rounded-lg text-xs" style={{ color: C.mute, fontFamily: sans }}>Cancel</button>
                 </div>
               </div>

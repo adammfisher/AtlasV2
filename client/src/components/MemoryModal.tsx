@@ -43,7 +43,7 @@ export function MemoryModal({
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center p-6"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: C.scrim }}
       onClick={onClose}
     >
       <div

@@ -24,7 +24,7 @@ export function Toggle({
     >
       <span
         className="absolute rounded-full transition-all"
-        style={{ width: 14, height: 14, top: 2, left: on ? 18 : 2, background: on ? '#fff' : C.sub }}
+        style={{ width: 14, height: 14, top: 2, left: on ? 18 : 2, background: on ? C.accentContrast : C.sub }}
       />
     </button>
   );

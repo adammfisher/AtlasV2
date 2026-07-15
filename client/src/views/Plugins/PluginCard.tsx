@@ -116,7 +116,7 @@ export function PluginCard({
             className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
             style={{
               background: p.featured ? C.accent : C.raised,
-              color: p.featured ? '#fff' : C.text,
+              color: p.featured ? C.accentContrast : C.text,
               fontFamily: sans,
               border: p.featured ? 'none' : `1px solid ${C.border}`,
             }}

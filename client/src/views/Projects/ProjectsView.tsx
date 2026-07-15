@@ -80,7 +80,7 @@ export function ProjectsView({
         <button
           onClick={() => setShowNew(true)}
           className="ml-auto flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium"
-          style={{ background: C.accent, color: '#fff', fontFamily: sans }}
+          style={{ background: C.accent, color: C.accentContrast, fontFamily: sans }}
         >
           <Plus size={14} /> New project
         </button>
@@ -139,7 +139,7 @@ export function ProjectsView({
                     openProject(p.id);
                   }}
                   className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded-md"
-                  style={{ color: '#fff', background: C.accent, fontFamily: sans }}
+                  style={{ color: C.accentContrast, background: C.accent, fontFamily: sans }}
                   title="Open this project's workspace"
                 >
                   Open →

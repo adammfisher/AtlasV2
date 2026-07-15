@@ -69,7 +69,7 @@ export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => vo
           onClick={() => void submit()}
           disabled={busy || !username || !password}
           className="w-full py-2 rounded-lg text-sm font-medium"
-          style={{ background: C.accent, color: '#fff', fontFamily: sans, opacity: busy ? 0.6 : 1 }}
+          style={{ background: C.accent, color: C.accentContrast, fontFamily: sans, opacity: busy ? 0.6 : 1 }}
         >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>

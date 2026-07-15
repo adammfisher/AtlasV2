@@ -79,7 +79,7 @@ export function SkillsView({ skills }: { skills: Skill[] }) {
                 >
                   <Badge
                     color={s.enabled ? C.green : C.mute}
-                    dim={s.enabled ? C.greenDim : 'rgba(133,130,122,0.13)'}
+                    dim={s.enabled ? C.greenDim : C.hoverWash}
                   >
                     {s.enabled ? 'Enabled' : 'Disabled'}
                   </Badge>

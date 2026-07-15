@@ -35,7 +35,7 @@ import {
   X,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C, sans, serif, mono } from '../../theme/tokens';
+import { C, wash, sans, serif, mono } from '../../theme/tokens';
 import {
   api,
   type ModelsRegistry,
@@ -124,7 +124,7 @@ function AttachmentChip({ a }: { a: { id: string; name: string } }) {
   return (
     <span
       className="group inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs"
-      style={{ background: 'rgba(255,255,255,0.08)', fontFamily: sans }}
+      style={{ background: C.hoverWash, fontFamily: sans }}
     >
       <FileText size={11} /> {a.name}
       <a
@@ -663,7 +663,7 @@ export function ChatView({
       {dragging && (
         <div
           className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none"
-          style={{ background: 'rgba(20,18,16,0.72)', backdropFilter: 'blur(2px)' }}
+          style={{ background: C.scrim, backdropFilter: 'blur(2px)' }}
         >
           <div
             className="flex flex-col items-center gap-3 rounded-2xl px-10 py-8"
@@ -742,14 +742,14 @@ export function ChatView({
           title="Artifacts in this chat"
           className="relative flex items-center justify-center p-1.5 rounded-lg transition-colors"
           style={{ color: artifactCount > 0 ? C.text : C.mute }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
           <Box size={16} />
           {artifactCount > 0 && (
             <span
               className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full text-[10px] font-semibold"
-              style={{ minWidth: 14, height: 14, padding: '0 3px', background: C.accent, color: '#fff', fontFamily: sans }}
+              style={{ minWidth: 14, height: 14, padding: '0 3px', background: C.accent, color: C.accentContrast, fontFamily: sans }}
             >
               {artifactCount}
             </span>
@@ -946,7 +946,7 @@ export function ChatView({
                       <button
                         onClick={() => void send(live.userText, true)}
                         className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium flex-shrink-0"
-                        style={{ background: 'rgba(212,173,106,0.2)', color: C.amber, border: `1px solid rgba(212,173,106,0.4)` }}
+                        style={{ background: wash(C.amber, 20), color: C.amber, border: `1px solid ${wash(C.amber, 40)}` }}
                         title="Retry this message"
                       >
                         <RefreshCw size={11} /> Retry
@@ -1089,13 +1089,13 @@ export function ChatView({
                   <div className="fixed inset-0 z-40" onClick={() => setPlusMenu(false)} />
                   <div
                     className="absolute bottom-full mb-2 left-0 z-50 rounded-xl py-1.5 min-w-[240px]"
-                    style={{ background: C.raised, border: `1px solid ${C.border}`, boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}
+                    style={{ background: C.raised, border: `1px solid ${C.border}`, boxShadow: C.shadowMenu }}
                   >
                     <button
                       onClick={() => { setPlusMenu(false); fileInputRef.current?.click(); }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
                       style={{ color: C.text, fontFamily: sans }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <ImageIcon size={15} style={{ color: C.mute }} /> Add files or photos
@@ -1107,7 +1107,7 @@ export function ChatView({
                       }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
                       style={{ color: C.text, fontFamily: sans }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <GitBranch size={15} style={{ color: C.mute }} /> Add from GitLab
@@ -1118,7 +1118,7 @@ export function ChatView({
                       onClick={() => { toggleWebSearch(); }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
                       style={{ color: C.text, fontFamily: sans }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                       title="When on, Atlas searches the web whenever a question needs current information"
                     >
@@ -1221,7 +1221,7 @@ export function ChatView({
                 onClick={() => setMenu(!menu)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors"
                 style={{ color: C.sub, fontFamily: sans }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 {selectedRow.name}
@@ -1258,9 +1258,9 @@ export function ChatView({
               style={{ width: 30, height: 30, background: busy ? C.raised : C.accent, border: busy ? `1px solid ${C.border}` : 'none' }}
             >
               {busy ? (
-                <Square size={12} color={C.text} fill={C.text} />
+                <Square size={12} fill="currentColor" style={{ color: C.text }} />
               ) : (
-                <ArrowUp size={16} color="#fff" strokeWidth={2.4} />
+                <ArrowUp size={16} style={{ color: C.accentContrast }} strokeWidth={2.4} />
               )}
             </button>
           </div>

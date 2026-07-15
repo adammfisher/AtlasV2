@@ -14,7 +14,7 @@ export function NewProjectModal({
   return (
     <div
       className="fixed inset-0 z-30 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: C.scrim }}
       onClick={close}
     >
       <div
@@ -68,7 +68,7 @@ export function NewProjectModal({
               }
             }}
             className="text-sm px-3.5 py-2 rounded-lg font-medium"
-            style={{ background: C.accent, color: '#fff', opacity: name.trim() ? 1 : 0.5, fontFamily: sans }}
+            style={{ background: C.accent, color: C.accentContrast, opacity: name.trim() ? 1 : 0.5, fontFamily: sans }}
           >
             Create project
           </button>

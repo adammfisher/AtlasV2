@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Download, FolderOpen, Package, ArrowUp, RefreshCw, FileText, Share2, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C, sans, mono, namedIcon } from '../theme/tokens';
+import { C, wash, sans, mono, namedIcon } from '../theme/tokens';
 import { api, type ProjectionRow } from '../lib/api';
 import { saveFile } from '../lib/download';
 import { StepRow } from './StepRow';
@@ -23,7 +23,7 @@ const KIND_ICONS: Record<string, string> = {
 };
 
 const STATE_COLORS: Record<string, { color: string; dim: string }> = {
-  proposed: { color: C.sub, dim: 'rgba(184,180,169,0.13)' },
+  proposed: { color: C.sub, dim: wash(C.sub, 13) },
   endorsed: { color: C.blue, dim: C.blueDim },
   specified: { color: C.purple, dim: C.purpleDim },
   built: { color: C.green, dim: C.greenDim },
@@ -79,8 +79,8 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
       className={fullscreen ? 'flex flex-col fixed inset-0 z-50' : 'flex flex-col h-full flex-shrink-0'}
       style={
         fullscreen
-          ? { background: '#21201e' }
-          : { width: 'min(52vw, 880px)', minWidth: 480, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }
+          ? { background: C.panel }
+          : { width: 'min(52vw, 880px)', minWidth: 480, background: C.panel, borderLeft: `1px solid ${C.borderSoft}` }
       }
     >
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
@@ -165,7 +165,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
                       style={{
                         background: a.promote.unmet.length > 0 ? C.raised : C.accent,
-                        color: a.promote.unmet.length > 0 ? C.mute : '#fff',
+                        color: a.promote.unmet.length > 0 ? C.mute : C.accentContrast,
                         fontFamily: sans,
                         cursor: a.promote.unmet.length > 0 ? 'not-allowed' : 'pointer',
                       }}
@@ -255,7 +255,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
                   className="mt-1 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium"
                   style={{
                     background: bundleUnlocked ? C.accent : C.raised,
-                    color: bundleUnlocked ? '#fff' : C.mute,
+                    color: bundleUnlocked ? C.accentContrast : C.mute,
                     fontFamily: sans,
                     cursor: bundleUnlocked ? 'pointer' : 'not-allowed',
                   }}
@@ -312,7 +312,7 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
               })
             }
             className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium"
-            style={{ background: C.accent, color: '#fff', fontFamily: sans }}
+            style={{ background: C.accent, color: C.accentContrast, fontFamily: sans }}
           >
             <Download size={14} /> Download as {a.kind === 'product' ? 'JSON' : a.kind.toUpperCase()} · v{activeVer}
           </button>

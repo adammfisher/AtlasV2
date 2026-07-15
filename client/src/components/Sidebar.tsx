@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost, LogOut } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Settings2, Trash2, Check, Search, Pencil, X, Box, Ghost, LogOut } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { C, sans, serif } from '../theme/tokens';
+import { C, sans, serif, type ThemeName } from '../theme/tokens';
 import { NavItem } from './NavItem';
+import { ThemePicker } from './ThemePicker';
 import type { View } from '../lib/store';
 import { api, type Conversation, type ModelsRegistry, type Health } from '../lib/api';
 
@@ -17,7 +18,7 @@ export function Sidebar({
   health,
   userName,
   theme,
-  onToggleTheme,
+  onPickTheme,
 }: {
   view: View;
   setView: (v: View) => void;
@@ -28,8 +29,8 @@ export function Sidebar({
   registry: ModelsRegistry | undefined;
   health: Health | undefined;
   userName: string;
-  theme: 'dark' | 'light';
-  onToggleTheme: () => void;
+  theme: ThemeName;
+  onPickTheme: (t: ThemeName) => void;
 }) {
   const [manage, setManage] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -81,7 +82,7 @@ export function Sidebar({
             className="flex items-center justify-center rounded-full"
             style={{ width: 22, height: 22, background: C.accent }}
           >
-            <Plus size={13} color="#fff" strokeWidth={2.5} />
+            <Plus size={13} style={{ color: C.accentContrast }} strokeWidth={2.5} />
           </span>
           New chat
           <span
@@ -197,7 +198,7 @@ export function Sidebar({
               }}
               className="group/conv flex-shrink-0 flex items-center gap-2 text-left px-2.5 py-1.5 rounded-lg text-sm transition-colors"
               style={{ color: active ? C.text : C.sub, background: active ? C.panel : 'transparent', fontFamily: sans }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+              onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
               onMouseLeave={(e) => (e.currentTarget.style.background = active ? C.panel : 'transparent')}
             >
               {manage && (
@@ -205,7 +206,7 @@ export function Sidebar({
                   className="flex items-center justify-center rounded flex-shrink-0"
                   style={{ width: 14, height: 14, border: `1.5px solid ${checked ? C.accent : C.border}`, background: checked ? C.accent : 'transparent' }}
                 >
-                  {checked && <Check size={10} color="#fff" strokeWidth={3} />}
+                  {checked && <Check size={10} style={{ color: C.accentContrast }} strokeWidth={3} />}
                 </span>
               )}
               <span className="truncate flex-1">{c.title}</span>
@@ -244,14 +245,7 @@ export function Sidebar({
           <span className="text-sm" style={{ color: C.text, fontFamily: sans }}>
             {accountName}
           </span>
-          <button
-            onClick={onToggleTheme}
-            className="ml-auto p-1 rounded"
-            title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-            style={{ color: C.mute }}
-          >
-            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
+          <ThemePicker theme={theme} onPick={onPickTheme} />
           <button
             onClick={() => {
               void fetch('/api/auth/logout', { method: 'POST' }).finally(() => {

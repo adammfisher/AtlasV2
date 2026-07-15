@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
-import { C, sans, mono, serif } from '../theme/tokens';
+import { C, wash, sans, mono, serif } from '../theme/tokens';
 import { Badge } from './Badge';
 import {
   buildReactSrcdoc,
@@ -183,7 +183,7 @@ function SandboxFrame({
   return (
     <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-1.5 px-3 py-2" style={{ background: C.raised }}>
-        <span className="w-2 h-2 rounded-full" style={{ background: '#c97c70' }} />
+        <span className="w-2 h-2 rounded-full" style={{ background: C.red }} />
         <span className="w-2 h-2 rounded-full" style={{ background: C.amber }} />
         <span className="w-2 h-2 rounded-full" style={{ background: C.green }} />
         <span className="text-xs ml-2" style={{ color: C.mute, fontFamily: mono }}>
@@ -204,6 +204,10 @@ function SandboxFrame({
       <iframe
         sandbox="allow-scripts"
         src={blobUrl}
+        /* not a token: mirrors the background sandbox.ts paints inside the
+           iframe (see its md/mermaid <style>), so the element does not flash a
+           different color before the frame loads. Themed with the sandbox, if
+           ever — deliberately not with the app chrome. */
         style={{ width: '100%', height, border: 'none', background: '#262624', display: 'block' }}
         title="artifact preview"
       />
@@ -296,6 +300,9 @@ export function ArtifactPreview({
           { ok: result.ok, label: result.ok ? `Bundle · ${result.ms}ms` : `Bundle failed` },
         ]);
         if (!result.ok && result.error) {
+          // literal, not C.amber: this markup is the iframe's document, and the
+          // parent's custom properties do not cascade across that boundary —
+          // var() here would resolve to nothing. Tracks sandbox.ts's palette.
           setSrcdoc(`<pre style="color:#d4ad6a">${result.error}</pre>`);
           setFixError(result.error);
         } else {
@@ -348,7 +355,7 @@ export function ArtifactPreview({
               )
             }
             className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{ background: 'rgba(212,173,106,0.15)', color: '#d4ad6a', border: '1px solid rgba(212,173,106,0.4)' }}
+            style={{ background: wash(C.amber, 15), color: C.amber, border: `1px solid ${wash(C.amber, 40)}` }}
           >
             Try fixing
           </button>
@@ -379,6 +386,9 @@ export function ArtifactPreview({
         </div>
         <iframe
           src={`/api/artifacts/${artifactId}/versions/${version}/render.pdf#toolbar=0&navpanes=0&view=FitH`}
+          /* not a token: this is the PDF viewer's own backdrop gray, and the
+             iframe must match the chrome the browser paints inside it — a
+             themed value here would seam against the viewer, not blend in */
           style={{ width: '100%', height, border: 'none', background: '#525659', display: 'block' }}
           title="document preview"
         />

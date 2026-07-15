@@ -77,7 +77,7 @@ export function ArtifactDrawer({
   return (
     <div
       className="flex flex-col h-full flex-shrink-0"
-      style={{ width: 380, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }}
+      style={{ width: 380, background: C.panel, borderLeft: `1px solid ${C.borderSoft}` }}
     >
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
         <FileText size={15} style={{ color: C.accent }} />

@@ -22,7 +22,7 @@ export function LivePanel({
   return (
     <div
       className="flex flex-col h-full flex-shrink-0"
-      style={{ width: 'min(52vw, 880px)', minWidth: 480, background: '#21201e', borderLeft: `1px solid ${C.borderSoft}` }}
+      style={{ width: 'min(52vw, 880px)', minWidth: 480, background: C.panel, borderLeft: `1px solid ${C.borderSoft}` }}
     >
       <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
         <Loader2 size={15} className="animate-spin" style={{ color: C.accent }} />
