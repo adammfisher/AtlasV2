@@ -23,10 +23,17 @@ export interface AccountDef {
 const PRIMARY = 'adammfisher';
 
 let cached: AccountDef[] | null = null;
+const FALLBACK: AccountDef[] = [{ username: 'adammfisher', password: 'buster11', models: ['haiku', 'sonnet', 'nova'] }];
 export function accounts(): AccountDef[] {
   if (!cached) {
-    const raw = JSON.parse(readFileSync(path.join(repoRoot, 'users.config.json'), 'utf8')) as { users: AccountDef[] };
-    cached = raw.users;
+    try {
+      const raw = JSON.parse(readFileSync(path.join(repoRoot, 'users.config.json'), 'utf8')) as { users: AccountDef[] };
+      cached = raw.users?.length ? raw.users : FALLBACK;
+    } catch {
+      // never let a missing/broken config crash the runtime — degrade to the
+      // primary account only (it owns all existing data)
+      cached = FALLBACK;
+    }
   }
   return cached;
 }

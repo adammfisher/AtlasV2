@@ -10,7 +10,7 @@ npx esbuild server/src/index.ts --bundle --platform=node --format=esm --target=n
   --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);" \
   --external:better-sqlite3 >/dev/null
 printf '#!/bin/bash\nexec node index.mjs\n' > dist-lambda/run.sh && chmod +x dist-lambda/run.sh
-cp atlas.config.json models.config.json dist-lambda/
+cp atlas.config.json models.config.json users.config.json dist-lambda/
 rm -rf dist-lambda/skills dist-lambda/directory
 cp -R skills directory dist-lambda/
 ( cd dist-lambda && zip -qr ../infra/lambda.zip . -x "*.DS_Store" )
