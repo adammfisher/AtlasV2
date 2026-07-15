@@ -342,30 +342,10 @@ export async function bedrockCompleteJson(
 
   // forced tool-use path — accepts schemas json_schema can't express (maps) and
   // is the fallback when json_schema's grammar compiler chokes on a big schema.
-  const viaToolUse = async (): Promise<string> => {
-    const out = await client.send(
-      new ConverseCommand({
-        modelId,
-        system,
-        messages: msgs,
-        inferenceConfig,
-        toolConfig: {
-          tools: [
-            {
-              toolSpec: {
-                name: 'emit',
-                description: 'Emit the document payload.',
-                inputSchema: { json: sanitizeForBedrock(schema) as never },
-              },
-            },
-          ],
-          toolChoice: { tool: { name: 'emit' } },
-        },
-      }),
-      { abortSignal: signal },
-    );
-    const toolUse = out.output?.message?.content?.find((c) => c.toolUse)?.toolUse;
-    let payload = (toolUse?.input ?? {}) as Record<string, unknown>;
+  // did a path already stream deltas to onDelta? (avoids a final full re-emit)
+  let streamed = false;
+
+  const healPayload = (payload: Record<string, unknown>): Record<string, unknown> => {
     // tool models sometimes emit a map's ENTRIES at top level, dropping the
     // single required wrapper key ({"index.html": …} instead of {files: {…}}) —
     // heal that shape deterministically before validation
@@ -373,10 +353,48 @@ export async function bedrockCompleteJson(
     if (required.length === 1 && required[0] && !(required[0] in payload)) {
       const wrapped = (schema.properties as Record<string, { type?: string }> | undefined)?.[required[0]];
       if (wrapped?.type === 'object' && Object.keys(payload).length > 0) {
-        payload = { [required[0]]: payload };
+        return { [required[0]]: payload };
       }
     }
-    return toolUse ? JSON.stringify(payload) : '';
+    return payload;
+  };
+
+  const toolConfig = {
+    tools: [
+      {
+        toolSpec: {
+          name: 'emit',
+          description: 'Emit the document payload.',
+          inputSchema: { json: sanitizeForBedrock(schema) as never },
+        },
+      },
+    ],
+    toolChoice: { tool: { name: 'emit' } as const },
+  };
+
+  const viaToolUse = async (): Promise<string> => {
+    // STREAM the tool-use input: Bedrock sends the argument JSON as partial
+    // fragments, so the document builds live in the panel instead of the user
+    // staring at "waiting for first tokens" until the whole thing lands.
+    const out = await client.send(
+      new ConverseStreamCommand({ modelId, system, messages: msgs, inferenceConfig, toolConfig }),
+      { abortSignal: signal },
+    );
+    let raw = '';
+    for await (const event of out.stream ?? []) {
+      const frag = event.contentBlockDelta?.delta?.toolUse?.input;
+      if (frag) {
+        raw += frag;
+        if (opts.onDelta) {
+          opts.onDelta(frag);
+          streamed = true;
+        }
+      }
+    }
+    if (!raw.trim()) return '';
+    // fragments are a JSON string of the tool input; parse, heal, re-serialize
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return JSON.stringify(healPayload(parsed));
   };
 
   // last-resort: no Bedrock grammar at all. Complex schemas (e.g. the product
@@ -407,8 +425,10 @@ export async function bedrockCompleteJson(
   let content: string;
   if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema) && !bigSchema) {
     try {
+      // STREAM json_schema output too (docx/xlsx/pdf) — the JSON text arrives
+      // as normal content deltas
       const out = await client.send(
-        new ConverseCommand({
+        new ConverseStreamCommand({
           modelId,
           system,
           messages: msgs,
@@ -422,7 +442,17 @@ export async function bedrockCompleteJson(
         }),
         { abortSignal: signal },
       );
-      content = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
+      content = '';
+      for await (const event of out.stream ?? []) {
+        const frag = event.contentBlockDelta?.delta?.text;
+        if (frag) {
+          content += frag;
+          if (opts.onDelta) {
+            opts.onDelta(frag);
+            streamed = true;
+          }
+        }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (!complex(msg)) throw err;
@@ -447,7 +477,9 @@ export async function bedrockCompleteJson(
       content = await viaPlain();
     }
   }
-  if (opts.onDelta && content) opts.onDelta(content);
+  // only emit the whole payload if no path streamed it (viaPlain, or a fallback
+  // that didn't stream) — otherwise the panel already filled live
+  if (opts.onDelta && content && !streamed) opts.onDelta(content);
   return content;
 }
 
