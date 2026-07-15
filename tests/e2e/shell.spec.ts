@@ -4,15 +4,16 @@ import { sendNew, expectReply, cleanupMarked, api, MARK } from './helpers';
 test.describe('shell + management @fast', () => {
   test.afterAll(cleanupMarked);
 
-  test('model menu offers exactly the two Claude models and switching sticks', async ({ page }) => {
+  test('model menu offers the configured models (adammfisher: all 3) and switching sticks', async ({ page }) => {
     await page.goto('/');
     const picker = page.locator('button', { hasText: /Claude (Haiku 4\.5|Sonnet)/ }).last();
     await picker.click();
     await expect(page.getByText('Claude Haiku 4.5', { exact: true }).last()).toBeVisible();
     await expect(page.getByText(/Claude Sonnet/).last()).toBeVisible();
+    await expect(page.getByText(/Nova/).last()).toBeVisible();
     await page.keyboard.press('Escape');
     const reg = await api<{ bedrockModels: unknown[] }>('/models');
-    expect(reg.bedrockModels).toHaveLength(2);
+    expect(reg.bedrockModels).toHaveLength(3); // haiku, sonnet, nova — adammfisher allowlist
   });
 
   test('theme toggle flips the rendered palette and persists', async ({ page }) => {
