@@ -287,6 +287,20 @@ export function ChatView({
   const [attachments, setAttachments] = useState<
     Array<{ id: string; name: string; kind: 'image' | 'document'; thumb?: string; uploading?: boolean; pasted?: string }>
   >([]);
+  // P4 per-chat connector toggles (project-enabled connectors, off per chat)
+  const [chatToolsOff, setChatToolsOff] = useState<string[]>([]);
+  const { data: pluginDir } = useQuery({ queryKey: ['plugins'], queryFn: api.pluginsDirectory });
+  const chatConnectors = pluginDir?.filter(
+    (e) => (e.status === 'connected' || e.status === 'bundled' || e.status === 'installed') && e.enabledProjects.length > 0,
+  );
+  useEffect(() => {
+    setChatToolsOff([]);
+    if (!convId) return;
+    void fetch(`/api/conversations/${convId}/tools`)
+      .then((r) => r.json())
+      .then((d: { disabled?: string[] }) => setChatToolsOff(d.disabled ?? []));
+  }, [convId]);
+
   // X1 response style per conversation (presets; custom via API sample call)
   const [chatStyle, setChatStyle] = useState<string>('normal');
   useEffect(() => setChatStyle('normal'), [convId]);
@@ -1064,6 +1078,36 @@ export function ChatView({
                       <Globe size={15} style={{ color: webSearch ? C.accent : C.mute }} /> Web search
                       {webSearch ? <Check size={15} style={{ color: C.accent, marginLeft: 'auto' }} /> : <span className="ml-auto text-xs" style={{ color: C.mute }}>Off</span>}
                     </button>
+                    <div className="px-3 pt-2 pb-1 text-xs uppercase tracking-wider" style={{ color: C.mute, fontFamily: sans }}>
+                      Connectors (this chat)
+                    </div>
+                    {(chatConnectors ?? []).map((cn) => {
+                      const off = chatToolsOff.includes(cn.id);
+                      return (
+                        <button
+                          key={cn.id}
+                          className="w-full flex items-center gap-2 px-3 py-1.5 text-sm"
+                          style={{ color: off ? C.mute : C.text, fontFamily: sans }}
+                          onClick={() => {
+                            if (!convId) return;
+                            const next = off ? chatToolsOff.filter((x) => x !== cn.id) : [...chatToolsOff, cn.id];
+                            setChatToolsOff(next);
+                            void fetch(`/api/conversations/${convId}/tools`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ connectorId: cn.id, enabled: off }),
+                            });
+                          }}
+                        >
+                          {cn.name}
+                          {off ? (
+                            <span className="ml-auto text-xs" style={{ color: C.mute }}>Off</span>
+                          ) : (
+                            <Check size={13} style={{ color: C.accent, marginLeft: 'auto' }} />
+                          )}
+                        </button>
+                      );
+                    })}
                     <div className="px-3 pt-2 pb-1 text-xs uppercase tracking-wider" style={{ color: C.mute, fontFamily: sans }}>
                       Response style
                     </div>

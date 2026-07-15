@@ -313,9 +313,13 @@ chatRouter.post('/:id/messages', async (req, res) => {
       // (memory_upsert, graph_add_fact, …) write to a dead database and shadow
       // the native remember/forget + DynamoDB recall. Never expose them.
       const SHADOW_CONNECTORS = new Set(['atlas-memory', 'memory', 'sqlite']);
+      // P4: per-conversation disabled connectors — never reach the model
+      const chatOffRaw = getSetting(`mcpoff:${conv.id}`);
+      const chatOff = new Set(chatOffRaw ? (JSON.parse(chatOffRaw) as string[]) : []);
       try {
         for (const t of await toolsForProject(conv.project_id)) {
           if (SHADOW_CONNECTORS.has(t.connectorId)) continue;
+          if (chatOff.has(t.connectorId)) continue;
           const name = mangle(t);
           byMangled.set(name, t);
           connectorTools.push({

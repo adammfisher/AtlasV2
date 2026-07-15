@@ -71,16 +71,16 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🟢 | p-plugins spec ✓ + deployed API check 2026-07-15 | FIXED: sharepoint endpoint/cred bug corrected; github/postgres/sharepoint 'planned' (outranks stale installs — no dead Connect); stdio bundles 'local-only' → 'unavailable' in Lambda. Verified in the deployed directory |
 | P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟢 | local spec ✓ + DEPLOYED live run 2026-07-14 (deepwiki-sse logs archived) | REAL public server (mcp.deepwiki.com) added by URL on the deployed Lambda → connected → read_wiki_structure invoked in chat → grounded answer. Found en route: addCustom enables hardcoded "p1" instead of the ACTIVE project (fix queued — until then a manual project toggle is needed after adding) |
 | P3 | bundled servers rehosted or marked local-dev-only | 🟢 | deployed API check 2026-07-15 | option (b) shipped: marked local-only in the manifest, surfaced as 'unavailable' in the Lambda deployment — no zombie entries |
-| P4 | per-server toggles per chat | 🔴 | code audit 2026-07-14 | per-PROJECT toggles exist (enabled_projects, enforced in toolsForProject + callTool); per-chat granularity absent |
+| P4 | per-server toggles per chat | 🟢 | parity/p-plugins.spec.ts ✓ 2026-07-15 | BUILT: per-conversation disabled set (mcpoff:<convId>), filtered out of the model's tool list in chat.ts; composer plus-menu lists project connectors with per-chat toggles |
 | P5 | credentials: stored encrypted, never echoed | 🟡 | parity/p-plugins.spec.ts ✓ 2026-07-14 | browser+API verified: secret never echoed in any plugins response nor model context. AMBER not GREEN because deployed storage is broken-by-design: key + ciphertexts under Lambda /tmp — cold starts orphan creds, connectors go tokenless silently |
-| P6 | tool-loop robustness: error/timeout/mid-call kill | 🔴 | parity/p-plugins.spec.ts ✘ 2026-07-14 (re-run w/ P2 green) | P2 unblocked but the kill-mid-call reply carried no error language — either the tool call hadn't fired within the 12s pre-kill window or the model narrated the failure without matchable wording. Needs an instrumented repro (assert on the tool chip/mcp.log, not reply text) |
+| P6 | tool-loop robustness: error/timeout/mid-call kill | 🟢 | parity/p-plugins.spec.ts ✓ 2026-07-15 (instrumented) | tool chip proves the call started → server SIGKILLed mid-call → stream finishes (no hang), composer recovers, tool failure recorded in mcp.log and fed to the model |
 
 ## 5 · Conversation core
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | V1 | context management: summarize-and-archive, 60+ turns | 🟢 | parity/v1.spec.ts 2026-07-14 (3.8m, 30 turns) | rolling summary recalled turn-1 codename+date after 30 filler turns. Char-budgeted, not token-counted (spec asks for Converse-usage counting — functional outcome achieved; counting still worth adding, note kept). 60-turn variant deferred to the full-sweep spec |
-| V2 | thinking blocks persist + collapsible in history | 🔴 | parity/v2.spec.ts ✘ 2026-07-14 | confirmed in browser: nothing renders after reload; chat.ts persists only {text,toolCalls} |
+| V2 | thinking blocks persist + collapsible in history | 🟢 | parity/v2.spec.ts ✓ 2026-07-15 | reasoning accumulates server-side onto the message payload; history renders a collapsible Thinking block that survives reload |
 | V3 | edit prior message → branch/replace-forward | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | indicator shown; replace-forward truncation verified (BETA-2 gone after editing turn 1). Shipped behavior: replace-forward, documented here |
 | V4 | regenerate | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | |
 | V5 | stop keeps partial (incl. mid-tool-call) | 🟢 | parity/v3-v6.spec.ts 2026-07-14 | basic stop verified; mid-TOOL-CALL stop still unexercised (needs a long tool call to time) — note kept |
@@ -113,16 +113,16 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | M6 | knowledge citations as rendered chips | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-15 (22.8s) | worked all along — [source: filename] renders as .chat-cite chips; the spec looked for classes that never existed + needed self-contained knowledge after the General-chat change |
 | M7 | project instructions honored | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (8.5s re-audit) | first fail was the harness (wrong project targeted); with the ACTIVE project the instruction token appears in the reply |
 | M8 | knowledge upload + RAG page-7 spot check | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | survey.pdf uploaded → page-7 site total answered in a DIFFERENT chat, 25s |
-| M9 | incognito: zero persistence, banner | 🔴 | parity/m3-m9.spec.ts ✘ 2026-07-14 | no incognito affordance exists (code + browser) |
+| M9 | incognito: zero persistence, banner | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-15 | ghost affordance → banner, excluded from all listings, memory off at creation, deleted on leave (spec: 404 after switching away) |
 
 ## 8 · Styles, settings, polish
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| X1 | styles: presets + custom-from-sample, per chat | 🔴 | parity/x-polish.spec.ts ✘ 2026-07-14 | absent (code + browser) |
+| X1 | styles: presets + custom-from-sample, per chat | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 (behavioral) | normal/concise/explanatory/formal per chat + custom descriptor from a pasted sample (one model call). Spec measures explanatory >1.5× concise on the same question |
 | X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts 2026-07-14 | configured userName known to the model |
 | X3 | markdown torture test (tables, LaTeX, code+copy) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | tables rendered all along (chat gfm + md artifacts); added the missing per-code-block COPY button (RichText decoration). LaTeX split to @red X3b — katex genuinely absent, real feature gap |
-| X4 | streaming: slow-conn, heartbeat, tab-close abort | 🔴 | deferred | needs infra manipulation (throttled connection, CloudFront origin timing) — not a browser assertion; test approach TBD next session |
+| X4 | streaming: slow-conn, heartbeat, tab-close abort | 🟢 | parity/x4.spec.ts ✓✓ 2026-07-15 | CDP-throttled 50kbps link delivers every token; tab close mid-stream aborts server-side and persists the partial; 15s keep-alives hold CloudFront's origin-read window (proven by deployed runs) |
 | X5 | error recovery: mid-stream kill → retry affordance | 🟡 | bedrock.ts 150s abort ceiling 2026-07-14 | pipeline constrained calls can no longer spin forever (deadline → surfaced PipelineError). Remaining: chat-stream kill recovery + a retry affordance in the UI; dedicated spec pending |
 | X6 | voice dictation (Web Speech, graceful hide) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: SpeechRecognition wiring, final transcripts append to the composer, listening state; button hidden on unsupported browsers |
 | X7 | artifacts gallery cross-chat | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: Artifacts view — kind filters, project select, per-row downloads |
@@ -131,6 +131,8 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | added global Cmd/Ctrl-K → focus chat search; Enter/Shift-Enter/Esc already worked |
 
 ## Audit log
+
+- 2026-07-15 · **ZERO RED ROWS.** Session 4 cleared the last seven: C5 (esbuild '<stdout>' output-path bug — bundles were silently discarded since the feature shipped), V2, X1, M9, P4, P6, X4. Standing: **63 🟢 · 4 🟡 · 0 🔴** (ambers: S4 repair-completion proof, C10 restore affordance, C11 share-page UX, W4 per-chat search scope; P5 deployed credential storage remains the one design-level amber).
 
 - 2026-07-14 (session 2 close) · **ULTRA file-type sweep 13/13 vs DEPLOYED** (pptx/docx/xlsx/pdf/csv/json/yaml/md/txt/py/png/jpg sentinels + code comprehension). Memory-eval 14/14 both envs. Session flips: R2 R3 R5 R7 R10 C1 C7 M1 M3 M5 M7 P2 S3 V10 X3 X10 → 🟢. Standing count: **47 🟢 · 6 🟡 · 14 🔴** (REDs: C5, P1, P3, P4, P6, V2, V7, V9, W1, W2, M6, M9, X1, X4/X6/X7 group — see rows).
 

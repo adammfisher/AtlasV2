@@ -275,6 +275,27 @@ body{font-family:-apple-system,Segoe UI,sans-serif;max-width:760px;margin:2rem a
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/** P4 per-chat tool toggles (claude.ai tool-menu parity): connectors disabled
+ * for THIS conversation only — the project-level toggle stays the master. */
+conversationsRouter.get('/:id/tools', (req, res) => {
+  const raw = getSetting(`mcpoff:${req.params.id}`);
+  res.json({ disabled: raw ? (JSON.parse(raw) as string[]) : [] });
+});
+
+conversationsRouter.post('/:id/tools', (req, res) => {
+  const { connectorId, enabled } = req.body as { connectorId?: string; enabled?: boolean };
+  if (!connectorId) {
+    res.status(400).json({ error: 'connectorId is required' });
+    return;
+  }
+  const raw = getSetting(`mcpoff:${req.params.id}`);
+  const off = new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  if (enabled === false) off.add(connectorId);
+  else off.delete(connectorId);
+  setSetting(`mcpoff:${req.params.id}`, JSON.stringify([...off]));
+  res.json({ ok: true, disabled: [...off] });
+});
+
 /** X1 response styles (claude.ai parity): preset per conversation, or a
  * custom descriptor generated once from a pasted writing sample. */
 const STYLE_PRESETS: Record<string, string> = {
