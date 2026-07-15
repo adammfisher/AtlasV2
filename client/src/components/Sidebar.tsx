@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box } from 'lucide-react';
+import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Cloud, Settings2, Trash2, Check, Search, Pencil, X, Sun, Moon, Box, Ghost } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../theme/tokens';
 import { Badge } from './Badge';
@@ -25,7 +25,7 @@ export function Sidebar({
   convs: Conversation[];
   activeConv: string | null;
   openConv: (id: string | null) => void;
-  newChat: () => void;
+  newChat: (projectId?: string, message?: string, attachments?: undefined, incognito?: boolean) => void;
   registry: ModelsRegistry | undefined;
   health: Health | undefined;
   userName: string;
@@ -89,6 +89,17 @@ export function Sidebar({
             <Plus size={13} color="#fff" strokeWidth={2.5} />
           </span>
           New chat
+          <span
+            role="button"
+            title="Incognito chat — not saved, not remembered"
+            className="ml-auto p-1 rounded-md opacity-50 hover:opacity-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              newChat(undefined, undefined, undefined, true);
+            }}
+          >
+            <Ghost size={14} />
+          </span>
         </button>
       </div>
 

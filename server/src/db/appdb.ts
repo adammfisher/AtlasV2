@@ -147,11 +147,14 @@ export interface ConversationRow {
   title: string;
   created_at: number;
   updated_at: number;
+  /** M9 incognito: never listed, never remembered, deleted on navigate-away */
+  incognito?: boolean;
 }
 
 export async function listConversations(projectId?: string): Promise<ConversationRow[]> {
   const items = (await queryAll('CONV')) as unknown as ConversationRow[];
-  const filtered = projectId ? items.filter((c) => c.project_id === projectId) : items;
+  const visible = items.filter((c) => !c.incognito); // M9: ghosts never list
+  const filtered = projectId ? visible.filter((c) => c.project_id === projectId) : visible;
   return filtered.sort((a, b) => b.updated_at - a.updated_at);
 }
 

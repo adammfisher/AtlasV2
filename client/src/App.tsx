@@ -30,6 +30,7 @@ export default function App() {
   const [liveGen, setLiveGen] = useState<{ text: string; label: string } | null>(null);
   const [autoSend, setAutoSend] = useState<{ convId: string; text: string; attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }> } | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [incognitoConv, setIncognitoConv] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>(currentTheme());
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const queryClient = useQueryClient();
@@ -123,6 +124,7 @@ export default function App() {
     projectId?: string,
     message?: string,
     attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>,
+    incognito?: boolean,
   ) => {
     // explicit project scoping (no reliance on the async activeProjectId
     // setting) so a new chat's project — and thus its memory scope — is
@@ -132,7 +134,8 @@ export default function App() {
     const msg = typeof message === 'string' ? message : undefined;
     // sidebar New Chat is GENERAL (no project) — only a chat started from a
     // project workspace passes scopedPid and stays in that project
-    void api.createConversation(scopedPid).then((c) => {
+    void api.createConversation(scopedPid, incognito).then((c) => {
+      if (incognito) setIncognitoConv(c.id);
       void queryClient.invalidateQueries({ queryKey: ['conversations'] });
       if (scopedPid) setActiveProject(scopedPid);
       if (msg?.trim()) setAutoSend({ convId: c.id, text: msg.trim(), attachments });
@@ -147,6 +150,16 @@ export default function App() {
     setView('projects');
     applyProjectModel(pid);
   };
+
+  // leaving an incognito chat destroys it (M9: nothing persists) — effect, not
+  // openConv: newChat() also switches conversations without going through it
+  useEffect(() => {
+    if (incognitoConv && effectiveConv !== incognitoConv) {
+      void api.deleteConversations([incognitoConv]);
+      setIncognitoConv(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveConv]);
 
   const openConv = (id: string | null) => {
     setActiveConv(id);
@@ -212,7 +225,16 @@ export default function App() {
           onToggleTheme={toggleTheme}
         />
       </div>
-      <div className="flex-1 flex min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
+        {view === 'chat' && incognitoConv === effectiveConv && incognitoConv !== null ? (
+          <div
+            className="px-4 py-1.5 text-xs text-center"
+            style={{ background: 'rgba(147,112,219,0.15)', color: '#b8a6e8', borderBottom: '1px solid rgba(147,112,219,0.3)' }}
+          >
+            Incognito chat — not saved to recents, no memory capture, deleted when you leave
+          </div>
+        ) : null}
+        <div className="flex-1 flex min-w-0">
         {view === 'chat' ? (
           <ChatView
             convId={effectiveConv}
@@ -258,6 +280,7 @@ export default function App() {
             onClose={() => setRightPanel(null)}
           />
         ) : null}
+        </div>
       </div>
           <Toasts />
     </div>

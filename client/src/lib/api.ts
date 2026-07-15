@@ -18,6 +18,7 @@ export interface Conversation {
   title: string;
   created_at: number;
   updated_at: number;
+  incognito?: boolean;
 }
 
 export interface ArtifactRef {
@@ -225,8 +226,11 @@ export const api = {
   updateProject: (id: string, patch: { name?: string; instructions?: string; model?: string }) =>
     request<Project>(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   conversations: () => request<Conversation[]>('/conversations'),
-  createConversation: (projectId?: string) =>
-    request<Conversation>('/conversations', { method: 'POST', body: JSON.stringify(projectId ? { projectId } : {}) }),
+  createConversation: (projectId?: string, incognito?: boolean) =>
+    request<Conversation & { incognito?: boolean }>('/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ ...(projectId ? { projectId } : {}), ...(incognito ? { incognito: true } : {}) }),
+    }),
   conversation: (id: string) => request<ConversationDetail>(`/conversations/${id}`),
   shareConversation: (id: string) =>
     request<{ url: string; expiresDays: number }>(`/conversations/${id}/share`, { method: 'POST', body: '{}' }),

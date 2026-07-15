@@ -38,14 +38,16 @@ async function ensureGeneralProject(): Promise<string> {
 
 conversationsRouter.post('/', (req, res) => {
   void (async () => {
-  const body = req.body as { projectId?: string };
+  const body = req.body as { projectId?: string; incognito?: boolean };
   // explicit projectId = a chat started inside that project's workspace;
   // everything else is a general chat
   const projectId = body.projectId ?? (await ensureGeneralProject());
   const id = newId('c');
   const t = now();
-  await putConversation({ id, project_id: projectId, title: 'New chat', created_at: t, updated_at: t });
-  res.status(201).json({ id, projectId, title: 'New chat', created_at: t, updated_at: t });
+  const incognito = body.incognito === true;
+  await putConversation({ id, project_id: projectId, title: incognito ? 'Incognito chat' : 'New chat', created_at: t, updated_at: t, ...(incognito ? { incognito: true } : {}) });
+  if (incognito) setRemember(id, false); // no memory capture, no recall
+  res.status(201).json({ id, projectId, title: incognito ? 'Incognito chat' : 'New chat', created_at: t, updated_at: t, incognito });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

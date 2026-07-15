@@ -100,9 +100,24 @@ test.describe('M3-M9 memory & projects', () => {
     await pollBody(page, /twenty-six|26/, 120_000);
   });
 
-  test('@red M9 incognito chat: ghost affordance, nothing persisted', async ({ page }) => {
-    await newChat(page);
-    const ghost = page.locator('button:has(svg.lucide-ghost), button[title*="ncognito"], button[title*="emporary"]');
-    await expect(ghost.first(), 'no incognito affordance exists').toBeVisible({ timeout: 5_000 });
+  test('M9 incognito: banner, never listed, deleted on leave', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('[title*="Incognito"]').first().click();
+    await page.waitForTimeout(800);
+    await expect(page.getByText(/Incognito chat — not saved/)).toBeVisible({ timeout: 5_000 });
+    await composer(page).fill('The incognito codeword is GHOST-ORCHID-13. Reply OK.');
+    await composer(page).press('Enter');
+    await waitIdle(page, 60_000);
+    // never listed
+    const convs = await api<Array<{ id: string; title: string }>>('/conversations');
+    expect(convs.some((c) => c.title.includes('Incognito')), 'ghost chat must not list').toBe(false);
+    // leaving deletes it: capture the conv id from the URL, switch away, verify 404
+    const url = page.url();
+    const convId = /\/c\/([A-Za-z0-9_-]+)/.exec(url)?.[1];
+    expect(convId).toBeTruthy();
+    await page.getByText('New chat', { exact: true }).first().click();
+    await page.waitForTimeout(1500);
+    const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/${convId}`);
+    expect(res.status, 'incognito conversation must be gone after leaving').toBe(404);
   });
 });
