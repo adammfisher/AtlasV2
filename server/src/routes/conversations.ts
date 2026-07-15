@@ -90,14 +90,11 @@ conversationsRouter.get('/search', (req, res) => {
 /** V8: export ALL conversations as a zip of markdown files (+ manifest.json). */
 conversationsRouter.get('/export.zip', (_req, res) => {
   void (async () => {
-    const { execFile } = await import('node:child_process');
-    const { promisify } = await import('node:util');
-    const { mkdtempSync, writeFileSync, readFileSync } = await import('node:fs');
-    const os = await import('node:os');
-    const path = await import('node:path');
-    const run = promisify(execFile);
+    // in-process zip — the Lambda runtime has no /usr/bin/zip (found by a
+    // deployed probe: this route 502'd in production while green locally)
+    const { buildZip } = await import('../lib/zip.js');
     const convs = await listConversations();
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'atlas-export-'));
+    const entries: Array<{ name: string; data: string }> = [];
     const manifest: Array<{ id: string; title: string; project_id: string; messages: number }> = [];
     for (const c of convs) {
       const msgs = await listMessages(c.id);
@@ -108,15 +105,13 @@ conversationsRouter.get('/export.zip', (_req, res) => {
         lines.push(`**${m.role === 'user' ? 'You' : 'Atlas'}:**`, '', payload.text ?? '', '');
       }
       const slug = c.title.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'chat';
-      writeFileSync(path.join(dir, `${slug}-${c.id.slice(-6)}.md`), lines.join('\n'));
+      entries.push({ name: `${slug}-${c.id.slice(-6)}.md`, data: lines.join('\n') });
       manifest.push({ id: c.id, title: c.title, project_id: c.project_id, messages: msgs.length });
     }
-    writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-    const zipPath = path.join(os.tmpdir(), `atlas-conversations-${Date.now()}.zip`);
-    await run('/usr/bin/zip', ['-r', '-q', zipPath, '.'], { cwd: dir });
+    entries.push({ name: 'manifest.json', data: JSON.stringify(manifest, null, 2) });
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename="atlas-conversations.zip"');
-    res.send(readFileSync(zipPath));
+    res.send(buildZip(entries));
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

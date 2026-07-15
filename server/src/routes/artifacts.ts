@@ -43,6 +43,23 @@ import { logTo } from '../log.js';
 
 const execFileAsync = promisify(execFile);
 
+/** Zip a version directory in-process — the Lambda runtime has no /usr/bin/zip. */
+async function zipDir(dir: string): Promise<Buffer> {
+  const { buildZip } = await import('../lib/zip.js');
+  const { readdirSync, readFileSync: rf } = await import('node:fs');
+  const entries: Array<{ name: string; data: Buffer }> = [];
+  const walk = (d: string, prefix: string): void => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) walk(full, `${prefix}${e.name}/`);
+      else entries.push({ name: `${prefix}${e.name}`, data: rf(full) });
+    }
+  };
+  walk(dir, '');
+  return buildZip(entries);
+}
+
+
 interface ArtifactRow {
   id: string;
   project_id: string;
@@ -151,9 +168,9 @@ artifactsRouter.get('/:id/versions/:v/download', (req, res) => {
     const target = version.file_path;
     if (statSync(target).isDirectory()) {
       // multi-file kinds stream as zip (PRD §7)
-      const zipPath = path.join(os.tmpdir(), `atlas-dl-${row.id}-v${req.params.v}.zip`);
-      await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
-      res.download(zipPath, `${row.name}-v${req.params.v}.zip`);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${row.name}-v${req.params.v}.zip"`);
+      res.send(await zipDir(target));
       return;
     }
     // express maps .mmd to a karaoke MIME type; pin sane types for our text kinds
@@ -185,7 +202,8 @@ artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
       let filename = path.basename(target);
       if (statSync(target).isDirectory()) {
         const zipPath = path.join(os.tmpdir(), `atlas-share-${row.id}-v${req.params.v}.zip`);
-        await execFileAsync('/usr/bin/zip', ['-r', '-q', '-FS', zipPath, '.'], { cwd: target });
+        const { writeFileSync: wf } = await import('node:fs');
+        wf(zipPath, await zipDir(target));
         target = zipPath;
         filename = `${row.name}-v${req.params.v}.zip`;
       }
