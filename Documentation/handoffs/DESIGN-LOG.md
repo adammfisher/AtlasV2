@@ -303,6 +303,66 @@ this deliverable's orchestrator hunks were staged; the `officePrompt` exemplar
 wiring therefore ships inside commit `3fab614` (brain/eval) rather than this one.
 Content is correct and reviewed; flagged here for archaeology.
 
+---
+
+## 2026-07-15 — Deliverable E: hard visual gate
+
+**Deterministic gate** (`validate_common.visual_gate_pptx`, wired as a blocking
+check in build_pptx):
+- Overflow: per-line Poppins-metric measurement of every text frame vs its height.
+- Collision: pairwise EMU rect intersection with containment exemption (panels
+  legitimately hold labels) and full-bleed exemption; footer band enforces ≥ 0.3"
+  clearance from content.
+- Margins: every slide-level shape inside 0.5" (footer band + full-bleed exempt —
+  the brand logo and page number conventionally live in the margin).
+- Contrast: WCAG relative luminance per text run vs its EFFECTIVE background (the
+  smallest filled panel containing the frame, else the slide background), theme
+  slots + brightness resolved to hex from the template; ≥ 4.5:1 normal / ≥ 3:1
+  large (≥ 18pt or ≥ 14pt bold), unrounded.
+- Font families ≤ 2; words-per-slide file-level backstop; extended placeholder
+  scan (xxxx/lorem/ipsum/click-to-edit/TODO/{{}}); speaker notes on every slide.
+- Per-type gates from C retained (docx hierarchy + styles-only; xlsx recalc —
+  now including **#N/A** — frozen header, number formats; pdf table-break check
+  added via `pdf_table_break_check` + running header/footer checks).
+
+**The gate caught two real builder bugs on its first run** — bullets were sized
+against the full column width but rendered 0.4" narrower (18pt chosen against the
+wrong width → overflow), and the footer's +45% brightness landed at 3.71:1
+(< 4.5:1). Fixed: sizing width now matches render width; footer brightness 0.35
+(5.09:1, unrounded). This is the gate working as designed.
+
+**Post-render check**: `post_render_bleed` — soffice → PDF → pdfplumber raster
+(96dpi) → ink detection in the outer page band (bottom exempt: logo + page
+number). Enforced when soffice exists; amber skip otherwise (matches repo
+convention for soffice-dependent checks).
+
+**Vision critique (ADVISORY, `ATLAS_VISION_CRITIQUE=1`, default OFF)**: builder
+emits ≤ 12 JPEG thumbnails (soffice + pdfplumber, no poppler dependency) in meta;
+orchestrator sends them to the active multimodal Bedrock model with a FIXED
+rubric (overlap, overflow, contrast, alignment/grid, whitespace, palette,
+one-idea-per-slide, accent-line-under-title) forced through a strict JSON schema;
+issues + latency + token proxy logged to the pipeline log; surfaced as an
+advisory step that can warn but never gates. Skips (flag off / no thumbs / no
+vision model / model error) are explicit steps, never silent.
+
+**Bounded fix-and-rerender loop** (orchestrator): failing checks + meta.findings
+feed a spec-revision prompt (previous spec + findings, "regenerate the FULL
+corrected spec — shorten, split, drop; never pad"); regenerate → rebuild →
+re-validate; max 2 retries; still-failing decks raise a PipelineError carrying
+the findings — never a false success, no gate loosened.
+
+**Evidence**
+- All four builders green through the full new chain (pptx: openxml/zip/
+  round-trip/overflow-free/visual-gate/bleed; xlsx adds frozen+formats+recalc;
+  pdf adds table-break + running header/footer).
+- Gate BLOCKS proven: a schema-valid deck using frontier position_overrides to
+  force a collision fails with findings "text overflow — needs 2.94in in a
+  1.20in frame" + "shapes collide (0.50,2.00)x(5.00,1.20) vs (0.70,2.30)x…";
+  the earlier bad-enum override was refused by the spec gate first
+  (defense-in-depth).
+- Thumbnails: flag ON → 3 JPEGs in meta; flag OFF (default) → absent.
+- `tsc --noEmit` clean.
+
 ### Open questions carried into A–G
 - The 12-archetype schema renames fields (`layout`→`archetype`, `heading`→`title`,
   `notes`→`speaker_notes`): the office **edit** flows re-emit full JSON against the

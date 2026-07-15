@@ -10,6 +10,7 @@ metrics and stepped down within its doctrine range; a frame still overflowing
 at the 14pt floor raises an OVERFLOW flag for the validator — never silently
 accepted.
 """
+import os
 from pathlib import Path
 
 from pptx import Presentation
@@ -161,7 +162,7 @@ def _footer(ctx, slide, sidx):
     para.alignment = PP_ALIGN.RIGHT
     run = para.add_run()
     run.text = f"{sidx} / {ctx.total}"
-    _font(run.font, "text", FOOTER_PT, brightness=0.45)
+    _font(run.font, "text", FOOTER_PT, brightness=0.35)
 
 
 def _notes(slide, spec):
@@ -174,9 +175,8 @@ def _bullets_block(ctx, slide, sidx, items, x, w, top, bottom, icons=None):
     n = max(1, len(items))
     avail = bottom - top
     row_h = min(1.1, avail / n)
-    text_x, text_w = x, w
-    if icons:
-        text_x, text_w = x + 0.75, w - 0.75
+    # the text column is narrower than the block: icon column or bullet marker
+    text_x, text_w = (x + 0.75, w - 0.75) if icons else (x + 0.4, w - 0.4)
     max_pt, min_pt = SCALE["body"]
     size = max_pt
     while size > 14:
@@ -195,7 +195,6 @@ def _bullets_block(ctx, slide, sidx, items, x, w, top, bottom, icons=None):
             marker = slide.shapes.add_shape(
                 MSO_SHAPE.OVAL, Emu(D.emu(x + 0.02)), Emu(D.emu(y + 0.11)), Emu(D.emu(0.12)), Emu(D.emu(0.12)))
             _fill(marker, "accent")
-            text_x, text_w = x + 0.4, w - 0.4
         tb = slide.shapes.add_textbox(
             Emu(D.emu(text_x)), Emu(D.emu(y)), Emu(D.emu(text_w)), Emu(D.emu(row_h)))
         tf = tb.text_frame
@@ -650,10 +649,17 @@ def main() -> None:
     checks.append(
         vc.check("Round-trip", len(list(reopened.slides)) == meta["slides"] and any(t.strip() for t in texts))
     )
-    checks.append(vc.placeholder_grep(texts))
     checks.append(vc.check("Overflow-free (measured)", not meta["overflow_flags"]))
-    checks.append(vc.soffice_convert(out, "soffice open/convert", vc.THUMBS_SKIP))
+    # THE HARD GATE — overflow, collision, margins, contrast, fonts, content,
+    # placeholders, speaker notes on the BUILT file. Findings feed the server's
+    # bounded fix-and-rerender loop; a failing deck is never a success.
+    findings = vc.visual_gate_pptx(out, args.template or None)
+    checks.append(vc.check("Visual gate (deterministic)", not findings))
+    checks.append(vc.post_render_bleed(out))
+    meta["findings"] = ([f"OVERFLOW slide {o['slide']} {o['frame']}: {o['detail']}" for o in meta["overflow_flags"]] + findings)[:12]
     meta["overflow_flags"] = len(meta["overflow_flags"])
+    if os.environ.get("ATLAS_VISION_CRITIQUE") == "1":
+        meta["thumbs_b64"] = vc.render_thumbnails(out)
     vc.emit(out, meta, checks)
 
 

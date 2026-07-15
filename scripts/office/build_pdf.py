@@ -119,6 +119,7 @@ def main() -> None:
     checks = [
         vc.check("Text grep", all(h.split()[0] in text for h in headings if h.split())),
         vc.check("Page count", page_count >= 1),
+        vc.pdf_table_break_check(payload, out),
     ]
     if meta["engine"] == "weasyprint":
         # running footer must carry the page counter on every page

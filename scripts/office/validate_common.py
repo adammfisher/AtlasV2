@@ -340,7 +340,7 @@ def soffice_recalc_scan(path: Path) -> dict:
                 timeout=120,
             )
             blobs = "".join(p.read_text(errors="ignore") for p in Path(td).glob("*.csv"))
-            errors = [m for m in ("#REF!", "#DIV/0!", "#VALUE!", "#NAME?") if m in blobs]
+            errors = [m for m in ("#REF!", "#DIV/0!", "#VALUE!", "#N/A", "#NAME?") if m in blobs]
             if errors:
                 # genuine formula errors in the sheet — this IS a real defect
                 return check(f"soffice recalc — {','.join(errors)}", False)
@@ -350,3 +350,289 @@ def soffice_recalc_scan(path: Path) -> dict:
             return check("soffice recalc skipped — soffice unavailable", False)
         except Exception:
             return check("soffice recalc skipped — soffice unavailable", False)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Deliverable E — the HARD VISUAL GATE (deterministic; a deck failing any of
+# these is never returned as success) + post-render bleed heuristic + thumbnail
+# rendering for the advisory vision-critique pass.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_SLIDE_W, _SLIDE_H = 13.333, 7.5
+_MARGIN = 0.5
+_EMU = 914400.0
+_FOOTER_BAND = 6.7          # shapes fully below this line may sit in the margin
+_FOOTER_CLEARANCE = 0.3     # content keeps this much clearance above footers
+
+
+def _rect_in(shape):
+    try:
+        return (shape.left / _EMU, shape.top / _EMU, shape.width / _EMU, shape.height / _EMU)
+    except Exception:
+        return None
+
+
+def _run_specs(text_frame):
+    """(text, size_pt, bold, color) per paragraph — sizes default to theme body."""
+    out = []
+    for para in text_frame.paragraphs:
+        text = "".join(r.text for r in para.runs)
+        if not text.strip():
+            continue
+        sizes = [r.font.size.pt for r in para.runs if r.font.size]
+        bold = any(r.font.bold for r in para.runs)
+        color = next((r.font.color for r in para.runs if r.font.color and r.font.color.type is not None), None)
+        out.append((text, max(sizes) if sizes else 18.0, bold, color))
+    return out
+
+
+def _resolve_hex(color, theme_hex):
+    """A python-pptx ColorFormat → hex, resolving theme slots + brightness."""
+    import pptx_design as D
+    from pptx.enum.dml import MSO_THEME_COLOR
+
+    slot_map = {
+        MSO_THEME_COLOR.TEXT_1: "dk1", MSO_THEME_COLOR.TEXT_2: "dk2",
+        MSO_THEME_COLOR.BACKGROUND_1: "lt1", MSO_THEME_COLOR.BACKGROUND_2: "lt2",
+        MSO_THEME_COLOR.ACCENT_1: "accent1", MSO_THEME_COLOR.ACCENT_2: "accent2",
+        MSO_THEME_COLOR.ACCENT_3: "accent3", MSO_THEME_COLOR.ACCENT_4: "accent4",
+        MSO_THEME_COLOR.ACCENT_5: "accent5", MSO_THEME_COLOR.ACCENT_6: "accent6",
+    }
+    try:
+        if color.type is not None and str(color.type).startswith("SCHEME"):
+            base = theme_hex.get(slot_map.get(color.theme_color, ""), None)
+            if base is None:
+                return None
+            brightness = getattr(color, "brightness", 0.0) or 0.0
+            return D.brightness_hex(base, brightness) if brightness else base
+        return str(color.rgb)
+    except Exception:
+        return None
+
+
+def _fill_hex(shape, theme_hex):
+    try:
+        if shape.fill.type == 1:  # solid
+            return _resolve_hex(shape.fill.fore_color, theme_hex)
+    except Exception:
+        pass
+    return None
+
+
+def _slide_bg_hex(slide, theme_hex):
+    try:
+        fill = slide.background.fill
+        if fill.type == 1:
+            return _resolve_hex(fill.fore_color, theme_hex)
+    except Exception:
+        pass
+    return theme_hex.get("lt1", "FFFFFF")
+
+
+def visual_gate_pptx(path: Path, template: str | None = None) -> list:
+    """Deterministic findings for a BUILT deck: overflow (measured), collision,
+    margins, WCAG contrast (unrounded), font-family count, content audit,
+    placeholder scan, speaker notes. Empty list = gate passed."""
+    import pptx_design as D
+    from pptx import Presentation
+
+    template_file = template or str(Path(__file__).resolve().parents[2] / "skills/pptx/templates/dfs_default.potx")
+    if not Path(template_file).exists():
+        template_file = str(Path(__file__).resolve().parent / "templates/dfs_default.potx")
+    theme_hex = D.read_theme_hex(template_file)
+    findings = []
+    prs = Presentation(str(path))
+    fonts_seen = set()
+
+    for sidx, slide in enumerate(prs.slides, start=1):
+        bg_hex = _slide_bg_hex(slide, theme_hex)
+        rects, texts, slide_words = [], [], 0
+        filled_panels = []  # (rect, hex) for containment-aware contrast
+
+        for shape in slide.shapes:
+            rect = _rect_in(shape)
+            if rect is None:
+                continue
+            x, y, w, h = rect
+            area = w * h
+            full_bleed = area >= 0.5 * _SLIDE_W * _SLIDE_H
+            fill = _fill_hex(shape, theme_hex)
+            if fill and not getattr(shape, "has_text_frame", False):
+                filled_panels.append((rect, fill))
+            is_footer = y >= _FOOTER_BAND and h <= 0.45
+
+            # margins (footer band + full-bleed exempt)
+            if not full_bleed and not is_footer:
+                if x < _MARGIN - 0.03 or y < _MARGIN - 0.03 or x + w > _SLIDE_W - _MARGIN + 0.03 or y + h > _SLIDE_H - _MARGIN + 0.03:
+                    findings.append(f"slide {sidx}: shape outside 0.5in margins at ({x:.2f},{y:.2f}) {w:.2f}x{h:.2f}")
+            if not full_bleed:
+                rects.append((rect, is_footer, getattr(shape, "has_text_frame", False)))
+
+            if getattr(shape, "has_text_frame", False):
+                paras = _run_specs(shape.text_frame)
+                if paras:
+                    total_h = 0.0
+                    for text, size, bold, _ in paras:
+                        total_h += D.required_height_in(text, max(w, 0.1), size, bold=bold, spacing=1.05)
+                    if total_h > h * 1.08 + 0.05:
+                        findings.append(f"slide {sidx}: text overflow — needs {total_h:.2f}in in a {h:.2f}in frame: {paras[0][0][:40]!r}")
+                    for text, size, bold, color in paras:
+                        fonts_seen.update(
+                            r.font.name for p in shape.text_frame.paragraphs for r in p.runs
+                            if r.font.name and not r.font.name.startswith("+"))
+                        if not is_footer:
+                            slide_words += len(text.split())
+                        texts.append(text)
+                        # contrast: effective background = smallest filled panel containing this shape
+                        fg = _resolve_hex(color, theme_hex) if color else theme_hex.get("dk1")
+                        if fg is None:
+                            continue
+                        behind = bg_hex
+                        best_area = None
+                        for (px, py, pw, ph), phex in filled_panels:
+                            if px <= x + 0.02 and py <= y + 0.02 and px + pw >= x + w - 0.02 and py + ph >= y + h - 0.02:
+                                if best_area is None or pw * ph < best_area:
+                                    behind, best_area = phex, pw * ph
+                        ratio = D.contrast(fg, behind)
+                        large = size >= 18.0 or (size >= 14.0 and bold)
+                        threshold = 3.0 if large else 4.5
+                        if ratio < threshold:
+                            findings.append(
+                                f"slide {sidx}: contrast {ratio:.2f}:1 < {threshold}:1 for {size:.0f}pt "
+                                f"{'bold ' if bold else ''}text #{fg} on #{behind}: {text[:30]!r}")
+
+            if getattr(shape, "has_table", False):
+                for row in shape.table.rows:
+                    for cell in row.cells:
+                        if cell.text.strip():
+                            texts.append(cell.text)
+                            slide_words += 0  # table values are data, not slide copy
+
+        # collisions among slide-level shapes (containment allowed; footer clearance)
+        for i in range(len(rects)):
+            for j in range(i + 1, len(rects)):
+                (ax, ay, aw, ah), afoot, _ = rects[i]
+                (bx, by, bw, bh), bfoot, _ = rects[j]
+                ix = min(ax + aw, bx + bw) - max(ax, bx)
+                iy = min(ay + ah, by + bh) - max(ay, by)
+                if ix <= 0.08 or iy <= 0.08:
+                    continue
+                a_in_b = ax >= bx - 0.03 and ay >= by - 0.03 and ax + aw <= bx + bw + 0.03 and ay + ah <= by + bh + 0.03
+                b_in_a = bx >= ax - 0.03 and by >= ay - 0.03 and bx + bw <= ax + aw + 0.03 and by + bh <= ay + ah + 0.03
+                if a_in_b or b_in_a:
+                    continue  # panel/label containment is intentional layering
+                if afoot != bfoot:
+                    gap = (by - (ay + ah)) if bfoot else (ay - (by + bh))
+                    if gap < _FOOTER_CLEARANCE:
+                        findings.append(f"slide {sidx}: content within {_FOOTER_CLEARANCE}in of the footer band")
+                    continue
+                findings.append(
+                    f"slide {sidx}: shapes collide ({ax:.2f},{ay:.2f})x({aw:.2f},{ah:.2f}) vs ({bx:.2f},{by:.2f})x({bw:.2f},{bh:.2f})")
+
+        if slide_words > 46:  # file-level tolerance over the 40-word spec gate (numbers/labels)
+            findings.append(f"slide {sidx}: {slide_words} words rendered on one slide")
+        findings.extend(placeholder_text_errors(texts, f"slide {sidx}"))
+        try:
+            notes = slide.notes_slide.notes_text_frame.text.strip() if slide.has_notes_slide else ""
+        except Exception:
+            notes = ""
+        if not notes:
+            findings.append(f"slide {sidx}: speaker notes missing")
+
+    families = {f for f in fonts_seen if f}
+    if len(families) > 2:
+        findings.append(f"deck uses {len(families)} font families: {sorted(families)} (max 2)")
+    return findings
+
+
+def post_render_bleed(path: Path, kind: str = "pptx") -> dict:
+    """Second overflow signal: soffice → PDF → raster → ink in the margin band.
+    Enforced when soffice is present; amber skip otherwise. The bottom band is
+    exempt (brand logo + page number legitimately live there)."""
+    soffice = find_soffice()
+    if not soffice:
+        return check("Post-render bleed scan skipped — soffice not found", False)
+    try:
+        import pdfplumber
+    except ImportError:
+        return check("Post-render bleed scan skipped — pdfplumber not found", False)
+    with tempfile.TemporaryDirectory() as td:
+        r = subprocess.run(
+            [soffice, "--headless", "--convert-to", "pdf", "--outdir", td, str(path)],
+            capture_output=True, timeout=180)
+        pdfs = list(Path(td).glob("*.pdf"))
+        if r.returncode != 0 or not pdfs:
+            return check("Post-render bleed scan skipped — soffice convert failed", False)
+        dirty = []
+        with pdfplumber.open(str(pdfs[0])) as pdf:
+            for pno, page in enumerate(pdf.pages, start=1):
+                img = page.to_image(resolution=96).original.convert("L")
+                px = img.load()
+                w, h = img.size
+                band = max(2, int(96 * 0.10))  # outer 0.10in — content should sit >=0.5in in
+                # median corner sample approximates the field color
+                bgs = sorted(px[2, 2], ) if False else None
+                base = px[2, 2]
+                hits = 0
+                for yy in range(0, h, 3):
+                    for xx in list(range(0, band, 2)) + list(range(w - band, w, 2)):
+                        if abs(px[xx, yy] - base) > 60:
+                            hits += 1
+                for xx in range(0, w, 3):
+                    for yy in range(0, band, 2):  # top band only; bottom exempt (logo/page no)
+                        if abs(px[xx, yy] - base) > 60:
+                            hits += 1
+                if hits > 40:
+                    dirty.append(pno)
+        if dirty:
+            return check(f"Post-render bleed scan — ink at page edge on pages {dirty}", False)
+        return check("Post-render bleed scan", True)
+
+
+def render_thumbnails(path: Path, max_pages: int = 12, dpi: int = 100) -> list:
+    """Base64 JPEG thumbnails for the advisory vision-critique pass (flag-gated
+    caller-side). Empty list when soffice/pdfplumber are unavailable."""
+    import base64
+    import io
+
+    soffice = find_soffice()
+    if not soffice:
+        return []
+    try:
+        import pdfplumber
+    except ImportError:
+        return []
+    thumbs = []
+    with tempfile.TemporaryDirectory() as td:
+        r = subprocess.run(
+            [soffice, "--headless", "--convert-to", "pdf", "--outdir", td, str(path)],
+            capture_output=True, timeout=180)
+        pdfs = list(Path(td).glob("*.pdf"))
+        if r.returncode != 0 and not pdfs:
+            return []
+        with pdfplumber.open(str(pdfs[0])) as pdf:
+            for page in pdf.pages[:max_pages]:
+                img = page.to_image(resolution=dpi).original.convert("RGB")
+                buf = io.BytesIO()
+                img.save(buf, "JPEG", quality=70)
+                thumbs.append(base64.b64encode(buf.getvalue()).decode())
+    return thumbs
+
+
+def pdf_table_break_check(payload: dict, path: Path) -> dict:
+    """No table split across pages: every spec table's row leaders must appear
+    together on a single extracted page."""
+    import pdfplumber
+
+    tables = [b for b in payload.get("sections", []) if b.get("kind") == "table"]
+    if not tables:
+        return check("Tables unbroken across pages", True)
+    with pdfplumber.open(str(path)) as pdf:
+        pages = [p.extract_text() or "" for p in pdf.pages]
+    for t in tables:
+        leaders = [str(row[0]).strip() for row in t.get("rows", []) if row and str(row[0]).strip()]
+        if not leaders:
+            continue
+        if not any(all(ld in page for ld in leaders) for page in pages):
+            return check(f"Tables unbroken across pages — table starting {leaders[0]!r} split", False)
+    return check("Tables unbroken across pages", True)

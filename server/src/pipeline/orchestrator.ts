@@ -208,6 +208,107 @@ interface HelperResult {
   checks: Array<{ label: string; ok: boolean }>;
 }
 
+/** Fixed rubric for the ADVISORY vision-critique pass (ATLAS_VISION_CRITIQUE=1,
+ * default OFF). Deterministic checks are the gate; this only logs and annotates. */
+const VISION_RUBRIC = `You are a strict presentation-design reviewer. Score each slide thumbnail
+against exactly these dimensions: overlap (shapes/text colliding), overflow (text touching or
+escaping its frame), contrast (text hard to read on its background), alignment (elements off any
+common grid line), whitespace (under ~15% empty area, crowded), palette (more than one dominant
+color family, or equal-weight colors), one_idea (slide argues more than one message), accent_line
+(a decorative line/underline directly beneath the title — an AI-generated tell). Report ONLY real
+issues you can point at; an empty issues array is the correct output for a clean slide.`;
+
+const VISION_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['slides'],
+  properties: {
+    slides: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['slide_index', 'pass', 'issues'],
+        properties: {
+          slide_index: { type: 'integer' },
+          pass: { type: 'boolean' },
+          issues: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['type', 'severity', 'fix'],
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['overlap', 'overflow', 'contrast', 'alignment', 'whitespace', 'palette', 'one_idea', 'accent_line'],
+                },
+                severity: { type: 'string', enum: ['low', 'medium', 'high'] },
+                fix: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+/** ADVISORY vision critique: thumbnail grid → active multimodal model → strict
+ * JSON, logged with cost/latency. Never gates — deterministic checks decide. */
+async function visionCritique(ctx: Ctx, skillId: string, helper: HelperResult): Promise<void> {
+  if (process.env.ATLAS_VISION_CRITIQUE !== '1') return;
+  const thumbs = (helper.meta.thumbs_b64 as unknown as string[] | undefined) ?? [];
+  if (!thumbs.length) {
+    pushStep(ctx, { state: 'warn', label: 'Vision critique skipped — no thumbnails (soffice absent?)' });
+    return;
+  }
+  if (!bedrock.bedrockSettings().connected || !activeModelDefHasVision()) {
+    pushStep(ctx, { state: 'warn', label: 'Vision critique skipped — no multimodal model available' });
+    return;
+  }
+  const started = Date.now();
+  try {
+    const raw = await bedrock.bedrockCompleteJson(
+      [
+        { role: 'system', content: VISION_RUBRIC },
+        {
+          role: 'user',
+          content: [
+            { type: 'text' as const, text: `Critique these ${thumbs.length} ${skillId} slides in order (slide_index is 1-based).` },
+            ...thumbs.map((b64) => ({ type: 'image_url' as const, image_url: { url: `data:image/jpeg;base64,${b64}` } })),
+          ],
+        },
+      ],
+      VISION_SCHEMA,
+      { maxTokens: 3000 },
+    );
+    const parsed = JSON.parse(raw) as { slides: Array<{ slide_index: number; pass: boolean; issues: Array<{ type: string; severity: string; fix: string }> }> };
+    const issues = parsed.slides.flatMap((s) => s.issues.map((i) => ({ ...i, slide: s.slide_index })));
+    const latencyMs = Date.now() - started;
+    // cost proxy: ~1.3k tokens per thumbnail image + text; logged for tracking
+    logTo(
+      'pipeline',
+      `vision-critique ${skillId}: ${parsed.slides.length} slides, ${issues.length} issues, ${latencyMs}ms, ~${thumbs.length * 1300 + Math.ceil(raw.length / 4)} tokens`,
+    );
+    pushStep(ctx, {
+      state: issues.some((i) => i.severity === 'high') ? 'warn' : 'ok',
+      label: `Vision critique (advisory): ${issues.length} issue${issues.length === 1 ? '' : 's'}`,
+      detail: issues.slice(0, 3).map((i) => `s${i.slide} ${i.type}: ${i.fix}`).join(' · ') || 'all slides pass',
+    });
+  } catch (err) {
+    pushStep(ctx, { state: 'warn', label: `Vision critique skipped — ${err instanceof Error ? err.message.slice(0, 80) : 'error'}` });
+  }
+}
+
+function activeModelDefHasVision(): boolean {
+  try {
+    return !!bedrock.activeModelDef().vision;
+  } catch {
+    return false;
+  }
+}
+
 /** Cloud: invoke the atlasv2-office Python Lambda (no python in the app Lambda).
  * Returns the built file as base64 which we write to outFile. */
 async function runHelperLambda(skillId: string, payload: unknown, outFile: string): Promise<HelperResult> {
@@ -421,24 +522,48 @@ export async function runCreateDoc(opts: {
     const dir = versionDir(opts.projectId, artifactId, 1);
     const outFile = path.join(dir, name);
     pushStep(ctx, { state: 'pending', label: `build_${skill.id}.py`, detail: 'compiling' });
-    const helper = await runHelper(skill.id, payload, outFile);
+    // Bounded fix-and-rerender loop: validator findings feed a spec-revision
+    // prompt, regenerate → rebuild → re-validate, max 2 retries. Still failing
+    // deterministic checks afterwards = hard failure with findings attached —
+    // never a false success, never a loosened gate.
+    let currentPayload = payload;
+    let helper = await runHelper(skill.id, currentPayload, outFile);
+    let blocked = helperChecksToSteps(ctx, helper.checks);
+    for (let retry = 1; blocked && retry <= 2; retry++) {
+      const findings = [
+        ...helper.checks.filter((c) => !c.ok && !/skip/i.test(c.label)).map((c) => c.label),
+        ...(((helper.meta.findings as unknown) as string[] | undefined) ?? []),
+      ];
+      pushStep(ctx, { state: 'pending', label: `fix-and-rerender ${retry}/2`, detail: findings.slice(0, 3).join(' · ') });
+      const revisionPrompt = `${officePrompt(skill, opts.instructions, opts.text, opts.context)}
+PREVIOUS SPEC (failed the design validator):
+${JSON.stringify(currentPayload)}
+VALIDATOR FINDINGS — regenerate the FULL corrected spec fixing every finding (shorten copy, split slides, drop items — never pad):
+${findings.map((f) => `- ${f}`).join('\n')}`;
+      const revised = await generateJson(ctx, revisionPrompt, maxTokens, doctrineCheck);
+      currentPayload = revised.payload;
+      helper = await runHelper(skill.id, currentPayload, outFile);
+      blocked = helperChecksToSteps(ctx, helper.checks);
+    }
+    if (blocked) {
+      const failing = helper.checks.filter((c) => !c.ok).map((c) => c.label);
+      const details = (((helper.meta.findings as unknown) as string[] | undefined) ?? []).slice(0, 6);
+      throw new PipelineError(
+        `design gate failed after 2 fix retries: ${failing.join(', ')}${details.length ? ` — ${details.join(' | ')}` : ''}`,
+      );
+    }
     const metaParts = Object.entries(helper.meta)
-      .filter(([k]) => k !== 'bytes')
+      .filter(([k]) => !['bytes', 'findings', 'thumbs_b64'].includes(k))
       .map(([k, v]) => `${v} ${k}`)
       .join(' · ');
     pushStep(ctx, { state: 'ok', label: `build_${skill.id}.py`, detail: metaParts });
-    const blocked = helperChecksToSteps(ctx, helper.checks);
-    if (blocked) {
-      throw new PipelineError(
-        `validation chain failed: ${helper.checks.filter((c) => !c.ok).map((c) => c.label).join(', ')}`,
-      );
-    }
+    await visionCritique(ctx, skill.id, helper);
     meta = metaParts;
     const checkSteps: CheckStep[] = helper.checks.map((c) => ({
       state: c.ok ? 'ok' : 'warn',
       label: c.label,
     }));
-    const ver = await addVersion(artifactId, { payload, meta, validation: checkSteps, filePath: outFile });
+    const ver = await addVersion(artifactId, { payload: currentPayload, meta, validation: checkSteps, filePath: outFile });
     digest = `${name} (${metaParts})`;
     const summaryText = await summarize(ctx, digest);
     const artifact = { artifactId, name, kind: skill.id, meta, ver };
