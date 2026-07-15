@@ -10,27 +10,67 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "cells"],
+        "required": ["name", "table_style", "columns", "rows"],
         "properties": {
-          "name": { "type": "string" },
-          "cells": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 31 },
+          "table_style": {
+            "type": "string",
+            "enum": [
+              "TableStyleLight8", "TableStyleLight9", "TableStyleLight15",
+              "TableStyleMedium2", "TableStyleMedium4", "TableStyleMedium9"
+            ]
+          },
+          "columns": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 120,
+            "maxItems": 12,
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["ref"],
+              "required": ["header", "format"],
               "properties": {
-                "ref": { "type": "string" },
-                "valueText": { "type": "string" },
-                "valueNumber": { "type": "number" },
-                "formula": { "type": "string" },
-                "format": { "type": "string", "enum": ["header", "bold", "plain"] }
+                "header": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "format": {
+                  "type": "string",
+                  "enum": ["text", "integer", "decimal", "currency", "percent", "date"]
+                },
+                "role": { "type": "string", "enum": ["input", "formula", "link", "external"] }
               }
             }
           },
-          "widths": { "type": "array", "maxItems": 12, "items": { "type": "number" } }
+          "rows": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 200,
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["t"],
+                    "properties": { "t": { "type": "string", "maxLength": 200 } }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["n"],
+                    "properties": { "n": { "type": "number" } }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["f"],
+                    "properties": { "f": { "type": "string", "pattern": "^=", "maxLength": 200 } }
+                  },
+                  { "type": "null" }
+                ]
+              }
+            }
+          }
         }
       }
     }

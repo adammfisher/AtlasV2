@@ -120,6 +120,59 @@ that lands in the schema in Deliverable B and the builder in C; the trio is coup
 the pipeline is fully consistent again at commit C. Registry metadata (frontmatter)
 unchanged except a `references:` pointer line on pptx.
 
+---
+
+## 2026-07-15 — Deliverable B: ugliness-resistant schemas
+
+**What changed**
+- `skills/pptx/schema.json`: full rewrite to the 12-archetype vocabulary. Every slide
+  requires `archetype` (enum of 12) + `title` (maxLength 90) + `speaker_notes`
+  (minLength 1). `bullets` maxItems 5 × maxLength 90. Charts require `sort`
+  declaration, ≤ 5 series, ≤ 12 categories. Per-archetype conditional requireds via
+  allOf/if/then (content_chart→chart, comparison→columns 2–3, big_stat→stat,
+  quote→quote+attribution, timeline_process→steps 3–6, table→table ≤ 7 cols).
+  Raw x/y/w/h is unrepresentable (additionalProperties:false); the only positioning
+  door is a typed `position_overrides` array (0.5"-margin-bounded), to be gated to the
+  frontier tier in code (Deliverable C wiring).
+- `skills/docx/schema.json`: typed block enum (heading{1–3}, paragraph, bulleted_list,
+  numbered_list, table, figure, quote, page_break) with per-kind requireds; inline
+  font/size overrides unrepresentable. `figure` = caption + chart data (rendered
+  deterministically via Pillow in C — real content, not an image placeholder).
+- `skills/xlsx/schema.json`: table model — every sheet requires `name`, `table_style`
+  (enum of built-in Excel table styles), `columns` (each requiring `header` +
+  `format` enum text/integer/decimal/currency/percent/date, optional financial-color
+  `role`), and typed `rows` where every cell is exactly one of {t}/{n}/{f:"=…"}/null.
+- `skills/pdf/schema.json`: `meta` requires title + page_size (A4/Letter) +
+  margins_in ≥ 0.75; typed section enum mirroring docx; absolute positioning
+  unrepresentable.
+- `scripts/office/validate_common.py`: added a stdlib-only mini JSON-Schema validator
+  (`_schema_errors` — exactly the subset our schemas use; the office Lambda deploy
+  swaps *.py into a prebuilt zip, so no jsonschema pip dep is possible) +
+  `_content_audit` for the rules schemas can't express: ≤ 12 words/bullet,
+  ≤ 40 words/content-slide, chart series↔category length equality, ragged table rows,
+  heading-hierarchy skips (docx/pdf), hardcoded-number-in-derived-row heuristic
+  (xlsx: rows labeled Total/Sum/Variance/… must compute), and the doctrine
+  placeholder scan (xxxx/lorem/ipsum/click-to-edit/TODO/{{}}). `validate_spec()`
+  returns error lists; `spec_gate()` hard-fails a build.
+
+**Proof (both validators, same 8 fixtures)**
+- validate.ts (exact pipeline entry point, ajv): 4 valid accepted, 4 invalid rejected
+  — first errors: pptx missing speaker_notes · docx "must NOT have additional
+  properties" (inline font) · xlsx table_style enum · pdf page_size enum.
+- validate_common.py: same verdicts, richer findings — pptx 8 errors (title 91+,
+  6 bullets, missing chart, lorem/TODO, 13-word bullet, x/y rejected) · docx 5
+  (font+size overrides, level skip 1→3, ragged row, placeholder) · xlsx 4 (style enum,
+  format enum, formula missing "=", hardcoded Total) · pdf 5 (A5, 0.25" margin,
+  absolute position, opens at level 2, xxxx placeholder).
+
+**Why** — bad output becomes unrepresentable at the schema layer where possible;
+everything countable-but-not-schema-expressible moves to code that runs on BOTH sides
+(server repair loop gets ajv; Lambda gets the same schema through the mini-validator
+plus the content audit as the belt to that brace).
+
+**Open** — builders still consume the old field names until Deliverable C lands (the
+known A/B/C coupling); `position_overrides` tier gating is wired in C.
+
 ### Open questions carried into A–G
 - The 12-archetype schema renames fields (`layout`→`archetype`, `heading`→`title`,
   `notes`→`speaker_notes`): the office **edit** flows re-emit full JSON against the
