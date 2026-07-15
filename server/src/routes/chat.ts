@@ -124,6 +124,7 @@ import {
   type PipelinePayload,
 } from '../pipeline/orchestrator.js';
 import { lastPipelineArtifact } from '../pipeline/artifacts.js';
+import { OrchestrationError } from '../pipeline/artifactContext.js';
 import { buildContext } from '../pipeline/context.js';
 
 function sse(res: Response, event: string, data: unknown): void {
@@ -493,6 +494,18 @@ chatRouter.post('/:id/messages', async (req, res) => {
     const message = err instanceof Error ? err.message : String(err);
     logTo('pipeline', `pipeline error: ${message}`);
     if (!abort.signal.aborted) {
+      // edit-state missing: NEVER describe or invent the artifact — ask which
+      // one to edit (the permanent modify-bug guard, surfaced honestly).
+      if (err instanceof OrchestrationError) {
+        const ask =
+          "I can't find the file or artifact you want me to edit — which one do you mean? " +
+          'Point me at the deck, document, sheet, or code and I\'ll make the change to it.';
+        sse(res, 'route', { intent: 'chat' });
+        sse(res, 'token', { delta: ask });
+        const id = await persistAssistant('text', { text: ask });
+        sse(res, 'done', { messageId: id });
+        return;
+      }
       const honest =
         err instanceof PipelineError
           ? `Generation failed: ${message}`

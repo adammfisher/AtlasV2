@@ -16,6 +16,7 @@ function bedrockModule(): typeof bedrock {
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
 import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile } from './validate.js';
+import { OrchestrationError, injectEditContext, type ArtifactKind, type EditState } from './artifactContext.js';
 import {
   createArtifact,
   addVersion,
@@ -528,8 +529,12 @@ export async function runEditDoc(opts: {
     detail: `intent: edit_doc · skill: ${skill.id} · ${opts.routerMs} ms`,
   });
 
+  // HARD SAFETY INVARIANT: state MUST load before any model dispatch. If it
+  // cannot, fail loudly (never describe) — the chat route turns this into a
+  // clarifying question.
   const current = await latestPayload(opts.artifactId);
-  if (!current) throw new PipelineError('no editable payload found for this artifact');
+  if (!current) throw new OrchestrationError('EDIT_STATE_UNAVAILABLE', `no editable state for artifact ${opts.artifactId}`);
+  const editKind = opts.skillId as ArtifactKind;
 
   if (skill.id === 'product') {
     const { merged, fields } = await mergeProductEdit(
@@ -571,7 +576,14 @@ export async function runEditDoc(opts: {
               role: 'system' as const,
               content: `${skill.guidance}\n\nYou are EDITING an existing ${skill.id} document. Output ONLY the full corrected source.`,
             },
-            { role: 'user' as const, content: `Current source:\n${currentSource}\n\nApply this change: "${opts.text}"` },
+            {
+              role: 'user' as const,
+              content: injectEditContext(
+                `Apply this change: "${opts.text}"`,
+                { kind: editKind, id: opts.artifactId, version: current.version, state: currentSource } satisfies EditState,
+                'structured-diff',
+              ),
+            },
             ...(attempt > 0
               ? [{ role: 'user' as const, content: `Your previous output failed validation: ${lastError}. Output ONLY the corrected ${skill.id} source.` }]
               : []),
@@ -632,7 +644,11 @@ export async function runEditDoc(opts: {
   const system = `You are a document-editing backend. You produce ONLY a raw JSON object conforming exactly to the schema. No markdown, no prose.
 SCHEMA (described): ${JSON.stringify(skill.schema)}
 DESIGN GUIDANCE: ${skill.guidance}`;
-  const user = `Here is the current document JSON: ${JSON.stringify(current.payload)}. Apply this change: "${opts.text}". Output ONLY the full corrected JSON object.`;
+  const user = injectEditContext(
+    `Apply this change: "${opts.text}".`,
+    { kind: editKind, id: opts.artifactId, version: current.version, state: current.payload } satisfies EditState,
+    'full-state',
+  );
 
   let edited: unknown;
   let lastError = '';
