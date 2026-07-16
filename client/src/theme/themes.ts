@@ -47,7 +47,12 @@ export const THEMES = {
     bg: '#0F0D16', panel: '#191625', elevated: '#221E33',
     border: '#2B2740', borderStrong: '#3A3556',
     textPrimary: '#ECE9F4', textSecondary: '#978FB2', textFaint: '#675F82',
-    accent: '#8A6DFF', accentHover: '#9D85FF', accentActive: '#7355E6',
+    // Ramp darkened from the original #8A6DFF/#9D85FF/#7355E6 so white button
+    // labels clear AA (4.5:1) on every state. The original spanned too wide a
+    // lightness range for any single contrast color — the light hover failed
+    // white text (2.90) while the dark active failed dark text — so the accent
+    // itself had to move. Same blue-purple hue, deeper; contrast stays white.
+    accent: '#755DD8', accentHover: '#7A61E0', accentActive: '#6852C0',
     accentContrast: '#FFFFFF', navActiveBg: '#221E33',
   },
   terra: {
@@ -63,8 +68,13 @@ export const THEMES = {
     scheme: 'light',
     bg: '#F6F2EB', panel: '#FFFFFF', elevated: '#FCFAF6',
     border: '#E4DDD0', borderStrong: '#D2C9B8',
-    textPrimary: '#211D16', textSecondary: '#8A8175', textFaint: '#ABA294',
-    accent: '#C2560C', accentHover: '#D96513', accentActive: '#A5470A',
+    // textSecondary darkened from #8A8175 (was 3.44:1 on bg — nav labels below
+    // AA) to pass 4.5:1 on both the page bg and white panels.
+    textPrimary: '#211D16', textSecondary: '#736B61', textFaint: '#ABA294',
+    // Original ramp put the lighter hover (#D96513) at 3.61:1 for white text.
+    // Base is darkened for margin and hover kept as the lightest state but under
+    // the AA ceiling, so white passes on all three. Same burnt-orange hue.
+    accent: '#B24F0B', accentHover: '#BC5811', accentActive: '#A2450A',
     accentContrast: '#FFFFFF', navActiveBg: '#EFE9DE',
   },
 } satisfies Record<string, Palette>;
