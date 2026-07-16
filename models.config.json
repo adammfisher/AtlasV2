@@ -39,8 +39,8 @@
       "provider": "bedrock",
       "model": "nvidia.nemotron-super-3-120b",
       "modelComment": "bare id — no us. inference profile needed; text-only (the 120B is not the VL variant)",
-      "maxOutputComment": "UNVERIFIED — conservative placeholder; raise once the NVIDIA model card is checked.",
-      "maxOutput": 8192,
+      "maxOutputComment": "Bedrock accepts up to >=65536 for this model (probed 2026-07-16, all of 8k/16k/32k/64k returned end_turn). 32768 chosen as a safe working ceiling — comfortably above the 24k office budget, so 30-slide decks no longer truncate.",
+      "maxOutput": 32768,
       "vision": false
     }
   ],

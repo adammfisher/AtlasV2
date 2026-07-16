@@ -11,6 +11,7 @@ import {
   bedrockCompleteJson,
   bedrockCompleteText,
   modelDefByKey,
+  officeGenerationModel,
   structuredOutputs as modelStructuredOutputs,
   type BedrockTool,
   type ModelDef,
@@ -50,6 +51,25 @@ export function completeJson(
   if (p === 'openai') return openai.completeJson(messages, schema, opts);
   if (p === 'anthropic') return anthropic.completeJson(messages, schema, opts);
   return bedrockCompleteJson(messages, schema, opts);
+}
+
+/** The document-generation entry point. Differs from completeJson in two ways
+ * the office/artifact path needs:
+ *   1. It runs on a Claude model (officeGenerationModel) — a non-Claude bedrock
+ *      selection is substituted, since Nova/Nemotron emit malformed structured
+ *      output. Returns the chosen model so the pipeline can label it honestly.
+ *   2. On bedrock it uses PLAIN streaming (no constrained decoding) so the
+ *      live-write panel fills progressively instead of hanging then dumping.
+ * The caller's ajv-validate + repair loop backstops validity. */
+export function completeJsonOffice(
+  messages: ChatMessage[],
+  schema: Record<string, unknown>,
+  opts: { maxTokens?: number; temperature?: number; signal?: AbortSignal; onDelta?: (d: string) => void } = {},
+): { model: ModelDef; result: Promise<string> } {
+  const model = officeGenerationModel(); // throws a legible error if none available
+  if (model.provider === 'openai') return { model, result: openai.completeJson(messages, schema, opts) };
+  if (model.provider === 'anthropic') return { model, result: anthropic.completeJson(messages, schema, opts) };
+  return { model, result: bedrockCompleteJson(messages, schema, { ...opts, modelId: model.model, plain: true }) };
 }
 
 export function completeText(

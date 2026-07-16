@@ -5,7 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { repoRoot, config } from '../config.js';
 import { logTo } from '../log.js';
-import { completeJson, completeText } from '../llama/json.js';
+import { completeJsonOffice, completeText } from '../llama/json.js';
 import { streamChat } from '../llama/client.js';
 import { scanModels } from '../llama/models.js';
 import { auxState, portForTask, llamaState } from '../llama/spawn.js';
@@ -15,7 +15,7 @@ function bedrockModule(): typeof bedrock {
   return bedrock;
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
-import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile, officeDoctrineCheck } from './validate.js';
+import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile, officeDoctrineCheck, healConstraints, salvageConstraints } from './validate.js';
 import { retrieveExemplars, formatExemplars } from './exemplars.js';
 import { OrchestrationError, injectEditContext, type ArtifactKind, type EditState } from './artifactContext.js';
 import {
@@ -69,9 +69,19 @@ function pushStep(ctx: Ctx, step: CheckStep): void {
  * Escalated only when the office call actually runs on a higher tier than the
  * user's selected chat model (the chip rule). */
 export function officeModel(): { name: string; tier: string; escalated: boolean; port: number } {
-  const { bedrockActive, activeModel } = bedrockModule();
+  const { bedrockActive, activeModelDef: activeDef, officeGenerationModel } = bedrockModule();
   if (bedrockActive()) {
-    return { name: activeModel().name, tier: 'bedrock', escalated: false, port: 0 };
+    // document generation runs on a Claude model even if the user selected a
+    // non-Claude one for chat (Nova/Nemotron can't produce reliable JSON) —
+    // name the model that ACTUALLY generates, and flag the substitution
+    let gen;
+    try {
+      gen = officeGenerationModel();
+    } catch {
+      gen = activeDef();
+    }
+    const substituted = gen.key !== activeDef().key;
+    return { name: gen.name, tier: 'bedrock', escalated: substituted, port: 0 };
   }
   const a = auxState();
   if (a.status === 'ready' && a.tier === '12b') {
@@ -142,6 +152,7 @@ async function generateJson(
 ): Promise<{ payload: unknown; firstPass: boolean }> {
   const schema = ctx.skill.schema as Record<string, unknown>;
   let lastError = '';
+  let lastRaw = '';
   for (let attempt = 0; attempt < 2; attempt++) {
     const messages =
       attempt === 0
@@ -159,7 +170,7 @@ async function generateJson(
     // ignored there. onDelta drives the live-write indicator.
     let raw: string;
     try {
-      raw = await completeJson(messages, schema, {
+      raw = await completeJsonOffice(messages, schema, {
         maxTokens,
         signal: ctx.signal,
         temperature: 0.2,
@@ -175,6 +186,7 @@ async function generateJson(
       }
       throw err;
     }
+    lastRaw = raw;
     const result = validateJson(ctx.skill.id, schema, raw);
     if (result.ok) {
       const extra = extraValidate?.(result.value);
@@ -186,42 +198,76 @@ async function generateJson(
       logTo('pipeline', `${ctx.skill.id} extra-validation attempt=${attempt + 1}: ${lastError}`);
       continue;
     }
+    // Deterministic constraint healing: the model over-generated (too many
+    // items, too-long strings, stray keys). Trim to the schema's own limits and
+    // re-validate — enforces the design ceilings without a hard fail, so a
+    // 30-slide deck can't die on one over-full column when the cloud path has no
+    // higher tier to escalate to.
+    try {
+      const { value: healed, fixes } = healConstraints(ctx.skill.id, schema, JSON.parse(raw));
+      if (fixes > 0) {
+        const rv = validateJson(ctx.skill.id, schema, JSON.stringify(healed));
+        if (rv.ok) {
+          const extra = extraValidate?.(rv.value);
+          if (!extra || extra.ok) {
+            logTo('pipeline', `${ctx.skill.id} healed ${fixes} constraint violation(s) attempt=${attempt + 1}`);
+            return { payload: rv.value, firstPass: false };
+          }
+          lastError = extra.error;
+          logTo('pipeline', `${ctx.skill.id} healed schema but doctrine failed attempt=${attempt + 1}: ${lastError}`);
+          continue;
+        }
+      }
+    } catch {
+      /* JSON.parse failed — not a constraint issue; fall through to repair */
+    }
     lastError = result.error;
     logTo('pipeline', `${ctx.skill.id} repair attempt=${attempt + 1}: ${lastError}`);
   }
-  // §4.3.3 second failure → escalate: Bedrock when connected, else honest failure
-  if (bedrock.bedrockSettings().connected && officeModel().tier !== 'bedrock') {
+  // Final salvage: heal what's healable, then DROP the individual slides/
+  // sections that stay structurally invalid — a 30-slide deck with one bad slide
+  // becomes a valid 29-slide deck instead of a hard failure. This replaces the
+  // legacy local-"12b" escalation, which is dead on the cloud path (the office
+  // JSON already runs on the strongest available Claude model).
+  if (lastRaw) {
     try {
-      ctx.send('gen', { reset: true, label: ctx.skill.id });
-      const raw = await bedrock.bedrockJson(systemPrompt, ctx.text, schema, {
-        maxTokens,
-        signal: ctx.signal,
-        onDelta: (delta) => ctx.send('gen', { delta }),
-      });
-      const result = validateJson(ctx.skill.id, schema, raw);
-      if (result.ok) {
-        logTo('pipeline', `${ctx.skill.id} escalated to Bedrock after local repair exhausted`);
-        return { payload: result.value, firstPass: false };
+      const { value: salvaged, ok, dropped } = salvageConstraints(ctx.skill.id, schema, JSON.parse(lastRaw));
+      if (ok) {
+        // if the design-doctrine gate rejects a specific unit, drop it and re-check
+        let payload = salvaged;
+        for (let i = 0; i < 6; i++) {
+          const extra = extraValidate?.(payload);
+          if (!extra || extra.ok) {
+            logTo('pipeline', `${ctx.skill.id} salvaged after repair: dropped ${dropped} invalid element(s)`);
+            return { payload, firstPass: false };
+          }
+          const dropIdx = /\b(?:slide|section|page|sheet)\s+(\d+)\b/i.exec(extra.error);
+          const arrKey = ['slides', 'sections', 'pages', 'sheets'].find(
+            (k) => Array.isArray((payload as Record<string, unknown>)[k]),
+          );
+          if (!dropIdx || !arrKey) {
+            lastError = extra.error;
+            break;
+          }
+          const arr = (payload as Record<string, unknown>)[arrKey] as unknown[];
+          arr.splice(Number(dropIdx[1]) - 1, 1); // doctrine messages are 1-based
+          payload = salvageConstraints(ctx.skill.id, schema, payload).value;
+        }
+      } else {
+        lastError = `unsalvageable after dropping ${dropped} element(s)`;
       }
-      lastError = result.error;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
+    } catch {
+      /* last output wasn't parseable JSON (e.g. truncated) — fail honestly below */
     }
   }
-  const models = scanModels();
-  const canEscalate = models.some((m) => m.id === '12b' && m.present);
-  if (!canEscalate) {
-    throw new PipelineError(
-      `Generation failed schema validation twice (${lastError}) and no higher tier is available to escalate to.`,
-    );
-  }
-  throw new PipelineError(`Escalation exhausted local tiers: ${lastError}`);
+  throw new PipelineError(`Generation failed after repair and salvage: ${lastError}`);
 }
 
 interface HelperResult {
   ok: boolean;
   file: string;
-  meta: Record<string, number | string>;
+  // `findings` is a string[] the fix-and-rerender loop reads; other keys are scalars
+  meta: Record<string, number | string | string[]>;
   checks: Array<{ label: string; ok: boolean }>;
 }
 
@@ -337,16 +383,25 @@ async function runHelperLambda(skillId: string, payload: unknown, outFile: strin
       Payload: Buffer.from(JSON.stringify({ skill: skillId, payload })),
     }),
   );
-  const res = JSON.parse(Buffer.from(out.Payload ?? new Uint8Array()).toString('utf8')) as HelperResult & {
-    file_b64?: string;
-    error?: string;
-  };
-  if (!res.ok || !res.file_b64) {
-    throw new PipelineError(`office lambda (${skillId}) failed: ${res.error ?? 'no file returned'}`);
+  const rawResp = Buffer.from(out.Payload ?? new Uint8Array()).toString('utf8');
+  let res: HelperResult & { file_b64?: string; error?: string; errorMessage?: string };
+  try {
+    res = JSON.parse(rawResp) as typeof res;
+  } catch {
+    throw new PipelineError(`office lambda (${skillId}) returned no parseable response`);
   }
-  mkdirSync(path.dirname(outFile), { recursive: true });
-  writeFileSync(outFile, Buffer.from(res.file_b64, 'base64'));
-  return { ok: true, file: outFile, meta: res.meta, checks: res.checks };
+  if (res.ok && res.file_b64) {
+    mkdirSync(path.dirname(outFile), { recursive: true });
+    writeFileSync(outFile, Buffer.from(res.file_b64, 'base64'));
+    return { ok: true, file: outFile, meta: res.meta, checks: res.checks };
+  }
+  // A build rejection (spec-validation failure, or a builder exception) is
+  // RECOVERABLE: return it as a failing result so the fix-and-rerender loop can
+  // feed the reason back and regenerate, instead of hard-throwing on the first
+  // try. res.error is our own {ok:false,error}; errorMessage is a Lambda-level
+  // unhandled exception.
+  const reason = res.error ?? res.errorMessage ?? 'no file returned';
+  return { ok: false, file: outFile, meta: { findings: [reason] }, checks: [{ label: `build rejected: ${reason}`, ok: false }] };
 }
 
 async function runHelper(
@@ -373,10 +428,17 @@ async function runHelper(
       args,
       { cwd: repoRoot, timeout: 180_000 },
     );
-    return JSON.parse(stdout.trim().split('\n').pop() ?? '{}') as HelperResult;
+    const result = JSON.parse(stdout.trim().split('\n').pop() ?? '{}') as HelperResult & { error?: string };
+    if (result.ok) return result;
+    // build rejected (spec validation, etc.) — recoverable, see runHelperLambda
+    const reason = result.error ?? 'build produced no output';
+    return { ok: false, file: outFile, meta: { findings: [reason] }, checks: [{ label: `build rejected: ${reason}`, ok: false }] };
   } catch (err) {
-    const stderr = (err as { stderr?: string }).stderr ?? '';
-    throw new PipelineError(`build_${skillId}.py failed: ${stderr.trim().split('\n').slice(-3).join(' | ')}`);
+    // non-zero exit (builder raised) — surface the reason as a recoverable
+    // finding so the fix-and-rerender loop can retry before hard-failing
+    const stderr = (err as { stderr?: string }).stderr ?? (err as Error).message ?? '';
+    const detail = stderr.trim().split('\n').slice(-3).join(' | ') || 'unknown build error';
+    return { ok: false, file: outFile, meta: { findings: [detail] }, checks: [{ label: `build_${skillId}.py error: ${detail}`, ok: false }] };
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -467,7 +529,7 @@ export async function runCreateDoc(opts: {
     if (template) {
       pushStep(ctx, { state: 'ok', label: 'Template', detail: path.basename(template) });
     }
-    pushStep(ctx, { state: 'pending', label: genLabel, detail: 'constrained json_schema' });
+    pushStep(ctx, { state: 'pending', label: genLabel, detail: 'streaming json' });
     // One budget for every document skill, replacing the old per-skill caps
     // (3072, 4096 for product) that were sized for a weaker model and bound a
     // "react" artifact to ~150 lines — JSON-escaped JSX spends a token on every
@@ -489,7 +551,7 @@ export async function runCreateDoc(opts: {
     pushStep(ctx, {
       state: 'ok',
       label: genLabel,
-      detail: `constrained json_schema · ${firstPass ? 'valid first pass' : 'valid after repair'}`,
+      detail: `streaming json · ${firstPass ? 'valid first pass' : 'valid after repair'}`,
     });
 
     const p = payload as Record<string, unknown>;
@@ -551,7 +613,9 @@ export async function runCreateDoc(opts: {
     // never a false success, never a loosened gate.
     let currentPayload = payload;
     let helper = await runHelper(skill.id, currentPayload, outFile);
-    let blocked = helperChecksToSteps(ctx, helper.checks);
+    // a hard build rejection (helper.ok === false) has no file — it must count
+    // as blocked so the loop regenerates, even if its synthetic check list is thin
+    let blocked = !helper.ok || helperChecksToSteps(ctx, helper.checks);
     for (let retry = 1; blocked && retry <= 2; retry++) {
       const findings = [
         ...helper.checks.filter((c) => !c.ok && !/skip/i.test(c.label)).map((c) => c.label),
@@ -566,7 +630,42 @@ ${findings.map((f) => `- ${f}`).join('\n')}`;
       const revised = await generateJson(ctx, revisionPrompt, maxTokens, doctrineCheck);
       currentPayload = revised.payload;
       helper = await runHelper(skill.id, currentPayload, outFile);
-      blocked = helperChecksToSteps(ctx, helper.checks);
+      blocked = !helper.ok || helperChecksToSteps(ctx, helper.checks);
+    }
+    if (blocked) {
+      // Large-deck salvage: the validator couldn't fix specific slides after the
+      // retries. Rather than discard the whole deck, DROP the offending
+      // slides/sections and rebuild once — the shipped deck then contains ONLY
+      // units that pass the design gate (honoring "never ship a failing slide")
+      // while a 30-slide request still succeeds. Surfaced as a visible warn.
+      const arrKey = ['slides', 'sections', 'pages'].find(
+        (k) => Array.isArray((currentPayload as Record<string, unknown>)[k]),
+      );
+      const findings = [
+        ...helper.checks.filter((c) => !c.ok && !/skip/i.test(c.label)).map((c) => c.label),
+        ...(((helper.meta.findings as unknown) as string[] | undefined) ?? []),
+      ];
+      const badIdx = [
+        ...new Set(
+          findings.flatMap((f) => {
+            const m = /\b(?:slide|section|page)\s+(\d+)\b/i.exec(f);
+            return m ? [Number(m[1]) - 1] : [];
+          }),
+        ),
+      ].sort((a, b) => b - a); // descending so each splice keeps earlier indices valid
+      if (arrKey && badIdx.length) {
+        const arr = (currentPayload as Record<string, unknown>)[arrKey] as unknown[];
+        if (arr.length - badIdx.length >= 1) {
+          for (const idx of badIdx) if (idx >= 0 && idx < arr.length) arr.splice(idx, 1);
+          pushStep(ctx, {
+            state: 'warn',
+            label: `Dropped ${badIdx.length} unfixable ${arrKey.replace(/s$/, '')}${badIdx.length === 1 ? '' : 's'}`,
+            detail: `kept ${arr.length} that pass the design gate`,
+          });
+          helper = await runHelper(skill.id, currentPayload, outFile);
+          blocked = !helper.ok || helperChecksToSteps(ctx, helper.checks);
+        }
+      }
     }
     if (blocked) {
       const failing = helper.checks.filter((c) => !c.ok).map((c) => c.label);
@@ -829,8 +928,10 @@ DESIGN GUIDANCE: ${skill.guidance}`;
         : []),
     ];
     ctx.send('gen', { reset: true, label: skill.id });
-    const raw = await completeJson(messages, skill.schema, {
-      maxTokens: 3072,
+    // office path: Claude-gated + plain streaming, and the same 24k budget as
+    // create — the edit path carried its own stale 3072 cap
+    const raw = await completeJsonOffice(messages, skill.schema, {
+      maxTokens: bedrock.officeMaxTokens(),
       signal: ctx.signal,
       onDelta: (delta) => ctx.send('gen', { delta }),
     });

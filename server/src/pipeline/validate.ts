@@ -4,6 +4,145 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 const ajv = new Ajv({ allErrors: false, strict: false });
 const compiled = new Map<string, ValidateFunction>();
 
+// A second validator that reports EVERY error at once — drives deterministic
+// constraint healing (below), which needs the full violation set per pass.
+const ajvAll = new Ajv({ allErrors: true, strict: false });
+const compiledAll = new Map<string, ValidateFunction>();
+
+/** Resolve a JSON Pointer (RFC 6901) to its parent container + final key. */
+function resolvePointer(root: unknown, pointer: string): { parent: unknown; key: string | number } | null {
+  if (pointer === '') return null;
+  const parts = pointer.split('/').slice(1).map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'));
+  let node: unknown = root;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i]!;
+    if (Array.isArray(node)) node = node[Number(part)];
+    else if (node && typeof node === 'object') node = (node as Record<string, unknown>)[part];
+    else return null;
+  }
+  const last = parts[parts.length - 1]!;
+  return { parent: node, key: Array.isArray(node) ? Number(last) : last };
+}
+
+/**
+ * Deterministically heal the "over-generation" violations a model repeats and
+ * that the cloud path can no longer escalate past: arrays past maxItems (trim),
+ * strings past maxLength (truncate), and extra keys under additionalProperties:
+ * false (drop). Error-driven (not schema-walking) so it works through oneOf/
+ * anyOf branches and arbitrary nesting. Leaves un-healable violations (minItems,
+ * required, type, numeric bounds) for the caller to fail on honestly. Returns a
+ * healed clone and how many fixes were applied.
+ */
+export function healConstraints(
+  skillId: string,
+  schema: Record<string, unknown>,
+  value: unknown,
+): { value: unknown; fixes: number } {
+  let fn = compiledAll.get(skillId);
+  if (!fn) {
+    fn = ajvAll.compile(schema);
+    compiledAll.set(skillId, fn);
+  }
+  const clone = structuredClone(value);
+  let fixes = 0;
+  for (let pass = 0; pass < 6; pass++) {
+    if (fn(clone)) break;
+    let healedThisPass = 0;
+    for (const err of fn.errors ?? []) {
+      if (err.keyword === 'maxItems') {
+        const arr = resolveSelf(clone, err.instancePath);
+        if (Array.isArray(arr)) {
+          arr.length = (err.params as { limit: number }).limit;
+          healedThisPass++;
+        }
+      } else if (err.keyword === 'maxLength') {
+        const loc = resolvePointer(clone, err.instancePath);
+        if (loc && loc.parent && typeof loc.parent === 'object') {
+          const p = loc.parent as Record<string | number, unknown>;
+          if (typeof p[loc.key] === 'string') {
+            p[loc.key] = (p[loc.key] as string).slice(0, (err.params as { limit: number }).limit).trimEnd();
+            healedThisPass++;
+          }
+        }
+      } else if (err.keyword === 'additionalProperties') {
+        const obj = resolveSelf(clone, err.instancePath);
+        if (obj && typeof obj === 'object') {
+          delete (obj as Record<string, unknown>)[(err.params as { additionalProperty: string }).additionalProperty];
+          healedThisPass++;
+        }
+      }
+    }
+    fixes += healedThisPass;
+    if (healedThisPass === 0) break; // only un-healable violations remain
+  }
+  return { value: clone, fixes };
+}
+
+/** Remove the element at the FIRST array index in a JSON Pointer (e.g.
+ * "/slides/7/columns/0/head" → drop slides[7]). Returns true if it removed one. */
+function dropOutermostArrayElement(root: unknown, pointer: string): boolean {
+  const parts = pointer.split('/').slice(1).map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'));
+  let node: unknown = root;
+  for (const part of parts) {
+    if (Array.isArray(node)) {
+      const idx = Number(part);
+      if (Number.isInteger(idx) && idx >= 0 && idx < node.length) {
+        node.splice(idx, 1);
+        return true;
+      }
+      return false;
+    }
+    if (node && typeof node === 'object') node = (node as Record<string, unknown>)[part];
+    else return false;
+  }
+  return false;
+}
+
+/**
+ * Last-resort salvage for a large document: heal the count/length violations,
+ * then DROP the array elements (individual slides/sections) that remain
+ * structurally invalid — one malformed slide in a 30-slide deck yields a
+ * 29-slide deck instead of a total failure. Stops when the payload validates or
+ * when the remaining error isn't tied to a droppable element (e.g. a top-level
+ * minItems that dropping can't fix), so it degrades honestly.
+ */
+export function salvageConstraints(
+  skillId: string,
+  schema: Record<string, unknown>,
+  value: unknown,
+): { value: unknown; ok: boolean; dropped: number } {
+  let fn = compiledAll.get(skillId);
+  if (!fn) {
+    fn = ajvAll.compile(schema);
+    compiledAll.set(skillId, fn);
+  }
+  let healed = healConstraints(skillId, schema, value).value;
+  let dropped = 0;
+  for (let pass = 0; pass < 12; pass++) {
+    if (fn(healed)) break;
+    // prefer an error inside an array element; splicing the outermost index
+    // removes the whole bad slide, then re-heal since indices/limits shifted.
+    const err = (fn.errors ?? []).find((e) => /\/\d+(\/|$)/.test(e.instancePath)) ?? fn.errors?.[0];
+    if (!err || !dropOutermostArrayElement(healed, err.instancePath)) break;
+    dropped++;
+    healed = healConstraints(skillId, schema, healed).value;
+  }
+  return { value: healed, ok: fn(healed), dropped };
+}
+
+/** Resolve a JSON Pointer to the node it points AT (not its parent). */
+function resolveSelf(root: unknown, pointer: string): unknown {
+  if (pointer === '') return root;
+  const parts = pointer.split('/').slice(1).map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'));
+  let node: unknown = root;
+  for (const part of parts) {
+    if (Array.isArray(node)) node = node[Number(part)];
+    else if (node && typeof node === 'object') node = (node as Record<string, unknown>)[part];
+    else return undefined;
+  }
+  return node;
+}
+
 /** Parse + ajv-validate a constrained-JSON emission. Returns the parsed object or an error string. */
 export function validateJson(
   skillId: string,

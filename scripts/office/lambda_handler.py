@@ -375,10 +375,12 @@ def handler(event, _context):
         argv += ["--template", str(tmpl)]
 
     mod = importlib.import_module(f"build_{skill}")
-    old_argv, old_stdout = sys.argv, sys.stdout
+    old_argv, old_stdout, old_stderr = sys.argv, sys.stdout, sys.stderr
     sys.argv = argv
     captured = tempfile.SpooledTemporaryFile(mode="w+")
+    captured_err = tempfile.SpooledTemporaryFile(mode="w+")
     sys.stdout = captured
+    sys.stderr = captured_err
     result = {"ok": False, "error": "builder produced no output"}
     try:
         try:
@@ -389,10 +391,20 @@ def handler(event, _context):
         last = [ln for ln in captured.read().strip().splitlines() if ln.strip()]
         if last:
             result = json.loads(last[-1])
+        else:
+            # The builder exited via fail() without a result line — its specific
+            # reason (e.g. "spec validation failed (1): slide 2: 50 words on a
+            # content slide") went to stderr. Surface THAT, not a generic
+            # "produced no output", so the app's fix-and-rerender loop gets
+            # actionable findings to regenerate against.
+            captured_err.seek(0)
+            errlines = [ln for ln in captured_err.read().strip().splitlines() if ln.strip()]
+            if errlines:
+                result = {"ok": False, "error": errlines[-1]}
     except Exception as err:  # noqa: BLE001
         result = {"ok": False, "error": f"{type(err).__name__}: {err}"}
     finally:
-        sys.argv, sys.stdout = old_argv, old_stdout
+        sys.argv, sys.stdout, sys.stderr = old_argv, old_stdout, old_stderr
 
     if out_file.exists():
         result["file_b64"] = base64.b64encode(out_file.read_bytes()).decode()

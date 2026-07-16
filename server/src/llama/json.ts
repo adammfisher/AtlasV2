@@ -1,7 +1,12 @@
 import { config } from '../config.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from './client.js';
-import { cloudReady, completeJson as cloudCompleteJson, completeText as cloudCompleteText } from '../providers/dispatch.js';
+import {
+  cloudReady,
+  completeJson as cloudCompleteJson,
+  completeJsonOffice as cloudCompleteJsonOffice,
+  completeText as cloudCompleteText,
+} from '../providers/dispatch.js';
 
 export interface JsonCallOptions {
   temperature?: number;
@@ -116,6 +121,39 @@ export function completeJson(
     },
     opts,
     'completeJson',
+  );
+}
+
+/** Document/artifact generation: on the cloud path it forces a Claude model and
+ * plain streaming (see dispatch.completeJsonOffice). Local llama is a single
+ * model with no gating, so it falls back to the same constrained call as
+ * completeJson. Use this for every generateJson skill; use completeJson for
+ * router/memory/classification calls that must stay on the selected model. */
+export function completeJsonOffice(
+  messages: ChatMessage[],
+  schema: Record<string, unknown>,
+  opts: JsonCallOptions = {},
+): Promise<string> {
+  if (cloudReady()) {
+    return cloudCompleteJsonOffice(messages, schema, {
+      temperature: opts.temperature,
+      maxTokens: opts.maxTokens,
+      signal: opts.signal,
+      onDelta: opts.onDelta,
+    }).result;
+  }
+  return complete(
+    {
+      messages,
+      response_format: { type: 'json_schema', json_schema: { schema } },
+      temperature: opts.temperature ?? 0.2,
+      top_p: 0.95,
+      top_k: 64,
+      max_tokens: opts.maxTokens ?? 3072,
+      chat_template_kwargs: { enable_thinking: false },
+    },
+    opts,
+    'completeJsonOffice',
   );
 }
 

@@ -339,6 +339,59 @@ export interface BedrockCallOptions {
   /** pin a specific inference-profile id (router tier testing + escalation);
    * defaults to the active model so production paths are unchanged. */
   modelId?: string;
+  /** Skip constrained decoding (forced tool-use / json_schema) and generate the
+   * JSON as an ordinary streamed completion. Constrained decoding on Bedrock is
+   * BUFFERED — no tokens reach the client until the whole payload is ready — so
+   * a document appears to hang then dump. Plain streaming emits text deltas as
+   * they land, which is what the live-write panel needs. The tradeoff is that
+   * validity is no longer grammar-guaranteed; the caller's ajv-validate + repair
+   * loop covers the rare malformed output (reliable on Claude, the only model
+   * the office path uses — see officeGenerationModel). */
+  plain?: boolean;
+}
+
+/** A Claude model produces reliable raw JSON from a plain completion and handles
+ * Bedrock tool-use cleanly; Nova/Nemotron do not (they emit malformed or
+ * truncated constrained JSON — the "Unexpected end of JSON input" failures). */
+export function isClaudeModel(def: ModelDef = activeModelDef()): boolean {
+  return /claude|anthropic/i.test(def.model);
+}
+
+/** The model document generation runs on. Chat can use any model the account is
+ * allowed, but the office/artifact JSON path requires reliable structured output,
+ * so the model is chosen by an explicit policy rather than following the chat
+ * selection:
+ *
+ *   Documents run on HAIKU regardless of the selected chat model — it is fast,
+ *   cheap, and reliable at structured output — UNLESS the user has deliberately
+ *   selected SONNET, in which case documents use Sonnet too (they asked for the
+ *   frontier model). Nova/Nemotron and any other/third Claude selection all map
+ *   to Haiku; only an explicit Sonnet selection escapes it.
+ *
+ * The substitution DELIBERATELY IGNORES the account's chat allowlist: office
+ * generation is a system capability, not a user-selectable chat model, so an
+ * account restricted to Nova/Nemotron for chat still gets Haiku for documents.
+ * openai/anthropic API selections pass through — they have their own reliable
+ * JSON paths and the Haiku/Sonnet policy is about the bedrock Claude tier. */
+export function officeGenerationModel(): ModelDef {
+  const active = activeModelDef();
+  if (active.provider !== 'bedrock') return active;
+  const bedrockConnected = bedrockSettings().connected;
+  const usable = (m: ModelDef): boolean =>
+    isClaudeModel(m) && (m.provider !== 'bedrock' || bedrockConnected);
+  // haiku by default; sonnet ONLY when it is the active selection
+  const wantKey = active.key === 'sonnet' ? 'sonnet' : 'haiku';
+  const want = MODEL_DEFS.find((m) => m.key === wantKey && usable(m));
+  // desired model absent/unreachable (sonnet slot missing, provider down):
+  // fall back to any usable Claude, else fail legibly.
+  const claude = want ?? MODEL_DEFS.find(usable);
+  if (!claude) {
+    throw new Error(
+      `${active.name} cannot generate documents reliably (non-Claude models produce malformed structured output), ` +
+        `and no Claude model is configured. Add a Claude model to models.config.json to create documents.`,
+    );
+  }
+  return claude;
 }
 
 /** Declarative per-model capability: native structured outputs (json_schema on
@@ -590,7 +643,11 @@ export async function bedrockCompleteJson(
 
   let content: string;
   try {
-  if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema) && !bigSchema) {
+  if (opts.plain) {
+    // caller opted out of constrained decoding for smooth streaming — the JSON
+    // arrives as ordinary text deltas (viaPlain) instead of a buffered burst
+    content = await viaPlain();
+  } else if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema) && !bigSchema) {
     try {
       // STREAM json_schema output too (docx/xlsx/pdf) — the JSON text arrives
       // as normal content deltas
