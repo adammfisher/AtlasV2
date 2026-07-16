@@ -14,6 +14,7 @@ import {
   officeGenerationModel,
   structuredOutputs as modelStructuredOutputs,
   type BedrockTool,
+  type ConverseUsage,
   type ModelDef,
 } from './bedrock.js';
 import * as openai from './openai.js';
@@ -34,7 +35,15 @@ export function streamWithTools(
   tools: BedrockTool[],
   execute: (name: string, input: Record<string, unknown>) => Promise<string>,
   onTool: (name: string) => void,
-  opts: { temperature?: number; maxTokens?: number; signal?: AbortSignal; thinking?: boolean; onThinking?: (d: string) => void } = {},
+  opts: {
+    temperature?: number;
+    maxTokens?: number;
+    signal?: AbortSignal;
+    thinking?: boolean;
+    onThinking?: (d: string) => void;
+    /** per-round Converse token accounting; bedrock only (openai/anthropic ignore it) */
+    onUsage?: (usage: ConverseUsage) => void;
+  } = {},
 ): AsyncGenerator<string> {
   const p = activeModelDef().provider;
   if (p === 'openai') return openai.streamWithTools(messages, tools, execute, onTool, opts);

@@ -153,6 +153,24 @@ interface Row {
   created_at: number;
 }
 
+/**
+ * Converse rejects any conversation that does not start with a user message
+ * ("A conversation must start with a user message", 400). The recent window can
+ * legitimately begin with an ASSISTANT turn: once compaction advances the
+ * watermark past every older message, the straggler loop below contributes
+ * nothing, and `rows.slice(-RECENT_COUNT)` of an alternating transcript ending
+ * in the new user message starts on an assistant turn. Reproduced for every
+ * post-compaction conversation from ~21 text messages up — i.e. long chats were
+ * failing outright, which is exactly what compaction exists to prevent.
+ *
+ * Dropping the leading assistant turns loses nothing: everything older than the
+ * window is already carried by the rolling summary.
+ */
+export function startAtUserTurn<T extends { role: 'user' | 'assistant' }>(history: T[]): T[] {
+  const first = history.findIndex((m) => m.role === 'user');
+  return first <= 0 ? history : history.slice(first);
+}
+
 function summaryState(convId: string): SummaryState | null {
   const raw = getSetting(`convsum:${convId}`);
   return raw ? (JSON.parse(raw) as SummaryState) : null;
@@ -222,7 +240,7 @@ export async function buildContext(
     history.unshift(msg);
   }
 
-  if (older.length === 0) return { history, summary: null };
+  if (older.length === 0) return { history: startAtUserTurn(history), summary: null };
 
   let state = summaryState(convId);
   const uncovered = older.filter((m) => m.created_at > (state?.upTo ?? 0));
@@ -243,5 +261,5 @@ export async function buildContext(
     history.unshift(msg);
   }
 
-  return { history, summary: state?.text ?? null };
+  return { history: startAtUserTurn(history), summary: state?.text ?? null };
 }

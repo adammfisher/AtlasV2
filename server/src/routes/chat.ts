@@ -125,7 +125,9 @@ import {
 } from '../pipeline/orchestrator.js';
 import { lastPipelineArtifact } from '../pipeline/artifacts.js';
 import { OrchestrationError } from '../pipeline/artifactContext.js';
-import { buildContext, buildBehaviorBlock } from '../pipeline/context.js';
+import { buildContext, buildBehaviorBlock, tierForModel } from '../pipeline/context.js';
+import { applyReminder, recordUsage } from '../pipeline/reminder.js';
+import { activeModelKey } from '../providers/bedrock.js';
 
 function sse(res: Response, event: string, data: unknown): void {
   if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -368,7 +370,15 @@ chatRouter.post('/:id/messages', async (req, res) => {
         ...connectorTools,
       ];
 
-      const fullMessages = [{ role: 'system' as const, content: system }, ...(chatHistory as ChatMessage[])];
+      // B: re-anchor the drift-prone rules on the CURRENT USER MESSAGE when the
+      // conversation has run long enough to drift. It rides the user turn, never
+      // the system prompt, so the cached system prefix stays byte-identical; and
+      // it is never persisted, so the user never sees it.
+      const tier = tierForModel(activeModelKey());
+      const depth = Math.floor(messageCount / 2) + 1; // approx. user turns incl. this one
+      const reminded = applyReminder(chatHistory as ChatMessage[], conv.id, depth, tier);
+
+      const fullMessages = [{ role: 'system' as const, content: system }, ...reminded.messages];
       const stream = streamWithTools(
         fullMessages,
         tools,
@@ -413,6 +423,16 @@ chatRouter.post('/:id/messages', async (req, res) => {
           onThinking: (delta) => {
             thinkingFull += delta;
             sse(res, 'thinking', { delta });
+          },
+          // inputTokens is the context size — it feeds the reminder's token
+          // trigger on the NEXT turn and the cache metrics (E)
+          onUsage: (usage) => {
+            recordUsage(conv.id, usage.inputTokens ?? 0);
+            logTo(
+              'pipeline',
+              `usage conv=${conv.id} in=${usage.inputTokens ?? 0} out=${usage.outputTokens ?? 0}` +
+                ` cacheRead=${usage.cacheReadInputTokens ?? 0} cacheWrite=${usage.cacheWriteInputTokens ?? 0}`,
+            );
           },
         },
       );

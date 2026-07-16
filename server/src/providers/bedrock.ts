@@ -292,6 +292,8 @@ function sanitizeForBedrock(node: unknown): unknown {
 function toConverse(messages: ChatMessage[]): { system: Array<{ text: string }>; messages: Message[] } {
   const system: Array<{ text: string }> = [];
   const out: Message[] = [];
+  // observer is installed below, after the conversion, so it sees exactly what
+  // Converse will receive
   for (const m of messages) {
     if (m.role === 'system') {
       const text =
@@ -328,7 +330,30 @@ function toConverse(messages: ChatMessage[]): { system: Array<{ text: string }>;
     if (blocks.length === 0) blocks.push({ text: ' ' });
     out.push({ role: m.role, content: blocks });
   }
+  converseObserver?.({ system, messages: out });
   return { system, messages: out };
+}
+
+/** Test hook (Deliverables B + E): observe the exact system/message blocks handed
+ * to Converse. The prefix byte-stability gates assert on what the model really
+ * receives rather than on a re-derivation of it. Never installed in production —
+ * nothing calls the setter outside scripts/test. */
+type ConverseObserver = (payload: { system: Array<{ text: string }>; messages: Message[] }) => void;
+let converseObserver: ConverseObserver | null = null;
+
+export function __setConverseObserver(fn: ConverseObserver | null): void {
+  converseObserver = fn;
+}
+
+/** Token accounting from a Converse response. inputTokens IS the context size —
+ * it counts the whole prompt the model read. The cache fields appear only for
+ * models with prompt caching enabled (Deliverable E). */
+export interface ConverseUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  cacheReadInputTokens?: number;
+  cacheWriteInputTokens?: number;
 }
 
 export interface BedrockCallOptions {
@@ -739,6 +764,7 @@ export async function* bedrockStreamWithTools(
     signal?: AbortSignal;
     thinking?: boolean;
     onThinking?: (delta: string) => void;
+    onUsage?: (usage: ConverseUsage) => void;
   } = {},
 ): AsyncGenerator<string> {
   if (!bedrockActive()) throw new Error('Bedrock is not connected');
@@ -800,6 +826,9 @@ export async function* bedrockStreamWithTools(
         if (tu) tu.inputJson += delta.delta.toolUse.input;
       }
       if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
+      // usage rides the terminal metadata frame — one per round of the tool loop
+      const usage = event.metadata?.usage;
+      if (usage && opts.onUsage) opts.onUsage(usage as ConverseUsage);
     }
 
     // final (no-tools) round, or the model is done → stop
