@@ -5,6 +5,7 @@ import { buildBehaviorBlock, ATLAS_BEHAVIOR_VERSION, type BehaviorTier } from '.
 const REQUIRED = [
   'create_edit_describe', 'artifact_vs_inline', 'update_vs_rewrite', 'read_before_write',
   'when_to_search', 'honesty', 'output_format', 'tool_use',
+  'tone_and_formatting', // polish layer, Deliverable A
 ];
 let fails = 0;
 const check = (cond: boolean, msg: string): void => { if (!cond) { console.log(`FAIL ${msg}`); fails++; } };

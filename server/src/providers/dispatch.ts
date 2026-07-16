@@ -104,6 +104,23 @@ export function structuredOutputs(modelKey?: string): boolean {
 }
 
 /**
+ * Plain text completion pinned to a SPECIFIC model. Mirrors classifyJson for the
+ * unconstrained path: the polish evals hold a tier constant (small/mid/frontier)
+ * so what is under test is the prompt, not the model selection. Production chat
+ * keeps using completeText / streamWithTools on the active model.
+ */
+export function completeTextAs(
+  modelKey: string,
+  messages: ChatMessage[],
+  opts: { maxTokens?: number; temperature?: number; signal?: AbortSignal } = {},
+): Promise<string> {
+  const def = resolveModel(modelKey);
+  if (def.provider === 'openai') return openai.completeText(messages, opts);
+  if (def.provider === 'anthropic') return anthropic.completeText(messages, opts);
+  return bedrockCompleteText(messages, { ...opts, modelId: def.model });
+}
+
+/**
  * Constrained-JSON classification pinned to a SPECIFIC model (router Stage 2 +
  * escalation). Bedrock pins the inference-profile id; the constrained path then
  * auto-selects json_schema (structured-output models) vs forced tool-choice

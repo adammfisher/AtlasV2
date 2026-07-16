@@ -416,10 +416,14 @@ export async function bedrockCompleteText(
   if (!bedrockActive()) throw new Error('Bedrock is not connected');
   const client = runtime(bedrockSettings());
   const { system, messages: msgs } = toConverse(messages);
+  // opts.modelId is the documented tier-pinning escape hatch (BedrockCallOptions);
+  // honoring it here matches bedrockCompleteJson and lets the polish evals hold a
+  // tier constant. Absent, this is the active model exactly as before.
+  const modelId = opts.modelId ?? activeModelId();
   const inferenceConfig = { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7 };
   if (opts.onDelta) {
     const out = await client.send(
-      new ConverseStreamCommand({ modelId: activeModelId(), system, messages: msgs, inferenceConfig }),
+      new ConverseStreamCommand({ modelId, system, messages: msgs, inferenceConfig }),
       { abortSignal: opts.signal },
     );
     let content = '';
@@ -433,7 +437,7 @@ export async function bedrockCompleteText(
     return content;
   }
   const out = await client.send(
-    new ConverseCommand({ modelId: activeModelId(), system, messages: msgs, inferenceConfig }),
+    new ConverseCommand({ modelId, system, messages: msgs, inferenceConfig }),
     { abortSignal: opts.signal },
   );
   return out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
