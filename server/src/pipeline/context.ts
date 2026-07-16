@@ -12,6 +12,7 @@ import { getSetting, setSetting, listMessages } from '../db/appdb.js';
 import { completeText } from '../llama/json.js';
 import { logTo } from '../log.js';
 import { activeModelKey } from '../providers/bedrock.js';
+import { SKILL_REGISTRY } from '../skills/registry.js';
 
 // ─── DELIVERABLE C — versioned, tiered behavior rules block ───────────────────
 // Bump on ANY change to the rules content below.
@@ -184,6 +185,91 @@ export function buildBehaviorBlock(
   const base = lean ? RULES_LEAN : tier === 'small' ? `${RULES_FULL}\n${RULES_EXAMPLES}` : RULES_FULL;
   const cites = opts.citations ? `\n${lean ? CITATION_RULES_LEAN : CITATION_RULES}` : '';
   return `<atlas_behavior version="${ATLAS_BEHAVIOR_VERSION}" tier="${tier}">\n${base}${cites}\n</atlas_behavior>`;
+}
+
+/* ─── DELIVERABLE E — cache-optimal prompt assembly ─────────────────────────── */
+
+/**
+ * Section 2: the skills registry METADATA tier (~100 tokens/skill, stable per
+ * deploy). Progressive disclosure — the model sees what each skill is for and
+ * nothing more; the full SKILL.md is loaded only once a skill is triggered.
+ *
+ * Every skill is listed regardless of its enabled state on purpose: enabled
+ * states are per-account DB rows, and folding them in here would make the cached
+ * prefix vary per account and per toggle. The router, not this list, decides what
+ * actually runs.
+ */
+export function skillsMetadata(): string {
+  const rows = SKILL_REGISTRY.map((s) => `- ${s.id} — ${s.name} (${s.ext}). Use for: ${s.triggers}`).join('\n');
+  return `<skills>\nDocument skills available through the pipeline. This is metadata only — the full skill is loaded when one is triggered.\n${rows}\n</skills>`;
+}
+
+/**
+ * The prompt sections, most-stable first. The ORDER is the whole point: Bedrock
+ * caches a PREFIX, so anything that changes per turn must come after everything
+ * that doesn't, or it invalidates every token before it.
+ *
+ *   1 behavior block        static, versioned
+ *   2 skills metadata       stable per deploy
+ *   3 tool definitions      stable per conversation config — NOT here: they live
+ *                           in toolConfig, which Bedrock places BEFORE system in
+ *                           the cached prefix (measured), so a cachePoint at the
+ *                           end of system already covers them
+ *   4 user preferences      stable per user/conversation
+ *   5 project instructions  stable per project
+ *   ── cachePoint ──
+ *   6 memory recall         per turn
+ *   7 knowledge passages    per turn (arrives inside recall)
+ *   8 conversation messages per turn (the message array, not system)
+ */
+export interface PromptSections {
+  persona: string;
+  behavior: string;
+  skills?: string;
+  /** stable per conversation: which tools exist and how to use them */
+  toolNotes?: string[];
+  preferences?: string;
+  projectInstructions?: string;
+  /** per turn */
+  conversationSummary?: string;
+  memoryRecall?: string;
+}
+
+export interface AssembledPrompt {
+  /** sections 1–5 — byte-identical across turns of one conversation */
+  stablePrefix: string;
+  /** sections 6–7 — changes every turn, always AFTER the cache point */
+  perTurn: string;
+}
+
+/**
+ * Assemble the system prompt as an explicitly ordered pipeline.
+ *
+ * Nothing time-varying may enter stablePrefix — no timestamps, no Date.now(), no
+ * set iteration whose order can shift, no per-turn recall. The byte-stability
+ * test asserts this on the real Converse payload, because a single stray
+ * timestamp silently costs every cache hit in the product.
+ */
+export function assembleSystemPrompt(s: PromptSections): AssembledPrompt {
+  const stablePrefix = [
+    s.persona,
+    s.behavior,
+    s.skills,
+    ...(s.toolNotes ?? []),
+    s.preferences,
+    s.projectInstructions ? `Project instructions: ${s.projectInstructions}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const perTurn = [
+    s.conversationSummary ? `Earlier in this conversation (running summary):\n${s.conversationSummary}` : '',
+    s.memoryRecall,
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  return { stablePrefix, perTurn };
 }
 
 const RECENT_COUNT = 12;

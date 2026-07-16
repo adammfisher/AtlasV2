@@ -12,6 +12,7 @@ import {
   bedrockCompleteText,
   modelDefByKey,
   officeGenerationModel,
+  promptCacheEnabled as bedrockPromptCacheEnabled,
   structuredOutputs as modelStructuredOutputs,
   type BedrockTool,
   type ConverseUsage,
@@ -22,6 +23,17 @@ import * as anthropic from './anthropic.js';
 import { modelAllowed } from '../lib/account.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from '../llama/client.js';
+
+/**
+ * E: does this model support Bedrock prompt caching? Re-exported here so callers
+ * ask the dispatch layer rather than reaching into the bedrock provider. The flag
+ * is per-model in models.config.json and defaults OFF, because a cachePoint sent
+ * to a model that doesn't support it FAILS the request (nemotron) or bills writes
+ * that are never read (nova).
+ */
+export function promptCacheEnabled(modelKey?: string): boolean {
+  return bedrockPromptCacheEnabled(resolveModel(modelKey));
+}
 
 /** Is the active model's cloud backend ready (bedrock connected, or API key set)? */
 export function cloudReady(): boolean {
@@ -121,7 +133,7 @@ export function structuredOutputs(modelKey?: string): boolean {
 export function completeTextAs(
   modelKey: string,
   messages: ChatMessage[],
-  opts: { maxTokens?: number; temperature?: number; signal?: AbortSignal } = {},
+  opts: { maxTokens?: number; temperature?: number; signal?: AbortSignal; onUsage?: (usage: ConverseUsage) => void } = {},
 ): Promise<string> {
   const def = resolveModel(modelKey);
   if (def.provider === 'openai') return openai.completeText(messages, opts);

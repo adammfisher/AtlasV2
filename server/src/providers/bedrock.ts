@@ -14,6 +14,7 @@ import {
   ConverseStreamCommand,
   type Message,
   type ContentBlock,
+  type SystemContentBlock,
 } from '@aws-sdk/client-bedrock-runtime';
 import { fromIni } from '@aws-sdk/credential-providers';
 import { readFileSync } from 'node:fs';
@@ -50,6 +51,14 @@ export interface ModelDef {
    * budget we impose: generation always asks for the whole thing, so the only
    * limit on a document is the model itself. */
   maxOutput?: number;
+  /** Does this model accept a Converse cachePoint and actually serve reads back?
+   * MUST be explicit per model — sending a cachePoint to Nemotron fails the whole
+   * request, and Nova bills the write but never reads. See CACHE_POINT. */
+  promptCache?: boolean;
+  /** Measured minimum cacheable prefix in tokens. Below it Bedrock silently
+   * declines to cache. Documentation only — the request is unchanged either way;
+   * it exists so the cache metrics can be read honestly. */
+  cacheMinTokens?: number;
 }
 
 /** Only for a model whose config omits maxOutput. Deliberately modest — an
@@ -289,8 +298,8 @@ function sanitizeForBedrock(node: unknown): unknown {
  * Converse shape: system blocks pulled out, user/assistant turns as content
  * blocks. Images arrive as `data:image/<fmt>;base64,...` and become image
  * blocks; jpg is normalized to jpeg (Converse's enum). */
-function toConverse(messages: ChatMessage[]): { system: Array<{ text: string }>; messages: Message[] } {
-  const system: Array<{ text: string }> = [];
+function toConverse(messages: ChatMessage[]): { system: SystemContentBlock[]; messages: Message[] } {
+  const system: SystemContentBlock[] = [];
   const out: Message[] = [];
   // observer is installed below, after the conversion, so it sees exactly what
   // Converse will receive
@@ -300,6 +309,12 @@ function toConverse(messages: ChatMessage[]): { system: Array<{ text: string }>;
         typeof m.content === 'string'
           ? m.content
           : m.content.map((p) => (p.type === 'text' ? p.text : '')).join('');
+      // E: the caller marks the end of the stable prefix with this sentinel; it
+      // becomes a real cachePoint block rather than prompt text
+      if (text === CACHE_POINT) {
+        system.push({ cachePoint: { type: 'default' } });
+        continue;
+      }
       if (text.trim()) system.push({ text });
       continue;
     }
@@ -338,11 +353,39 @@ function toConverse(messages: ChatMessage[]): { system: Array<{ text: string }>;
  * to Converse. The prefix byte-stability gates assert on what the model really
  * receives rather than on a re-derivation of it. Never installed in production —
  * nothing calls the setter outside scripts/test. */
-type ConverseObserver = (payload: { system: Array<{ text: string }>; messages: Message[] }) => void;
+type ConverseObserver = (payload: { system: SystemContentBlock[]; messages: Message[] }) => void;
 let converseObserver: ConverseObserver | null = null;
 
 export function __setConverseObserver(fn: ConverseObserver | null): void {
   converseObserver = fn;
+}
+
+/**
+ * DELIVERABLE E — sentinel marking the end of the cacheable stable prefix.
+ *
+ * A system message whose content is exactly this becomes a Converse cachePoint
+ * block. Callers place it after the stable sections (behavior, skills, prefs,
+ * project instructions); everything after it is per-turn and stays uncached.
+ *
+ * Measured against live Bedrock (2026-07-16), because the docs are wrong:
+ *   - prefix order is toolConfig -> system -> messages, so a cachePoint at the
+ *     end of `system` caches the TOOL DEFINITIONS as well as the system text
+ *     (proven: ~210-token system + ~1945-token tools cached 2148 together);
+ *   - minimum cacheable prefix, by bisection: 1024 on sonnet (1015 tok does not
+ *     cache, 1055 does) and 4096 on haiku (4014 does not, 4114 does). Anthropic's
+ *     docs claim 2048 for haiku. Below the minimum Bedrock silently declines to
+ *     cache — no error, no cost;
+ *   - nova accepts a cachePoint, bills the write, and NEVER reads it back;
+ *   - nemotron REJECTS the request outright ("unsupported model or your request
+ *     did not allow prompt caching").
+ * The last two are why promptCache is an explicit per-model flag rather than a
+ * default: enabling it unguarded breaks Nemotron chat entirely.
+ */
+export const CACHE_POINT = ' atlas:cachePoint ';
+
+/** Does this model support prompt caching? models.config.json `promptCache`. */
+export function promptCacheEnabled(def: ModelDef = activeModelDef()): boolean {
+  return def.provider === 'bedrock' && def.promptCache === true;
 }
 
 /** Token accounting from a Converse response. inputTokens IS the context size —
@@ -373,6 +416,9 @@ export interface BedrockCallOptions {
    * loop covers the rare malformed output (reliable on Claude, the only model
    * the office path uses — see officeGenerationModel). */
   plain?: boolean;
+  /** Converse token accounting, including the cache fields (E). Symmetric with
+   * bedrockStreamWithTools' onUsage. */
+  onUsage?: (usage: ConverseUsage) => void;
 }
 
 /** A Claude model produces reliable raw JSON from a plain completion and handles
@@ -465,6 +511,7 @@ export async function bedrockCompleteText(
     new ConverseCommand({ modelId, system, messages: msgs, inferenceConfig }),
     { abortSignal: opts.signal },
   );
+  if (out.usage) opts.onUsage?.(out.usage as ConverseUsage);
   return out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
 }
 

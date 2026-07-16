@@ -128,9 +128,9 @@ import {
 } from '../pipeline/orchestrator.js';
 import { lastPipelineArtifact } from '../pipeline/artifacts.js';
 import { OrchestrationError } from '../pipeline/artifactContext.js';
-import { buildContext, buildBehaviorBlock, tierForModel } from '../pipeline/context.js';
+import { buildContext, buildBehaviorBlock, tierForModel, assembleSystemPrompt, skillsMetadata } from '../pipeline/context.js';
 import { applyReminder, recordUsage } from '../pipeline/reminder.js';
-import { activeModelKey } from '../providers/bedrock.js';
+import { activeModelKey, promptCacheEnabled, CACHE_POINT } from '../providers/bedrock.js';
 
 function sse(res: Response, event: string, data: unknown): void {
   if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -328,21 +328,25 @@ chatRouter.post('/:id/messages', async (req, res) => {
       // destroy the prompt cache (E).
       const knowledgeCount = (await listKnowledge(conv.project_id).catch(() => [])).length;
       const citationsPossible = webEnabled || knowledgeCount > 0;
-      const system = [
-        PERSONA,
+      // E: explicitly ordered assembly, most-stable first. Sections 1–5 form the
+      // cacheable prefix; per-turn material (summary, recall) lands after the
+      // cache point so it can never invalidate the tokens before it.
+      const assembled = assembleSystemPrompt({
+        persona: PERSONA,
         // versioned, tier-appropriate behavior rules (create-vs-edit-vs-describe,
         // artifact-vs-inline, honesty, when-to-search) — the always-on brain rules
-        buildBehaviorBlock(tierForModel(activeModelKey()), { citations: citationsPossible }),
-        convStyle,
-        memEnabled
-          ? 'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".'
-          : '',
-        instructions ? `Project instructions: ${instructions}` : '',
-        convSummary ? `Earlier in this conversation (running summary):\n${convSummary}` : '',
-        recall,
-      ]
-        .filter(Boolean)
-        .join('\n\n');
+        behavior: buildBehaviorBlock(tierForModel(activeModelKey()), { citations: citationsPossible }),
+        skills: skillsMetadata(),
+        toolNotes: memEnabled
+          ? [
+              'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".',
+            ]
+          : [],
+        preferences: convStyle,
+        projectInstructions: instructions,
+        conversationSummary: convSummary ?? '',
+        memoryRecall: recall,
+      });
 
       const chatHistory = history.map((m, i) => {
         if (i !== history.length - 1 || m.role !== 'user') return m;
@@ -394,7 +398,16 @@ chatRouter.post('/:id/messages', async (req, res) => {
       const depth = Math.floor(messageCount / 2) + 1; // approx. user turns incl. this one
       const reminded = applyReminder(chatHistory as ChatMessage[], conv.id, depth, tier);
 
-      const fullMessages = [{ role: 'system' as const, content: system }, ...reminded.messages];
+      // E: the cache point closes the stable prefix. Only emitted for models
+      // measured to actually serve cache reads — nemotron REJECTS the request
+      // outright when it sees a cachePoint, and nova bills writes it never reads.
+      const cacheOn = promptCacheEnabled();
+      const fullMessages: ChatMessage[] = [
+        { role: 'system', content: assembled.stablePrefix },
+        ...(cacheOn ? [{ role: 'system' as const, content: CACHE_POINT }] : []),
+        ...(assembled.perTurn ? [{ role: 'system' as const, content: assembled.perTurn }] : []),
+        ...reminded.messages,
+      ];
       const stream = streamWithTools(
         fullMessages,
         tools,
