@@ -30,7 +30,11 @@ export const THEMES = {
     label: 'Ember',
     bg: '#16130F', panel: '#201B15', elevated: '#2A2319',
     border: '#342C20', borderStrong: '#443A2A',
-    textPrimary: '#F4EDE1', textSecondary: '#A6957D', textFaint: '#6E6250',
+    // textFaint (placeholders/timestamps) is lightened across all five palettes
+    // to clear AA 4.5:1 on the lightest surface it sits on (elevated for the
+    // dark themes, bg for daylight). It stays the dimmest tier — below
+    // textSecondary — so the primary/secondary/faint hierarchy is preserved.
+    textPrimary: '#F4EDE1', textSecondary: '#A6957D', textFaint: '#938B7D',
     accent: '#E8804D', accentHover: '#F0946A', accentActive: '#D06E3C',
     accentContrast: '#2A1508', navActiveBg: '#2C2419',
   },
@@ -38,7 +42,7 @@ export const THEMES = {
     label: 'Glacier',
     bg: '#0C1117', panel: '#141B22', elevated: '#1C242E',
     border: '#232C37', borderStrong: '#313D4B',
-    textPrimary: '#E5EDF4', textSecondary: '#8593A4', textFaint: '#5C6875',
+    textPrimary: '#E5EDF4', textSecondary: '#8593A4', textFaint: '#838C96',
     accent: '#35D0BE', accentHover: '#4FDCCC', accentActive: '#2BB4A4',
     accentContrast: '#04211D', navActiveBg: '#1C242E',
   },
@@ -46,7 +50,7 @@ export const THEMES = {
     label: 'Nocturne',
     bg: '#0F0D16', panel: '#191625', elevated: '#221E33',
     border: '#2B2740', borderStrong: '#3A3556',
-    textPrimary: '#ECE9F4', textSecondary: '#978FB2', textFaint: '#675F82',
+    textPrimary: '#ECE9F4', textSecondary: '#978FB2', textFaint: '#8C86A0',
     // Ramp darkened from the original #8A6DFF/#9D85FF/#7355E6 so white button
     // labels clear AA (4.5:1) on every state. The original spanned too wide a
     // lightness range for any single contrast color — the light hover failed
@@ -59,7 +63,7 @@ export const THEMES = {
     label: 'Terra',
     bg: '#0F130E', panel: '#191E16', elevated: '#222A1D',
     border: '#2A3123', borderStrong: '#384330',
-    textPrimary: '#EBEEE4', textSecondary: '#93A086', textFaint: '#616E56',
+    textPrimary: '#EBEEE4', textSecondary: '#93A086', textFaint: '#899381',
     accent: '#D8A93B', accentHover: '#E6B94F', accentActive: '#BC9026',
     accentContrast: '#241A03', navActiveBg: '#222A1D',
   },
@@ -68,9 +72,11 @@ export const THEMES = {
     scheme: 'light',
     bg: '#F6F2EB', panel: '#FFFFFF', elevated: '#FCFAF6',
     border: '#E4DDD0', borderStrong: '#D2C9B8',
-    // textSecondary darkened from #8A8175 (was 3.44:1 on bg — nav labels below
-    // AA) to pass 4.5:1 on both the page bg and white panels.
-    textPrimary: '#211D16', textSecondary: '#736B61', textFaint: '#ABA294',
+    // On a light theme, secondary and faint text both have to be dark enough to
+    // clear AA, which squeezes them together. To keep three legible tiers,
+    // secondary is pushed well past AA (5.8:1 on bg) and faint sits just above
+    // the line (4.6:1), leaving a visible step between nav labels and timestamps.
+    textPrimary: '#211D16', textSecondary: '#635D54', textFaint: '#736C63',
     // Original ramp put the lighter hover (#D96513) at 3.61:1 for white text.
     // Base is darkened for margin and hover kept as the lightest state but under
     // the AA ceiling, so white passes on all three. Same burnt-orange hue.
