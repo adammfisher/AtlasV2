@@ -145,8 +145,46 @@ function rank(h: { score: number; created_at?: number; mention_count?: number })
   return 0.6 * h.score + 0.25 * recency + 0.15 * mentions;
 }
 
-export async function recallContext(projectId: string, query: string): Promise<string> {
+/* ---------- relevance gate (Deliverable C.3) ---------- */
+
+/** Workflow ids that are plain technical/factual Q&A — no personal referent
+ * implied by the routing itself. Personal memories have no business colouring
+ * these answers: what a semaphore is does not depend on who is asking. */
+const IMPERSONAL_WORKFLOWS = new Set(['plain-conversation-qa', 'web-search-then-answer', 'fetch-url-then-answer']);
+
+/** First/second-person referents and personalization asks. Word-boundaried so
+ * "my" does not fire inside "myelin" and "me" not inside "memory". */
+const PERSONAL_REFERENT = /\b(?:my|mine|our|ours|me|us|i|i'm|i've|myself|we|we're)\b|\bfor me\b|\bremember\b|\brecall\b/i;
+
+/** Does this message reach for the user personally? A name match is handled by
+ * the caller's entity pass; this is the cheap lexical half. */
+export function hasPersonalReferent(query: string): boolean {
+  return PERSONAL_REFERENT.test(query);
+}
+
+/**
+ * Should semantic MEMORY recall run for this turn?
+ *
+ * Skipped for impersonal Q&A with no personal referent. Project KNOWLEDGE is
+ * deliberately NOT gated by this: a technical question about a project's own
+ * documents is exactly the case that needs its passages, and gating knowledge on
+ * the same signal would break document Q&A — the opposite of the intent. So the
+ * gate suppresses personal memories and graph expansion only.
+ */
+export function shouldRecallMemories(query: string, workflowId?: string): boolean {
+  if (hasPersonalReferent(query)) return true;
+  if (workflowId && IMPERSONAL_WORKFLOWS.has(workflowId)) return false;
+  return true;
+}
+
+export interface RecallOptions {
+  /** the routed workflow id — drives the impersonal-Q&A gate */
+  workflowId?: string;
+}
+
+export async function recallContext(projectId: string, query: string, opts: RecallOptions = {}): Promise<string> {
   const parts: string[] = [];
+  const wantMemories = shouldRecallMemories(query, opts.workflowId);
   try {
     const [userKv, projKv, userProfile, projProfile] = await Promise.all([
       listKv('user'),
@@ -185,7 +223,11 @@ export async function recallContext(projectId: string, query: string): Promise<s
       }
       if (lines.length) parts.push(`${label}\n${lines.join('\n')}`);
     };
-    push('About the user:', userKv, userProfile);
+    // Facts ABOUT THE USER are what "personalization" means, so they are what the
+    // impersonal-Q&A gate withholds. Project memory is task context rather than
+    // personalization and stays — a technical question about this project's work
+    // legitimately needs its decisions and constraints.
+    if (wantMemories) push('About the user:', userKv, userProfile);
     push('Project memory:', projKv, projProfile);
 
     if (query.trim()) {
@@ -207,9 +249,11 @@ export async function recallContext(projectId: string, query: string): Promise<s
       const knowledge = all
         .filter((h) => h.type === 'knowledge' && h.score >= 0.25)
         .sort((a, b) => rank(b) - rank(a));
-      const memories = all
-        .filter((h) => h.type !== 'knowledge' && h.score >= MIN_SIMILARITY)
-        .sort((a, b) => rank(b) - rank(a));
+      // gated: semantic MEMORY hits are suppressed for impersonal Q&A, knowledge
+      // above is not (see shouldRecallMemories)
+      const memories = wantMemories
+        ? all.filter((h) => h.type !== 'knowledge' && h.score >= MIN_SIMILARITY).sort((a, b) => rank(b) - rank(a))
+        : [];
 
       const take = (pool: typeof all, maxN: number, maxChars: number): typeof all => {
         const out: typeof all = [];
@@ -239,8 +283,9 @@ export async function recallContext(projectId: string, query: string): Promise<s
     }
 
     // graph expansion: entities named in the message get their 1-hop
-    // neighborhood injected — both directions (gsi1 reverse edges)
-    if (query.trim()) {
+    // neighborhood injected — both directions (gsi1 reverse edges). Gated with
+    // the memories it expands on.
+    if (query.trim() && wantMemories) {
       const entities = await listEntities(projectId).catch(() => [] as string[]);
       const q = query.toLowerCase();
       const mentioned = entities.filter((e) => q.includes(e.toLowerCase())).slice(0, 3);

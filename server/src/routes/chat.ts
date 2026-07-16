@@ -18,6 +18,7 @@ import { streamWithTools } from '../providers/dispatch.js';
 import { attachmentDataUrl, attachmentContent } from './uploads.js';
 import { readDocument, listDocuments, analyzeTable } from '../tools/documents.js';
 import { recallContext, scheduleExtraction, flushProjectPending, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
+import { scanForNarration } from '../memory/narration.js';
 import { listKnowledge } from '../memory/knowledge.js';
 
 const MEMORY_TOOLS: BedrockTool[] = [
@@ -256,12 +257,14 @@ chatRouter.post('/:id/messages', async (req, res) => {
     const productR = productRoute(text.trim(), editable?.kind ?? null);
     let routed: RouteResult;
     let routeLabel: string;
+    let workflowId: string | undefined; // drives the memory relevance gate (C.3)
     if (productR) {
       routed = productR;
       routeLabel = `product(${productR.intent})`;
     } else {
       const decision = await routeWorkflow({ message: text.trim(), history: history.slice(0, -1), signals });
       routed = toLegacyRoute(decision, signals, text.trim());
+      workflowId = decision.workflowId;
       routeLabel = `${decision.workflowId} stage=${decision.stage} conf=${decision.confidence.toFixed(2)}`;
     }
     const routerMs = Date.now() - tRoute;
@@ -295,7 +298,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
           // just-in-time: fold in anything said in OTHER chats of this project
           // that's still queued, so cross-chat recall is current
           await flushProjectPending(conv.project_id, conv.id);
-          recall = await recallContext(conv.project_id, text.trim().slice(0, 200));
+          // C.3: personal memories are withheld from impersonal technical Q&A;
+          // project knowledge is never gated (document Q&A depends on it)
+          recall = await recallContext(conv.project_id, text.trim().slice(0, 200), { workflowId });
         } catch (err) {
           logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
         }
@@ -461,6 +466,12 @@ chatRouter.post('/:id/messages', async (req, res) => {
         }
         throw err;
       }
+      // C.2: scan the BUFFERED final text (a phrase can straddle two SSE deltas).
+      // Logs MEMORY_NARRATION; never blocks or rewrites — the user has already
+      // watched this stream, and a false positive eating a real answer is worse
+      // than the tic it would remove.
+      if (memEnabled) scanForNarration(full, conv.id);
+
       const id = await persistAssistant('text', {
         text: full,
         ...(chips.length ? { toolCalls: chips } : {}),
