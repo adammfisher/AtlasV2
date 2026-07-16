@@ -68,7 +68,7 @@ export function Sidebar({
       style={{ width: 264, background: C.sidebar, borderRight: `1px solid ${C.borderSoft}` }}
     >
       <div className="px-4 pt-4 pb-3 flex items-center justify-center">
-        <AtlasLogo height={34} />
+        <AtlasLogo />
       </div>
 
       <div className="px-2.5">
