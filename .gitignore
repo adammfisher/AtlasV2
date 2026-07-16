@@ -15,3 +15,5 @@ dist-lambda/
 build/
 tests/e2e/.auth-state.json
 .eval-design/
+__pycache__/
+*.pyc
