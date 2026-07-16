@@ -27,6 +27,17 @@ resource "aws_lambda_function" "app" {
       PORT                    = "8080"
     }
   }
+
+  # ATLAS_AUTH_SECRET is set out-of-band (a stable HMAC signing key that must be
+  # identical across every Lambda instance, or tokens issued by one instance 401
+  # on another — which surfaced as random sign-outs mid-stream). It is kept out
+  # of source control, so tell Terraform not to clobber it (or the other env
+  # vars, which are also stable) on apply. Set/rotate it with:
+  #   aws lambda update-function-configuration --function-name atlasv2-app \
+  #     --environment '{"Variables":{...existing..., "ATLAS_AUTH_SECRET":"<48+ chars>"}}'
+  lifecycle {
+    ignore_changes = [environment]
+  }
 }
 
 resource "aws_lambda_function_url" "app" {

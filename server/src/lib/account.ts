@@ -70,6 +70,19 @@ export function allowedModels(): string[] {
 let secret: Buffer | null = null;
 async function signingSecret(): Promise<Buffer> {
   if (secret) return secret;
+  // Lambda runs MANY instances. A per-instance secret means a token issued by
+  // one instance is rejected (401) by another — which surfaced as random
+  // sign-outs during long streaming ops (the SSE pins one instance while
+  // concurrent Bearer queries land on others). A process env var is identical
+  // across every instance, so it is the stable source of truth in the cloud; the
+  // DynamoDB-derived value stays the fallback for local/dev where there is one
+  // process. (Rotating the env var invalidates existing tokens by design — users
+  // re-login once.)
+  const env = process.env.ATLAS_AUTH_SECRET;
+  if (env && env.length >= 16) {
+    secret = Buffer.from(env, 'utf8');
+    return secret;
+  }
   const { getSetting, setSetting } = await import('../db/appdb.js');
   // system home = primary (unprefixed) partition
   return runAsAccount(PRIMARY, () => {
