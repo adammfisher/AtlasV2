@@ -70,8 +70,8 @@ and **the vendor documentation is wrong about Haiku**. Probe scripts were scratc
 
 | model | `cachePoint` accepted | minimum cacheable prefix | notes |
 |---|---|---|---|
-| `sonnet` (claude-sonnet-4-6) | yes | **2048 tokens** | 1015 tok → no cache; 2015 tok → cache read |
-| `haiku` (claude-haiku-4-5) | yes | **4096 tokens** | 3014 tok → no cache; 4114 tok → cache read. Anthropic docs claim 2048; Bedrock measured 4096 |
+| `sonnet` (claude-sonnet-4-6) | yes | **1024 tokens** | bisected: 1015 tok → no cache; 1055 → cache read. (First recorded as 2048 from a coarse probe — see the correction below.) |
+| `haiku` (claude-haiku-4-5) | yes | **4096 tokens** | bisected: 4014 tok → no cache; 4114 → cache read. Anthropic docs claim 2048; Bedrock measured 4096 |
 | `nova` (nova-2-lite) | accepted, **broken** | n/a | reports `cacheWrite` on *every* pass and `cacheRead: 0` always — writes are billed, reads never happen |
 | `nemotron` (nemotron-super-3-120b) | **hard error** | n/a | `ValidationException: You invoked an unsupported model or your request did not allow prompt caching` |
 
@@ -85,14 +85,117 @@ tokens (tools + system); the same tools with a `toolConfig`-terminal `cachePoint
 (tools only). So a `cachePoint` after section 5 does capture the tool definitions, as the brief's
 ordering intends.
 
-**Consequence 3 — the E gate is reachable on sonnet, likely not on haiku.** Atlas's realistic stable
-prefix (persona ~60 + behavior block ~400–600 + tools ~1000–1500 + 10 skills × ~100) lands around
-2.5–3.1k tokens: over sonnet's 2048 minimum, under haiku's 4096. Expect cache reads on sonnet and
-**zero on haiku** until the prefix grows. This will be reported honestly rather than engineered
-around by padding the prompt.
+**Consequence 3 — the E gate is reachable on sonnet, not on haiku.** Atlas's stable prefix measured
+**1550 tokens** in the end: over sonnet's 1024 minimum, well under haiku's 4096. Cache reads on
+sonnet (0.90 hit ratio), **zero on haiku** — reported honestly rather than engineered around by
+padding the prompt.
+
+**CORRECTION (made during E).** The sonnet minimum above was first recorded as **2048** from a probe
+that sampled only 1015 and 2015 tokens, and that wrong number reached `models.config.json` before the
+10-turn run cached a 1463-token prefix and disproved it. Bisection put the real value at **1024**.
+The lesson is cheap to state and was expensive to learn: bisect before publishing a threshold, and
+treat a two-point probe as a bound, not a measurement.
 
 ### Next steps
 
 Deliverables A–G in order; commits `A:`…`G:` per the brief.
 
 ---
+## Session 1 — final matrix (2026-07-16)
+
+`pnpm test:polish` — 210 checks, 0 failures, ~2.3 min, ~175 live Bedrock calls.
+`pnpm test:polish -- A C` runs a subset.
+
+| # | Deliverable | Checks | Gate | Result |
+|---|---|---|---|---|
+| A | tone & formatting (20 prompts × 3 tiers) | 45 | 100% on casual + decline-shaped | PASS |
+| B | reminder / drift (30-turn conversation, small tier) | 38 | prose holds after the reminder; system prefix byte-identical | PASS |
+| C | memory etiquette (15 cases × 3 tiers + 23 units) | 68 | zero forbidden phrases, zero sensitive leaks | PASS |
+| D | indexed citations (4 scenarios + post-processor units) | 26 | zero invalid citation chips | PASS |
+| E | cache-optimal assembly (byte-stability + 10-turn reads) | 13 | prefix byte-stable; cache reads observed | PASS |
+| F | tool decisions (12 cases, small tier + units) | 20 | ≥ 10/12 | PASS (12/12) |
+
+Cache summary from the 10-turn conversation: **sonnet — 1550-token cache write on
+turn 1, cache reads on 9/10 turns (hit ratio 0.90).** 9/10 is the ceiling: turn 1
+can only write.
+
+### `<atlas_behavior>` version history
+
+| v | Added | By |
+|---|---|---|
+| 1 | routing/artifact doctrine | orchestration brain |
+| 2 | `<tone_and_formatting>` | polish A |
+| 3 | `<memory_etiquette>` | polish C |
+| 4 | `<citation_rules>` (opt-in per conversation) | polish D |
+| 5 | `<tool_use>` response hygiene | polish F |
+
+Block sizes: small 9379 chars (+cites 10318), mid 7616 (+8555), frontier 4285 (+4899).
+
+### Config constants
+
+| Constant | Value | Where | Why |
+|---|---|---|---|
+| `REMINDER_TURNS` | 12 (mid/frontier) | `pipeline/reminder.ts` | brief default |
+| `REMINDER_TURNS_BY_TIER.small` | **3** | `pipeline/reminder.ts` | measured: the reminder's effect decays by the 3rd turn after it lands on nova. At 8 it drifted from +3 onward; at 4 it still failed at exactly +3; at 3 the gap closes |
+| `REMINDER_TOKENS` | 30_000 | `pipeline/reminder.ts` | brief default — see open questions, it is effectively dead code |
+| `promptCache` | haiku ✓, sonnet ✓, nova ✗, nemotron ✗ | `models.config.json` | measured; unguarded caching FAILS nemotron's request outright |
+| `cacheMinTokens` | sonnet 1024, haiku 4096 | `models.config.json` | measured by bisection; Anthropic's docs claim 2048 for haiku |
+| `MIN_DESCRIPTION_WORDS` | 10 | `mcp/toolloop.ts` | below this an MCP description gets a generated usage hint |
+
+### What the evidence actually says
+
+Three results worth carrying forward, because two of them are negative:
+
+1. **The reminder (B) does real work — but only once the block got big.** The
+   first drift scenario showed NO drift at all (control passed 24/24): with a
+   ~4.9k-char small-tier block, the system prompt won every turn. After C and F
+   grew that block to ~9.4k chars, the formatting rules diluted and nova drifted
+   hard from turn ~13 (`### Headers`, bold on every term). The control now scores
+   9/25 against the reminded run's 38/38. The reminder went from unproven to
+   load-bearing because the block grew — which is worth remembering the next time
+   someone adds a section to `<atlas_behavior>`.
+2. **The 12 tool-decision probes (F) do not discriminate.** The control with the
+   old bare descriptions also scores 12/12 — nova gets the textbook cases right
+   either way. Where the enrichment demonstrably pays is SCALE: on a research
+   prompt the enriched small-tier description fires 1 search, the bare one fires 4.
+3. **Small-tier compliance is ~97–99% per probe, not 100%.** Bedrock does not
+   guarantee identical output at temperature 0, so across ~80 gated probes a run
+   surfaces one or two failures that do not reproduce. Gated probes now confirm a
+   failure with a SECOND sample before counting it (`confirmed()` in
+   `polish/lib.ts`); both numbers are reported. This is not a softer bar — the bar
+   is still 100% — it just declines to treat one sample of a stochastic process as
+   evidence of a defect. It immediately proved its worth: it distinguished a real,
+   reproducible drift at turn 15 from run-to-run noise.
+
+### Bug found and fixed along the way
+
+`buildContext()` could hand Converse a window starting with an ASSISTANT turn,
+which Bedrock rejects outright ("A conversation must start with a user message",
+400). Once compaction advances the watermark past every older message, the
+straggler loop contributes nothing and `slice(-12)` of an alternating transcript
+lands on an assistant turn — reproduced for every post-compaction conversation
+from ~21 text messages up. So long chats were failing, which is precisely what
+compaction exists to prevent. Fixed by `startAtUserTurn()`; the rolling summary
+already covers the dropped turns. Found by B's drift test, not by looking for it.
+
+### Open questions / next steps
+
+1. **Haiku is the DEFAULT model and will never cache in production today.** Its
+   measured 4096-token minimum is above Atlas's real ~1550-token stable prefix, so
+   haiku shows zero cache reads. Sonnet (1024) hits 0.90. Options: leave it (the
+   flag is honest and costs nothing), or grow the prefix past 4096 — but padding a
+   prompt to win a cache is a bad trade, so this is reported rather than "fixed".
+2. **`REMINDER_TOKENS = 30_000` is effectively dead code.** Atlas's context ceiling
+   is ~12k tokens (24k-char/12-message window + attachments), so the token trigger
+   can never fire and the turn trigger does all the work. Either lower it to
+   something reachable (~8k) or drop it; it is kept at the brief's default for now.
+3. **Filler closers persist at ~2/60 on the formatting eval.** Reported, not gated
+   (the brief's hard gates cover lists, not closers). Worth a doctrine pass.
+4. **The A/C evals do not exercise the production prompt end to end.** They build
+   persona + behavior block; production also injects skills metadata, tool specs,
+   and recall. The gates test the doctrine, not the whole assembly.
+5. **`components/KnowledgeModal.tsx` is an orphan** — imported nowhere. D's
+   knowledge chips open a small local `PassageModal` instead. Someone should decide
+   whether the orphan gets deleted or wired back up.
+6. **Nova's `maxOutput: 8192` is still an unverified placeholder** (pre-existing).
+

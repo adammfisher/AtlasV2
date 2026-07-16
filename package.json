@@ -19,7 +19,8 @@
     "test:routing": "tsx scripts/test/orchestration/run-routing.ts",
     "test:e2e-brain": "tsx scripts/test/orchestration/run-e2e.ts",
     "test:design": "tsx scripts/test/design_eval.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:polish": "tsx scripts/test/polish_eval.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

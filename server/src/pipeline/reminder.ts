@@ -24,11 +24,21 @@ import { getSetting, setSetting } from '../db/appdb.js';
 import { logTo } from '../log.js';
 import type { BehaviorTier } from './context.js';
 
-/** Turns since the last reminder before we re-anchor. Per-tier: small models
- * drift fastest and get reminded most often. */
+/**
+ * Turns since the last reminder before we re-anchor. Per-tier, because the tiers
+ * drift at very different rates.
+ *
+ * The small tier is 3, not the 8 it started at. Measured on a 30-turn small-tier
+ * conversation: the reminder's effect DECAYS, and by the 3rd turn after one lands
+ * nova is drifting back to headers and bullet lists on one-line questions. At a
+ * cadence of 8 it drifted from +3 onward (16/29); at 4 it still failed at exactly
+ * +3; at 3 the gap closes. The number is the measured decay window, not a guess.
+ * It rides the user message, so the extra ~150 tokens never touch the cached
+ * system prefix — only the small tier pays, and it is the cheapest model.
+ */
 export const REMINDER_TURNS = 12;
 export const REMINDER_TURNS_BY_TIER: Record<BehaviorTier, number> = {
-  small: 8,
+  small: 3,
   mid: REMINDER_TURNS,
   frontier: REMINDER_TURNS,
 };
@@ -47,8 +57,9 @@ export function reminderTurnsFor(tier: BehaviorTier): number {
  * Deliberately terse — this rides on every reminded turn.
  */
 export const BEHAVIOR_REMINDER = `<behavior_reminder>
-Still in force, from your instructions:
-- Prose by default. Bullets or headers only when asked or when the content is genuinely multifaceted. Never bolt a summary or "key points" list onto an answer you already gave in prose, and never use a list anywhere in a response that declines or partly declines. Match length to the question; no "Great question!" opener, no "let me know if you need anything else" closer.
+Still in force, from your instructions.
+- FIRST: do not copy the shape of your own earlier answers in this conversation. If some of them used headers, bullet lists, or bold on every term, that was because those questions asked for structure. Judge THIS question on its own. Answering a simple question with a "### Heading" and a bullet list because your last few answers had them is the most common way this goes wrong.
+- Prose by default. A simple factual question gets one to three plain sentences — no heading, no bullet list, no bolding of every term, and no summary list bolted on the end. Bullets or headers only when the user asks or when the content is genuinely multifaceted. Never use a list anywhere in a response that declines or partly declines. Match length to the question; no "Great question!" opener, no "let me know if you need anything else" closer.
 - Asked to create a document, deck, or sheet: produce the real file, not a description of one. Asked to fix or change "it": edit the existing artifact given in <current_artifact> — never regenerate it from scratch, never describe it instead.
 - Only claim to have read, edited, or created something if a tool actually did it. Never invent file contents, sources, or tool results.
 - Apply anything you remember about the user as if you simply know it. Never narrate retrieval — no "based on what I know about you", no "my records show".

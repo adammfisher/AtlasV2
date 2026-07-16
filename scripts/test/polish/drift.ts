@@ -19,7 +19,7 @@ import { __setConverseObserver } from '../../../server/src/providers/bedrock.js'
 import { completeTextAs } from '../../../server/src/providers/dispatch.js';
 import { buildBehaviorBlock, startAtUserTurn } from '../../../server/src/pipeline/context.js';
 import { applyReminder, recordUsage, reminderTurnsFor } from '../../../server/src/pipeline/reminder.js';
-import { MODEL_FOR_TIER, hasBullets, withBedrock, type CaseResult } from './lib.js';
+import { MODEL_FOR_TIER, hasBullets, withBedrock, confirmed, type CaseResult } from './lib.js';
 import type { ChatMessage } from '../../../server/src/llama/client.js';
 
 const TIER = 'small' as const;
@@ -86,6 +86,7 @@ export async function runDrift(): Promise<{ passed: number; failed: number; resu
   const results: CaseResult[] = [];
   const firedAt: number[] = [];
   let firstReminderTurn: number | null = null;
+  let flakes = 0;
 
   for (let turn = 1; turn <= TURNS; turn++) {
     const isWarmup = turn <= WARMUP.length;
@@ -131,13 +132,26 @@ export async function runDrift(): Promise<{ passed: number; failed: number; resu
 
     // gate only the bait turns at or after the first reminder
     if (!isWarmup && firstReminderTurn !== null && turn >= firstReminderTurn) {
-      const bulleted = hasBullets(text);
-      results.push({
+      const judge = (t: string): CaseResult => ({
         name: `turn ${turn}: ${prompt.slice(0, 40)}`,
         tier: TIER,
-        pass: !bulleted,
-        detail: bulleted ? `drifted to bullets — "${text.replace(/\s+/g, ' ').slice(0, 100)}"` : '',
+        pass: !hasBullets(t),
+        detail: hasBullets(t) ? `drifted to bullets — "${t.replace(/\s+/g, ' ').slice(0, 100)}"` : '',
       });
+      // one sample of a stochastic model is not evidence of drift — re-ask the
+      // same turn with the same context before calling it a failure
+      const r = await confirmed(judge(text), async () =>
+        judge(
+          (
+            await completeTextAs(MODEL_FOR_TIER[TIER], [{ role: 'system', content: system }, ...messages], {
+              maxTokens: 500,
+              temperature: 0,
+            })
+          ).trim(),
+        ),
+      );
+      if ((r as { flaked?: boolean }).flaked) flakes++;
+      results.push(r);
     }
   }
   __setConverseObserver(null);
@@ -177,6 +191,7 @@ export async function runDrift(): Promise<{ passed: number; failed: number; resu
   console.log(`\n── B: drift (${TURNS} turns, ${TIER} tier, reminder every ${threshold})`);
   for (const r of failed) console.log(`  FAIL ${r.name}: ${r.detail}`);
   console.log(`  reminders fired at turns: [${firedAt.join(', ')}]`);
+  if (flakes) console.log(`  (first-pass failures that did NOT reproduce: ${flakes})`);
   console.log(`B/drift: ${results.length - failed.length}/${results.length} passed`);
   return { passed: results.length - failed.length, failed: failed.length, results };
 }

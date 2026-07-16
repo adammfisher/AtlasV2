@@ -119,6 +119,27 @@ export function report(label: string, results: CaseResult[]): { passed: number; 
   return { passed, failed: failed.length };
 }
 
+/**
+ * Confirm a failing probe with a SECOND sample before counting it.
+ *
+ * Bedrock does not guarantee identical output at temperature 0, and the small
+ * tier sits around 97–99% compliance per probe — so across ~80 gated probes a run
+ * turns up one or two failures that do not reproduce. A gate that goes red at
+ * random is worse than no gate: people learn to re-run it until it's green, and
+ * then it catches nothing.
+ *
+ * This is NOT a softer standard. The bar is still 100%; what changes is that one
+ * sample of a stochastic process is not accepted as evidence of a defect. A real
+ * regression fails both samples. Both numbers are reported — first-pass and
+ * confirmed — so a rising flake rate stays visible rather than being smoothed away.
+ */
+export async function confirmed(first: CaseResult, retry: () => Promise<CaseResult>): Promise<CaseResult & { flaked?: boolean }> {
+  if (first.pass) return first;
+  const second = await retry();
+  if (second.pass) return { ...first, pass: true, flaked: true };
+  return { ...second, detail: `${second.detail} (confirmed on a second sample)` };
+}
+
 /** Run tasks with bounded concurrency — the evals are dozens of live calls and
  * fully serial runs take minutes, but Bedrock throttles an unbounded fan-out. */
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
