@@ -5,7 +5,13 @@
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectsCommand,
+} from '@aws-sdk/client-s3';
 import { fromIni } from '@aws-sdk/credential-providers';
 import { config } from '../config.js';
 import { logTo } from '../log.js';
@@ -50,6 +56,36 @@ export async function mirrorArtifactPath(localPath: string): Promise<void> {
     await s3().send(new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: readFileSync(f) }));
   }
   logTo('app', `artifact mirrored to s3 (${files.length} file${files.length === 1 ? '' : 's'})`);
+}
+
+/**
+ * Remove every mirrored object for an artifact — all versions, all files.
+ * Callers must pass the project_id off an account-scoped ArtifactRow: S3 keys
+ * carry no account prefix, so the DB read is the only ownership check there is.
+ */
+export async function deleteArtifactObjects(projectId: string, artifactId: string): Promise<number> {
+  const prefix = `${projectId}/${artifactId}/`;
+  let removed = 0;
+  let token: string | undefined;
+  do {
+    const listed = await s3().send(
+      new ListObjectsV2Command({ Bucket: BUCKET, Prefix: prefix, ContinuationToken: token }),
+    );
+    const objs = listed.Contents ?? [];
+    if (objs.length > 0) {
+      // a list page caps at 1000 keys, which is also DeleteObjects' per-call limit
+      const res = await s3().send(
+        new DeleteObjectsCommand({ Bucket: BUCKET, Delete: { Objects: objs.map((o) => ({ Key: o.Key! })) } }),
+      );
+      const errs = res.Errors ?? [];
+      const [first] = errs;
+      if (first) throw new Error(`s3 delete failed for ${errs.length} key(s): ${first.Key ?? '?'} — ${first.Message ?? 'unknown'}`);
+      removed += objs.length;
+    }
+    token = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+  } while (token);
+  logTo('app', `artifact s3 objects deleted: ${prefix} (${removed})`);
+  return removed;
 }
 
 /** Ensure a version path exists locally, hydrating from S3 if needed. */

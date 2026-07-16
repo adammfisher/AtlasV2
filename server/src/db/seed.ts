@@ -5,7 +5,6 @@
  */
 import { getSetting, setSetting } from './appdb.js';
 import { putProject, putInstall, now } from './appdb.js';
-import { config } from '../config.js';
 import { log } from '../log.js';
 
 export async function seedIfNeeded(): Promise<void> {
@@ -36,7 +35,10 @@ export async function seedIfNeeded(): Promise<void> {
   await putInstall({ id: 'pi_atlas-memory', connector_id: 'atlas-memory', source: 'bundled', status: 'installed', enabled_projects: JSON.stringify(['p1', 'p2', 'p3']), created_at: t });
   setSetting('activeProjectId', 'p1');
   setSetting('selectedModel', 'haiku');
-  setSetting('userName', config.userName);
+  // userName is deliberately NOT seeded. atlas.config.json holds a single global
+  // name, but settings are per-account — seeding it stamped the primary
+  // account's owner onto every workspace that first-booted. Left unset, the UI
+  // greets generically until this account's own name is known.
   setSetting('seeded', '3');
   log('seeded first-boot fixtures (dynamo)');
 }

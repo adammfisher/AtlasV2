@@ -28,7 +28,7 @@ export function Sidebar({
   newChat: (projectId?: string, message?: string, attachments?: undefined, incognito?: boolean) => void;
   registry: ModelsRegistry | undefined;
   health: Health | undefined;
-  userName: string;
+  userName?: string;
   theme: ThemeName;
   onPickTheme: (t: ThemeName) => void;
 }) {
@@ -56,8 +56,10 @@ export function Sidebar({
     queryFn: () => api.me(),
     staleTime: 60_000,
   });
-  const accountName = me?.username ?? userName;
-  const initials = accountName.slice(0, 2).toUpperCase() || 'A';
+  // the signed-in account is the source of truth here; userName is only a
+  // display nicety and may legitimately be unset
+  const accountName = me?.username ?? userName ?? 'Account';
+  const initials = accountName.slice(0, 2).toUpperCase();
 
   return (
     <div

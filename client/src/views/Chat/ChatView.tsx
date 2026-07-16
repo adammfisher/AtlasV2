@@ -288,7 +288,7 @@ export function ChatView({
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
-  userName: string;
+  userName?: string;
   activeProjectName: string;
   onOpenArtifact: (a: ArtifactRef) => void;
   onOpenArtifactList: () => void;
@@ -646,8 +646,13 @@ export function ChatView({
       .then(() => send(lastUserMsg.text ?? '', true));
   };
 
+  // bedrockModels is already limited to this account. Never name a model that
+  // isn't in it: the old literal fallback claimed Haiku to accounts whose
+  // allowlist omits it, while the server actually inferred with something else.
   const selectedRow =
-    registry?.bedrockModels.find((m) => m.id === registry.selected) ?? { name: 'Claude Haiku 4.5' };
+    registry?.bedrockModels.find((m) => m.id === registry.selected) ??
+    registry?.bedrockModels.find((m) => m.available !== false) ??
+    registry?.bedrockModels[0] ?? { name: 'Model' };
   const empty = messages.length === 0 && live === null;
   const offline = registry ? !registry.bedrock.connected : false;
   const artifactCount = conversationArtifacts(messages).length + (live?.artifact?.artifactId && !messages.some((m) => m.kind === 'pipeline' && m.artifact?.artifactId === live.artifact?.artifactId) ? 1 : 0);
@@ -776,7 +781,7 @@ export function ChatView({
         {empty ? (
           <div className="h-full flex flex-col items-center justify-center">
             <div className="mb-1" style={{ color: C.text, fontFamily: serif, fontSize: 26 }}>
-              What are we building, {userName}?
+              {userName ? `What are we building, ${userName}?` : 'What are we building?'}
             </div>
             <div className="text-sm mb-6" style={{ color: C.mute, fontFamily: sans }}>
               Documents, decks, models, diagrams, and prototypes — powered by Claude on Amazon Bedrock.

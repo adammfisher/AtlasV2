@@ -20,6 +20,10 @@ external hosts, no web fonts, no external images.
   component needs data, embed a small realistic constant array.
 - Styling: a `/styles.css` file imported by the entry, or inline styles.
   Dark-friendly neutral palette unless the user specifies otherwise.
-- Keep it to 1–3 files and under ~150 lines total. Working and minimal beats
-  elaborate and broken — every interaction you add must actually work.
+- Build what the request actually asks for. If it names several screens, views,
+  or features, deliver all of them — split across as many files as the structure
+  warrants rather than collapsing the scope to fit. There is no length limit.
+- Every interaction you add must actually work; a screen that renders but does
+  nothing is not done. Correctness first, then completeness — never drop
+  requested scope to stay short.
 - No TypeScript, no JSX pragma comments, no top-level await.

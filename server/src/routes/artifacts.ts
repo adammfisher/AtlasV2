@@ -41,7 +41,7 @@ import {
   type LocalKind,
 } from '../pipeline/projections.js';
 import { latestPayload } from '../pipeline/artifacts.js';
-import { hydrateArtifactPath } from '../storage/artifacts-s3.js';
+import { hydrateArtifactPath, deleteArtifactObjects } from '../storage/artifacts-s3.js';
 import { extractOffice } from '../office/extract.js';
 import { logTo } from '../log.js';
 
@@ -282,27 +282,65 @@ artifactsRouter.get('/:id/conversation', (req, res) => {
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
+/**
+ * Delete one artifact: S3 mirror, then local files, then DB rows. Returns false
+ * if the id is unknown to this account. S3 goes first so a failure there leaves
+ * the row intact and the delete retryable — dropping the row first would strand
+ * the objects with nothing left pointing at them.
+ */
+async function deleteOne(id: string): Promise<boolean> {
+  const row = await getArtifactRow(id);
+  if (!row) return false;
+  const objects = await deleteArtifactObjects(row.project_id, id);
+  for (const v of await listVersions(id)) {
+    if (v.file_path && existsSync(v.file_path)) {
+      try {
+        rmSync(v.file_path, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  await deleteArtifact(id);
+  logTo('app', `artifact deleted: ${id} (${row.name}) — ${objects} s3 object${objects === 1 ? '' : 's'}`);
+  return true;
+}
+
 /** Delete an artifact (all versions + local/S3 files). */
 artifactsRouter.delete('/:id', (req, res) => {
   void (async () => {
-    const row = await getArtifactRow(req.params.id);
-    if (!row) {
+    if (!(await deleteOne(req.params.id))) {
       res.status(404).json({ error: 'artifact not found' });
       return;
     }
-    // best-effort local file cleanup; S3 mirror ages out on its own
-    for (const v of await listVersions(req.params.id)) {
-      if (v.file_path && existsSync(v.file_path)) {
-        try {
-          rmSync(v.file_path, { recursive: true, force: true });
-        } catch {
-          /* ignore */
-        }
+    res.json({ ok: true });
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Bulk delete (gallery select flow). Unknown ids are skipped, not fatal. */
+artifactsRouter.post('/delete', (req, res) => {
+  const { ids } = req.body as { ids?: string[] };
+  if (!Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({ error: 'ids[] is required' });
+    return;
+  }
+  void (async () => {
+    let deleted = 0;
+    const failed: string[] = [];
+    for (const id of ids) {
+      try {
+        if (await deleteOne(id)) deleted++;
+      } catch (err) {
+        failed.push(id);
+        logTo('app', `artifact delete failed: ${id} — ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    await deleteArtifact(req.params.id);
-    logTo('app', `artifact deleted: ${req.params.id} (${row.name})`);
-    res.json({ ok: true });
+    // partial success is still a failure to report: the client refetches either way
+    if (failed.length > 0) {
+      res.status(502).json({ error: `deleted ${deleted} of ${ids.length}; ${failed.length} failed — see app log` });
+      return;
+    }
+    res.json({ ok: true, deleted });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

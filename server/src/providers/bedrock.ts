@@ -22,7 +22,7 @@ import { repoRoot } from '../config.js';
 import { getSetting, setSetting } from '../db/db.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from '../llama/client.js';
-import { modelAllowed, allowedModels, runAsAccount } from '../lib/account.js';
+import { modelAllowed, runAsAccount } from '../lib/account.js';
 
 export interface BedrockSettings {
   connected: boolean;
@@ -46,10 +46,19 @@ export interface ModelDef {
   keyEnv?: string;
   baseUrl?: string;
   vision?: boolean;
+  /** The model's own hard output ceiling in tokens (models.config.json). Not a
+   * budget we impose: generation always asks for the whole thing, so the only
+   * limit on a document is the model itself. */
+  maxOutput?: number;
 }
 
+/** Only for a model whose config omits maxOutput. Deliberately modest — an
+ * unknown model that rejects an oversized request is worse than one that emits
+ * less than it could, and the log line below says which model needs a value. */
+const CONSERVATIVE_MAX_OUTPUT = 8192;
+
 const FALLBACK_MODELS: ModelDef[] = [
-  { key: 'haiku', name: 'Claude Haiku 4.5', sub: 'Fast · Amazon Bedrock', provider: 'bedrock', model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', vision: true },
+  { key: 'haiku', name: 'Claude Haiku 4.5', sub: 'Fast · Amazon Bedrock', provider: 'bedrock', model: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', maxOutput: 64000, vision: true },
 ];
 
 function loadModelConfig(): { models: ModelDef[]; default: string } {
@@ -99,22 +108,39 @@ function isModelKey(v: string | null | undefined): v is string {
   return !!v && MODEL_DEFS.some((m) => m.key === v);
 }
 
-/** The model key the user has selected — defaults to the config default. */
+/** The first model this account can actually run: allowed by its users.config.json
+ * list AND with a reachable provider, in catalog order so it matches the top of
+ * the dropdown. Falls back to the first allowed model when no provider is
+ * reachable — the picker then still renders it with a Connect affordance rather
+ * than going blank. */
+function firstUsableModel(): ModelDef | undefined {
+  const allowed = MODEL_DEFS.filter((m) => modelAllowed(m.key));
+  return allowed.find(modelAvailable) ?? allowed[0];
+}
+
+/** The model key the user has selected. The config default only wins when this
+ * account may actually run it: an account whose allowlist omits the default
+ * (users.config.json) resolves to its first usable model instead. Reporting a
+ * selection the account can't run makes the UI name one model while
+ * activeModelDef() silently infers with another. */
 export function activeModelKey(): string {
   const sel = getSetting('selectedModel');
-  return isModelKey(sel) ? sel : DEFAULT_MODEL_KEY;
+  // an explicit, still-allowed choice is honoured even while its provider is
+  // down — that's a Connect prompt, not a reason to move the user off it
+  if (isModelKey(sel) && modelAllowed(sel)) return sel;
+  const def = MODEL_DEFS.find((m) => m.key === DEFAULT_MODEL_KEY);
+  if (def && modelAllowed(def.key) && modelAvailable(def)) return def.key;
+  return firstUsableModel()?.key ?? DEFAULT_MODEL_KEY;
 }
 
 /** The full model definition for the active selection (always defined). */
 export function activeModelDef(): ModelDef {
-  // account model limits (users.config.json): a selection outside the
-  // account's allowlist clamps to its first allowed model — enforcement can't
-  // live only in the picker, the inference path must refuse too
-  const first = allowedModels()[0];
+  // account model limits (users.config.json): re-checked here rather than
+  // trusted from activeModelKey — enforcement can't live only in the picker,
+  // the inference path must refuse too
   return (
     MODEL_DEFS.find((m) => m.key === activeModelKey() && modelAllowed(m.key)) ??
-    MODEL_DEFS.find((m) => m.key === first) ??
-    MODEL_DEFS.find((m) => m.key === DEFAULT_MODEL_KEY && modelAllowed(m.key)) ??
+    firstUsableModel() ??
     MODEL_DEFS[0]!
   );
 }
@@ -123,6 +149,35 @@ export function activeModelDef(): ModelDef {
 export function activeModel(): { id: string; name: string; sub: string } {
   const m = activeModelDef();
   return { id: m.model, name: m.name, sub: m.sub };
+}
+
+/** Look a model up by its provider-side id (what callers pass as opts.modelId),
+ * as opposed to its short config key. */
+export function modelDefByModelId(modelId: string): ModelDef {
+  return MODEL_DEFS.find((m) => m.model === modelId) ?? activeModelDef();
+}
+
+/** The model's own hard output limit in tokens (the CLAMP), distinct from the
+ * office budget below (the CAP). Nothing here caps a document short of what the
+ * model can produce; officeMaxTokens() applies the deliberate budget. */
+export function modelMaxOutput(def: ModelDef = activeModelDef()): number {
+  if (def.maxOutput && def.maxOutput > 0) return def.maxOutput;
+  logTo('app', `model ${def.key} has no maxOutput in models.config.json — using ${CONSERVATIVE_MAX_OUTPUT}; long output will truncate until it is set`);
+  return CONSERVATIVE_MAX_OUTPUT;
+}
+
+/** The deliberate output budget for document generation, in tokens. Big enough
+ * for a multi-file artifact (the 8-screen react app measured ~18k output
+ * tokens) with headroom, while bounding worst-case latency and the Lambda
+ * timeout. A request that needs more now truncates HONESTLY — the streaming
+ * paths raise TruncatedOutputError naming this cap — rather than silently. */
+export const OFFICE_MAX_TOKENS = 24000;
+
+/** The budget actually requested for office generation: the 24k cap, never
+ * above the active model's own ceiling (Nova/Nemotron carry a placeholder 8192,
+ * and Bedrock rejects an over-limit request). min(cap, clamp). */
+export function officeMaxTokens(def: ModelDef = activeModelDef()): number {
+  return Math.min(OFFICE_MAX_TOKENS, modelMaxOutput(def));
 }
 
 /** The Bedrock inference-profile id for the active selection. */
@@ -134,7 +189,13 @@ export function bedrockSettings(): BedrockSettings {
   // the AWS connection is SYSTEM state — every account shares it (accounts
   // partition workspace data, not infrastructure)
   const raw = runAsAccount('adammfisher', () => getSetting('bedrock'));
-  if (!raw) return { connected: false, region: 'us-east-1', profile: 'default', modelId: activeModelId() };
+  // Must NOT resolve a model here. activeModelKey() consults modelAvailable(),
+  // which calls straight back into bedrockSettings() — so calling activeModelId()
+  // on this branch closes the loop and overflows the stack. It fires exactly
+  // when `raw` is null, i.e. before the 'bedrock' setting is cached: every cold
+  // start. modelId is display-only back-compat (see the interface), and there is
+  // no meaningful model to name while disconnected.
+  if (!raw) return { connected: false, region: 'us-east-1', profile: 'default', modelId: '' };
   return JSON.parse(raw) as BedrockSettings;
 }
 
@@ -161,7 +222,9 @@ export async function connectBedrock(region: string, profile: string): Promise<s
       JSON.stringify({ connected: true, region, profile, modelId: activeModelId() } satisfies BedrockSettings),
     ),
   );
-  if (!isModelKey(getSetting('selectedModel'))) setSetting('selectedModel', DEFAULT_MODEL_KEY);
+  // resolve through activeModelKey so we never persist a key this account is
+  // not allowed to run (the config default may be outside its allowlist)
+  if (!isModelKey(getSetting('selectedModel'))) setSetting('selectedModel', activeModelKey());
   logTo('app', `bedrock connected: ${region}/${profile} (${ids.length} anthropic models)`);
   return ids;
 }
@@ -175,7 +238,9 @@ export async function connectBedrock(region: string, profile: string): Promise<s
 export async function ensureBedrockConnected(): Promise<void> {
   const s = bedrockSettings();
   // migrate legacy selections (auto / local tiers) onto a real Claude model
-  if (!isModelKey(getSetting('selectedModel'))) setSetting('selectedModel', DEFAULT_MODEL_KEY);
+  // resolve through activeModelKey so we never persist a key this account is
+  // not allowed to run (the config default may be outside its allowlist)
+  if (!isModelKey(getSetting('selectedModel'))) setSetting('selectedModel', activeModelKey());
   if (s.connected) {
     void probeSonnet();
     return;
@@ -335,9 +400,70 @@ function schemaHasMapProps(node: unknown): boolean {
   return false;
 }
 
+/** A wedged call must still surface as a pipeline error rather than an
+ * indefinite "waiting for first tokens" spinner — but the old guard was a TOTAL
+ * deadline, which silently doubles as an output ceiling: any generation honestly
+ * still streaming past it gets killed mid-document. These measure SILENCE
+ * instead, so a stalled call trips as before while a long one never does.
+ *
+ * The two windows differ because Bedrock BUFFERS constrained decoding: on a
+ * forced tool-use call it emits nothing until the whole payload is ready, then
+ * flushes it in one burst. Measured on the 8-screen react request (Haiku 4.5,
+ * 2026-07-15): first fragment at 83s and 93s across two runs, then ~10k
+ * fragments inside 7s. So time-to-first-fragment scales with the SIZE of the
+ * document, and a first-token window sized like an inter-token one would abort
+ * exactly the large generations this change exists to allow. Once bytes are
+ * flowing, a real gap is a genuine stall. */
+const FIRST_TOKEN_ABORT_MS = 600_000;
+const IDLE_ABORT_MS = 120_000;
+
+/** Raised when the model stopped because it ran out of output budget rather
+ * than because it finished. Distinct from a parse failure: the JSON is
+ * well-formed up to the cut, so the repair loop cannot fix it by trying again —
+ * only a bigger budget can. */
+export class TruncatedOutputError extends Error {}
+
+/** Bedrock reports a budget stop as stopReason=max_tokens on messageStop. Every
+ * streaming path here reads it; nothing used to, which is why hitting the
+ * ceiling presented as a mystery rather than a limit. */
+function assertNotTruncated(stopReason: string, chars: number): void {
+  if (stopReason !== 'max_tokens') return;
+  throw new TruncatedOutputError(
+    `the model hit its output ceiling after ~${chars} characters and the document is cut off mid-token. ` +
+      `Raise maxOutput for this model in models.config.json, or select a model with a larger output limit.`,
+  );
+}
+
+function idleGuard(external?: AbortSignal): { signal: AbortSignal; alive: () => void; done: () => void } {
+  const ctrl = new AbortController();
+  let timer: NodeJS.Timeout | undefined;
+  let seenFirst = false;
+  const arm = (ms: number): void => {
+    timer = setTimeout(
+      () => ctrl.abort(new Error(`Bedrock sent nothing for ${ms / 1000}s${seenFirst ? '' : ' (no first token)'}`)),
+      ms,
+    );
+  };
+  arm(FIRST_TOKEN_ABORT_MS);
+  const done = (): void => clearTimeout(timer);
+  external?.addEventListener('abort', () => { done(); ctrl.abort(external.reason); }, { once: true });
+  return {
+    signal: ctrl.signal,
+    alive: () => {
+      clearTimeout(timer);
+      // the wide window covers the buffered pre-first-token wait only; after
+      // that a gap means a stall, not a big document
+      seenFirst = true;
+      arm(IDLE_ABORT_MS);
+    },
+    done,
+  };
+}
+
 /** Constrained JSON over Converse from a ChatMessage array: json_schema for
- * 4.5+, forced tool-use below. Non-streaming (constrained decoding); when
- * onDelta is set the full payload is emitted once so live-write UIs still fill. */
+ * 4.5+, forced tool-use below. Streams on every path (see viaPlain) — required,
+ * not cosmetic: an unbounded maxTokens on a non-streaming call runs past the
+ * HTTP read timeout. onDelta receives fragments as they land. */
 export async function bedrockCompleteJson(
   messages: ChatMessage[],
   schema: Record<string, unknown>,
@@ -347,14 +473,13 @@ export async function bedrockCompleteJson(
   const client = runtime(bedrockSettings());
   const { system, messages: msgs } = toConverse(messages);
   const modelId = opts.modelId ?? activeModelId();
-  const inferenceConfig = { maxTokens: opts.maxTokens ?? 3072, temperature: opts.temperature ?? 0.2 };
-  // hard ceiling per constrained call: a wedged call must become a surfaced
-  // pipeline error, never an indefinite "waiting for first tokens" spinner.
-  // 120s is generous — tool-use generations measure 5-7s; the only path that
-  // ever exceeded it was the json_schema grammar compiler (~188s), which the
-  // sizing gate below now routes away from.
-  const deadline = AbortSignal.timeout(150_000);
-  const signal = opts.signal ? AbortSignal.any([opts.signal, deadline]) : deadline;
+  // no caller-imposed ceiling: ask for everything the model can emit
+  const inferenceConfig = {
+    maxTokens: opts.maxTokens ?? modelMaxOutput(opts.modelId ? modelDefByModelId(opts.modelId) : activeModelDef()),
+    temperature: opts.temperature ?? 0.2,
+  };
+  const guard = idleGuard(opts.signal);
+  const signal = guard.signal;
 
   // forced tool-use path — accepts schemas json_schema can't express (maps) and
   // is the fallback when json_schema's grammar compiler chokes on a big schema.
@@ -397,16 +522,23 @@ export async function bedrockCompleteJson(
       { abortSignal: signal },
     );
     let raw = '';
+    let stopReason = '';
     for await (const event of out.stream ?? []) {
       const frag = event.contentBlockDelta?.delta?.toolUse?.input;
       if (frag) {
+        guard.alive();
         raw += frag;
         if (opts.onDelta) {
           opts.onDelta(frag);
           streamed = true;
         }
       }
+      if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
     }
+    // A max_tokens stop means the JSON is cut off mid-token. Say so — the parse
+    // below would otherwise throw a bare "Unexpected end of JSON input" that
+    // reads as a model failure rather than a budget one.
+    assertNotTruncated(stopReason, raw.length);
     if (!raw.trim()) return '';
     // fragments are a JSON string of the tool input; parse, heal, re-serialize
     const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -418,12 +550,30 @@ export async function bedrockCompleteJson(
   // the caller's system prompt already describes the schema and demands raw
   // JSON, and the orchestrator ajv-validates + repairs, so a plain completion
   // is safe and correct here.
+  // Streams like every other path. It used to be the lone non-streaming call,
+  // which was survivable only while maxTokens was small; with the ceiling gone
+  // a single-shot request would sit past the HTTP read timeout and die holding
+  // a full document.
   const viaPlain = async (): Promise<string> => {
     const out = await client.send(
-      new ConverseCommand({ modelId, system, messages: msgs, inferenceConfig }),
+      new ConverseStreamCommand({ modelId, system, messages: msgs, inferenceConfig }),
       { abortSignal: signal },
     );
-    const raw = out.output?.message?.content?.map((c) => c.text ?? '').join('') ?? '';
+    let raw = '';
+    let stopReason = '';
+    for await (const event of out.stream ?? []) {
+      const frag = event.contentBlockDelta?.delta?.text;
+      if (frag) {
+        guard.alive();
+        raw += frag;
+        if (opts.onDelta) {
+          opts.onDelta(frag);
+          streamed = true;
+        }
+      }
+      if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
+    }
+    assertNotTruncated(stopReason, raw.length);
     // strip markdown fences the model may add without constrained decoding
     return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
   };
@@ -439,6 +589,7 @@ export async function bedrockCompleteJson(
   const bigSchema = JSON.stringify(schema).length > 1200;
 
   let content: string;
+  try {
   if (supportsJsonSchema(modelId) && !schemaHasMapProps(schema) && !bigSchema) {
     try {
       // STREAM json_schema output too (docx/xlsx/pdf) — the JSON text arrives
@@ -459,16 +610,20 @@ export async function bedrockCompleteJson(
         { abortSignal: signal },
       );
       content = '';
+      let stopReason = '';
       for await (const event of out.stream ?? []) {
         const frag = event.contentBlockDelta?.delta?.text;
         if (frag) {
+          guard.alive();
           content += frag;
           if (opts.onDelta) {
             opts.onDelta(frag);
             streamed = true;
           }
         }
+        if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
       }
+      assertNotTruncated(stopReason, content.length);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (!complex(msg)) throw err;
@@ -492,6 +647,9 @@ export async function bedrockCompleteJson(
       logTo('app', `tool-use too complex (${msg.slice(0, 50)}) — falling back to plain JSON`);
       content = await viaPlain();
     }
+  }
+  } finally {
+    guard.done();
   }
   // only emit the whole payload if no path streamed it (viaPlain, or a fallback
   // that didn't stream) — otherwise the panel already filled live
@@ -640,6 +798,9 @@ export async function* bedrockStreamMessages(
 export interface BedrockJsonOptions {
   maxTokens?: number;
   signal?: AbortSignal;
+  /** Without this the tokens still stream over the wire and are simply dropped,
+   * leaving the panel dark for the whole generation. */
+  onDelta?: (d: string) => void;
 }
 
 /** Constrained JSON on Bedrock from a (system, user) pair. */
@@ -655,7 +816,7 @@ export async function bedrockJson(
       { role: 'user', content: user },
     ],
     schema,
-    { maxTokens: opts.maxTokens, signal: opts.signal },
+    { maxTokens: opts.maxTokens, signal: opts.signal, onDelta: opts.onDelta },
   );
 }
 

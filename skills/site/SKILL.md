@@ -19,4 +19,6 @@ No CDN, no external requests of any kind — fonts, images, scripts all local.
 - Use system font stacks. Images as inline SVG or CSS shapes only.
 - Responsive by default: max-width container, flexible columns.
 - `/main.js` only for small progressive touches (toggles, smooth scroll).
-- Keep total under ~200 lines across files.
+- Build the whole request. If it names several pages or sections, deliver all of
+  them across as many files as the structure warrants. There is no length limit
+  — never trim requested scope to stay short.

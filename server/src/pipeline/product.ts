@@ -4,6 +4,7 @@ import { repoRoot } from '../config.js';
 import { newId, now, getSetting } from '../db/db.js';
 import { listProductStates, addProductState, listProjectionsFor } from '../db/appdb.js';
 import { completeJson } from '../llama/json.js';
+import { officeMaxTokens } from '../providers/bedrock.js';
 import { logTo } from '../log.js';
 import { validateJson } from './validate.js';
 import type { CheckStep } from './artifacts.js';
@@ -190,6 +191,9 @@ export async function mergeProductEdit(
   instruction: string,
   signal: AbortSignal,
   onStep: (step: CheckStep) => void,
+  /** Forwards field-edit fragments to the live panel. Product edits were the one
+   * skill path that emitted nothing at all while the model worked. */
+  onGen?: (event: { reset?: boolean; delta?: string; label?: string }) => void,
 ): Promise<{ merged: Record<string, unknown>; fields: string[] }> {
   const names = productFieldNames();
   const routerSchema = {
@@ -233,6 +237,7 @@ export async function mergeProductEdit(
       properties: { [field]: fullSchema.properties[field] },
     };
     onStep({ state: 'pending', label: `Edit · ${field}`, detail: 'constrained to field slice' });
+    onGen?.({ reset: true, label: `product · ${field}` });
     const isAppend = APPEND_FIELDS.has(field);
     const raw = await completeJson(
       [
@@ -250,7 +255,9 @@ export async function mergeProductEdit(
         },
       ],
       slice,
-      { maxTokens: 2048, signal },
+      // same 24k document budget (clamped to the model); a single field never
+      // approaches it, but it keeps one cap across the pipeline
+      { maxTokens: officeMaxTokens(), signal, onDelta: (delta) => onGen?.({ delta }) },
     );
     const result = validateJson(`product:${field}`, slice, raw);
     if (!result.ok) {

@@ -119,7 +119,11 @@ export default function App() {
   }, []);
 
   const activeProjectId = settings?.activeProjectId ?? 'p1';
-  const userName = settings?.userName ?? 'Adam';
+  // No fallback name. This used to default to 'Adam', which meant every OTHER
+  // account was greeted by the primary account's owner — a per-account setting
+  // silently backstopped by a global one. Undefined here means "we don't know
+  // this person's name"; the greeting stays generic rather than guessing.
+  const userName = settings?.userName?.trim() || undefined;
   const activeProject = projects?.find((p) => p.id === activeProjectId);
   const currentConv = conversations?.find((c) => c.id === effectiveConv);
   const convProject = projects?.find((p) => p.id === currentConv?.projectId);
@@ -137,9 +141,12 @@ export default function App() {
   // apply a project's remembered model when working in it
   const applyProjectModel = (pid?: string) => {
     const proj = projects?.find((p) => p.id === pid);
-    if (proj?.model && registry && registry.selected !== proj.model) {
-      void api.selectModel(proj.model).then(() => queryClient.invalidateQueries({ queryKey: ['models'] }));
-    }
+    if (!proj?.model || !registry) return;
+    // bedrockModels is this account's allowlist. A model remembered before the
+    // account lost access would 403 here — leave it on its resolved default.
+    if (!registry.bedrockModels.some((m) => m.id === proj.model)) return;
+    if (registry.selected === proj.model) return;
+    void api.selectModel(proj.model).then(() => queryClient.invalidateQueries({ queryKey: ['models'] }));
   };
 
   const newChat = (

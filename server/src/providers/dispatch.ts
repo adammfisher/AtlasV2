@@ -17,6 +17,8 @@ import {
 } from './bedrock.js';
 import * as openai from './openai.js';
 import * as anthropic from './anthropic.js';
+import { modelAllowed } from '../lib/account.js';
+import { logTo } from '../log.js';
 import type { ChatMessage } from '../llama/client.js';
 
 /** Is the active model's cloud backend ready (bedrock connected, or API key set)? */
@@ -60,9 +62,19 @@ export function completeText(
   return bedrockCompleteText(messages, opts);
 }
 
-/** Resolve a model key (or the active model when the key is unknown/undefined). */
+/** Resolve a pinned model key to its definition. The account allowlist
+ * (users.config.json) is enforced HERE and not only at the call site: every
+ * pinned-model entry point below turns this into a provider-side model id, which
+ * skips the clamp inside activeModelDef(). A key outside the account's list
+ * falls back to that account's own active model. Background work runs as the
+ * primary account, which is allowed everything, so this is a no-op there. */
 function resolveModel(modelKey?: string): ModelDef {
-  return (modelKey ? modelDefByKey(modelKey) : undefined) ?? activeModelDef();
+  const def = modelKey ? modelDefByKey(modelKey) : undefined;
+  if (def && !modelAllowed(def.key)) {
+    logTo('app', `model ${def.key} is outside this account's allowlist — falling back to its active model`);
+    return activeModelDef();
+  }
+  return def ?? activeModelDef();
 }
 
 /** Does the given model (by key; default active) expose native structured

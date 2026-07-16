@@ -136,7 +136,8 @@ USER REQUEST: ${text}`;
 async function generateJson(
   ctx: Ctx,
   systemPrompt: string,
-  maxTokens: number,
+  /** undefined = no caller budget; ask the model for its own ceiling */
+  maxTokens: number | undefined,
   extraValidate?: (payload: unknown) => { ok: true } | { ok: false; error: string },
 ): Promise<{ payload: unknown; firstPass: boolean }> {
   const schema = ctx.skill.schema as Record<string, unknown>;
@@ -156,13 +157,24 @@ async function generateJson(
     ctx.send('gen', { reset: true, label: ctx.skill.id });
     // completeJson routes to Bedrock (Claude) when connected; the local port is
     // ignored there. onDelta drives the live-write indicator.
-    const raw = await completeJson(messages, schema, {
-      maxTokens,
-      signal: ctx.signal,
-      temperature: 0.2,
-      port: portForTask('office'),
-      onDelta: (delta) => ctx.send('gen', { delta }),
-    });
+    let raw: string;
+    try {
+      raw = await completeJson(messages, schema, {
+        maxTokens,
+        signal: ctx.signal,
+        temperature: 0.2,
+        port: portForTask('office'),
+        onDelta: (delta) => ctx.send('gen', { delta }),
+      });
+    } catch (err) {
+      // A budget stop is not a model mistake and re-asking cannot fix it — the
+      // retry would run into the same ceiling. Surface it as itself instead of
+      // burning the repair budget and reporting a parse error.
+      if (err instanceof bedrock.TruncatedOutputError) {
+        throw new PipelineError(`${ctx.skill.id}: ${err.message}`);
+      }
+      throw err;
+    }
     const result = validateJson(ctx.skill.id, schema, raw);
     if (result.ok) {
       const extra = extraValidate?.(result.value);
@@ -180,7 +192,12 @@ async function generateJson(
   // §4.3.3 second failure → escalate: Bedrock when connected, else honest failure
   if (bedrock.bedrockSettings().connected && officeModel().tier !== 'bedrock') {
     try {
-      const raw = await bedrock.bedrockJson(systemPrompt, ctx.text, schema, { maxTokens, signal: ctx.signal });
+      ctx.send('gen', { reset: true, label: ctx.skill.id });
+      const raw = await bedrock.bedrockJson(systemPrompt, ctx.text, schema, {
+        maxTokens,
+        signal: ctx.signal,
+        onDelta: (delta) => ctx.send('gen', { delta }),
+      });
       const result = validateJson(ctx.skill.id, schema, raw);
       if (result.ok) {
         logTo('pipeline', `${ctx.skill.id} escalated to Bedrock after local repair exhausted`);
@@ -451,7 +468,13 @@ export async function runCreateDoc(opts: {
       pushStep(ctx, { state: 'ok', label: 'Template', detail: path.basename(template) });
     }
     pushStep(ctx, { state: 'pending', label: genLabel, detail: 'constrained json_schema' });
-    const maxTokens = skill.id === 'product' ? 4096 : 3072;
+    // One budget for every document skill, replacing the old per-skill caps
+    // (3072, 4096 for product) that were sized for a weaker model and bound a
+    // "react" artifact to ~150 lines — JSON-escaped JSX spends a token on every
+    // newline and quote. 24k fits a multi-file artifact with headroom; a request
+    // past it truncates honestly (TruncatedOutputError) rather than silently.
+    // Clamped to the model's own ceiling so Nova/Nemotron never over-request.
+    const maxTokens = bedrock.officeMaxTokens();
     const fileMapCheck =
       skill.id === 'react' || skill.id === 'site'
         ? (payload: unknown) =>
@@ -686,6 +709,7 @@ export async function runEditDoc(opts: {
       opts.text,
       ctx.signal,
       (step) => pushStep(ctx, step),
+      (event) => ctx.send('gen', event),
     );
     const dir = versionDir(opts.projectId, opts.artifactId, current.version + 1);
     const file = path.join(dir, 'definition.json');

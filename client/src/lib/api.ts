@@ -242,6 +242,11 @@ export const api = {
   me: () => request<{ username: string; models: string[]; ttlMs: number }>('/auth/me'),
   artifactConversation: (id: string) => request<{ convId: string | null }>(`/artifacts/${id}/conversation`),
   deleteArtifact: (id: string) => request<{ ok: boolean }>(`/artifacts/${id}`, { method: 'DELETE' }),
+  deleteArtifacts: (ids: string[]) =>
+    request<{ ok: boolean; deleted: number }>('/artifacts/delete', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
   patchSettings: (patch: Settings) =>
     request<{ ok: boolean }>('/settings', { method: 'PATCH', body: JSON.stringify(patch) }),
   projects: () => request<Project[]>('/projects'),

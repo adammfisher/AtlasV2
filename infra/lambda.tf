@@ -10,7 +10,13 @@ resource "aws_lambda_function" "app" {
   handler          = "run.sh"
   runtime          = "nodejs20.x"
   architectures    = ["arm64"]
-  timeout          = 300
+  # 900s is the Lambda maximum. Generation no longer imposes a token ceiling, so
+  # a large artifact (a multi-screen React app) can legitimately stream for
+  # minutes; at the previous 300s the function, not the model, was what decided
+  # how long a document could get. This is now the real upper bound on the
+  # deployed app — a request that needs longer than 15 minutes cannot be served
+  # by Lambda at any setting.
+  timeout          = 900
   memory_size      = 1536
   layers           = ["arn:aws:lambda:us-east-1:753240598075:layer:LambdaAdapterLayerArm64:25"]
 

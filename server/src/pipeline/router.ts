@@ -17,6 +17,7 @@
 import { logTo } from '../log.js';
 import { classifyJson } from '../providers/dispatch.js';
 import { activeModelKey, MODEL_KEYS } from '../providers/bedrock.js';
+import { modelAllowed } from '../lib/account.js';
 import { isSkillId, type SkillId } from './skills.js';
 import {
   WORKFLOWS,
@@ -38,9 +39,16 @@ export const CLARIFY_THRESHOLD = 0.5;
 const TIER_MODELS: Record<ModelTier, string> = { small: 'nova', mid: 'haiku', frontier: 'sonnet' };
 const TIER_ORDER: ModelTier[] = ['small', 'mid', 'frontier'];
 
+/** The classifier model for a tier. TIER_MODELS names the ideal model per tier,
+ * but it is a catalog-wide constant: an account's users.config.json list may not
+ * include it (only `nova` is common to every account today). Checking existence
+ * alone routed those accounts onto a model they are not allowed to run, since
+ * classifyJson pins the model id and so bypasses the activeModelDef clamp.
+ * Falling back to the account's own active model keeps escalation useful — the
+ * per-tier prompt still gets richer even when the model repeats. */
 function resolveTierModel(tier: ModelTier): string {
   const want = TIER_MODELS[tier];
-  return MODEL_KEYS.includes(want) ? want : activeModelKey();
+  return MODEL_KEYS.includes(want) && modelAllowed(want) ? want : activeModelKey();
 }
 function tierOf(modelKey: string): ModelTier {
   if (modelKey === 'nova') return 'small';

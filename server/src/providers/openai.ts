@@ -4,7 +4,7 @@
  * (streaming + tool loop), structured JSON, and plain text. Activated only when
  * the model's keyEnv is set. Never imported unless an openai model is selected.
  */
-import { activeModelDef } from './bedrock.js';
+import { activeModelDef, modelMaxOutput, TruncatedOutputError } from './bedrock.js';
 import type { ChatMessage } from '../llama/client.js';
 import type { BedrockTool } from './bedrock.js';
 import { logTo } from '../log.js';
@@ -124,6 +124,9 @@ export async function* streamWithTools(
 }
 
 /** Structured JSON via response_format json_schema (with a plain-JSON fallback). */
+/** Streams — see the note on the Anthropic provider's completeJson: the old
+ * single-shot POST both faked the live-write panel and could not carry a large
+ * max_tokens without hitting the request timeout. */
 export async function completeJson(
   messages: ChatMessage[],
   schema: Record<string, unknown>,
@@ -134,7 +137,8 @@ export async function completeJson(
     model,
     messages: toOpenAIMessages(messages),
     temperature: opts.temperature ?? 0.2,
-    max_tokens: opts.maxTokens ?? 4096,
+    max_tokens: opts.maxTokens ?? modelMaxOutput(),
+    stream: true,
     response_format: { type: 'json_schema', json_schema: { name: 'payload', schema, strict: false } },
   };
   let res = await post('/chat/completions', body, opts.signal);
@@ -143,10 +147,45 @@ export async function completeJson(
     logTo('app', `openai json_schema rejected (${res.status}) — retrying json_object`);
     res = await post('/chat/completions', { ...body, response_format: { type: 'json_object' } }, opts.signal);
   }
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
-  const d = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = d.choices?.[0]?.message?.content ?? '';
-  if (opts.onDelta && content) opts.onDelta(content);
+  if (!res.ok || !res.body) throw new Error(`OpenAI ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+
+  let content = '';
+  let finish = '';
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      const s = line.trim();
+      if (!s.startsWith('data:')) continue;
+      const payload = s.slice(5).trim();
+      if (payload === '[DONE]') continue;
+      try {
+        const d = JSON.parse(payload) as {
+          choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
+        };
+        const choice = d.choices?.[0];
+        if (choice?.delta?.content) {
+          content += choice.delta.content;
+          opts.onDelta?.(choice.delta.content);
+        }
+        if (choice?.finish_reason) finish = choice.finish_reason;
+      } catch {
+        /* keep-alive */
+      }
+    }
+  }
+  if (finish === 'length') {
+    throw new TruncatedOutputError(
+      `the model hit its output ceiling after ~${content.length} characters and the document is cut off mid-token. ` +
+        `Raise maxOutput for this model in models.config.json, or select a model with a larger output limit.`,
+    );
+  }
   return content;
 }
 

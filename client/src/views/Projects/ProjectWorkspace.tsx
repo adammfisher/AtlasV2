@@ -62,15 +62,21 @@ export function ProjectWorkspace({
   // per-project model — remembered on the project and applied when you enter it
   const { data: registry } = useQuery({ queryKey: ['models'], queryFn: api.models });
   const models = registry?.bedrockModels ?? [];
-  const activeModelKey = project.model || registry?.selected || 'haiku';
+  // A project outlives an account's access: it can remember a model that was
+  // later dropped from the allowlist. Honour the remembered one only while it
+  // is still in this account's list — otherwise selectModel below would 403 on
+  // every mount, and the header would name a model this account cannot run.
+  const projectModel = project.model && models.some((m) => m.id === project.model) ? project.model : null;
+  const activeModelKey =
+    projectModel ?? registry?.selected ?? models.find((m) => m.available !== false)?.id ?? models[0]?.id;
   const activeModelName = models.find((m) => m.id === activeModelKey)?.name ?? 'Model';
   const [modelMenu, setModelMenu] = useState(false);
   useEffect(() => {
-    if (project.model && registry && registry.selected !== project.model) {
-      void api.selectModel(project.model).then(() => queryClient.invalidateQueries({ queryKey: ['models'] }));
+    if (projectModel && registry && registry.selected !== projectModel) {
+      void api.selectModel(projectModel).then(() => queryClient.invalidateQueries({ queryKey: ['models'] }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project.model, registry?.selected]);
+  }, [projectModel, registry?.selected]);
   const setModel = (key: string): void => {
     setModelMenu(false);
     void Promise.all([api.updateProject(project.id, { model: key }), api.selectModel(key)]).then(() => {

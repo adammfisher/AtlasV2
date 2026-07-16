@@ -164,3 +164,13 @@ Gates: FAILURES ✗ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on al
 | frontier | 99.3% | 100.0% | 100.0% | 0.0% | 2.3% |
 
 Gates: ALL PASS ✅ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on all tiers)
+
+### Routing gate run (post-integration c04db85)
+
+| tier | overall | edit-vs-describe | unambiguous | escalation | clarify |
+|---|---|---|---|---|---|
+| small | 98.0% | 100.0% | 100.0% | 1.0% | 1.0% |
+| mid | 99.3% | 100.0% | 100.0% | 1.0% | 2.3% |
+| frontier | 99.3% | 100.0% | 100.0% | 0.0% | 2.3% |
+
+Gates: ALL PASS ✅ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on all tiers)

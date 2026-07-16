@@ -4,7 +4,7 @@
  * native tool use for both the chat loop and structured JSON. Activated only
  * when the model's keyEnv is set.
  */
-import { activeModelDef } from './bedrock.js';
+import { activeModelDef, modelMaxOutput, TruncatedOutputError } from './bedrock.js';
 import type { ChatMessage } from '../llama/client.js';
 import type { BedrockTool } from './bedrock.js';
 
@@ -128,7 +128,13 @@ function safeParse(s: string): Record<string, unknown> {
   }
 }
 
-/** Structured JSON via forced tool use (an "emit" tool). */
+/** Structured JSON via forced tool use (an "emit" tool).
+ *
+ * Streams. This was a single-shot POST that called onDelta once with the whole
+ * payload — a fake stream that left the live panel dark until the document
+ * landed all at once. It also could not survive a large max_tokens: a
+ * non-streaming request that runs long enough hits the API's own request
+ * timeout, so the honest fix and the fast fix are the same one. */
 export async function completeJson(
   messages: ChatMessage[],
   schema: Record<string, unknown>,
@@ -141,19 +147,55 @@ export async function completeJson(
       model,
       system: system || undefined,
       messages: msgs,
-      max_tokens: opts.maxTokens ?? 4096,
+      max_tokens: opts.maxTokens ?? modelMaxOutput(),
       temperature: opts.temperature ?? 0.2,
+      stream: true,
       tools: [{ name: 'emit', description: 'Emit the document payload.', input_schema: schema }],
       tool_choice: { type: 'tool', name: 'emit' },
     },
     opts.signal,
   );
-  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
-  const d = (await res.json()) as { content?: Array<{ type?: string; input?: unknown }> };
-  const tool = d.content?.find((c) => c.type === 'tool_use');
-  const content = tool ? JSON.stringify(tool.input ?? {}) : '';
-  if (opts.onDelta && content) opts.onDelta(content);
-  return content;
+  if (!res.ok || !res.body) throw new Error(`Anthropic ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
+
+  // the forced tool's arguments arrive as input_json_delta fragments — that IS
+  // the payload, so forwarding them gives a real progressive fill
+  let raw = '';
+  let stopReason = '';
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() ?? '';
+    for (const line of lines) {
+      const s = line.trim();
+      if (!s.startsWith('data:')) continue;
+      try {
+        const d = JSON.parse(s.slice(5).trim()) as {
+          type?: string;
+          delta?: { type?: string; partial_json?: string; stop_reason?: string };
+        };
+        if (d.type === 'content_block_delta' && d.delta?.type === 'input_json_delta' && d.delta.partial_json) {
+          raw += d.delta.partial_json;
+          opts.onDelta?.(d.delta.partial_json);
+        } else if (d.type === 'message_delta' && d.delta?.stop_reason) {
+          stopReason = d.delta.stop_reason;
+        }
+      } catch {
+        /* keep-alive */
+      }
+    }
+  }
+  if (stopReason === 'max_tokens') {
+    throw new TruncatedOutputError(
+      `the model hit its output ceiling after ~${raw.length} characters and the document is cut off mid-token. ` +
+        `Raise maxOutput for this model in models.config.json, or select a model with a larger output limit.`,
+    );
+  }
+  return raw.trim() ? JSON.stringify(JSON.parse(raw) as unknown) : '';
 }
 
 export async function completeText(
