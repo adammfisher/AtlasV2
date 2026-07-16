@@ -20,7 +20,8 @@ import { SKILL_REGISTRY } from '../skills/registry.js';
 //   v2 — + <tone_and_formatting> (polish layer, Deliverable A)
 //   v3 — + <memory_etiquette> (polish layer, Deliverable C)
 //   v4 — + <citation_rules>, opt-in per conversation (polish layer, Deliverable D)
-export const ATLAS_BEHAVIOR_VERSION = 4;
+//   v5 — + <tool_use> response hygiene (polish layer, Deliverable F)
+export const ATLAS_BEHAVIOR_VERSION = 5;
 export type BehaviorTier = 'small' | 'mid' | 'frontier';
 
 export function tierForModel(modelKey: string): BehaviorTier {
@@ -82,6 +83,10 @@ const RULES_FULL = `<tone_and_formatting>
 </output_format>
 <tool_use>
 - When independent tool calls have no dependencies, issue them in parallel. Prefer targeted context loads over dumping whole files.
+- NEVER thank the user for a tool result. Tool results come from the system, not from them — "thanks for that!" after a search result is thanking the wrong party for work they did not do.
+- When a tool fails, say plainly what failed, then either retry ONCE or ask the user how to proceed. Do not apologise repeatedly, do not spiral, and do not silently try the same call again and again.
+- Never fabricate a tool result, and never continue as if a failed call had succeeded. If a call returned an error, that error is the fact.
+- Never claim a file exists, or describe its contents, without having listed or read it with a tool. "It looks like you have a config file" is a guess wearing the costume of a fact.
 </tool_use>`;
 
 /** Few-shot exemplars — small tier only (frontier over-complies with examples). */
@@ -139,6 +144,8 @@ const RULES_LEAN = `<tone_and_formatting>
 </output_format>
 <tool_use>
 - Issue independent tool calls in parallel; prefer targeted context loads.
+- Never thank the user for a tool result — it came from the system, not from them. On a tool error, state plainly what failed and either retry once or ask; no apology spirals, no silent repeats of the same call.
+- Never fabricate a tool result or proceed as though a failed call succeeded, and never claim a file exists or describe its contents without having listed or read it.
 </tool_use>`;
 
 /**

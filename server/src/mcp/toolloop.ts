@@ -30,12 +30,56 @@ function mangle(tool: ChatTool): string {
   return `${tool.connectorId.replace(/-/g, '_')}__${tool.name}`;
 }
 
+/**
+ * DELIVERABLE F — description-quality pass-through.
+ *
+ * A connector is free to ship `{name: "search_issues", description: "Search."}`,
+ * and a small model then has to route on the bare name. When a description is
+ * shorter than MIN_DESCRIPTION_WORDS, a one-line usage hint is generated from the
+ * tool name and its schema and appended.
+ *
+ * Well-described tools are NEVER touched: the connector author knows their tool
+ * better than a generated sentence does, and rewriting a good description would
+ * be a downgrade dressed up as a feature.
+ */
+const MIN_DESCRIPTION_WORDS = 10;
+
+function wordCount(s: string): number {
+  return s.trim().split(/\s+/).filter(Boolean).length;
+}
+
+/** "search_issues" -> "search issues"; "getUserProfile" -> "get User Profile" */
+function humanize(name: string): string {
+  return name.replace(/[_-]+/g, ' ').replace(/([a-z\d])([A-Z])/g, '$1 $2').trim();
+}
+
+export function usageHint(tool: { name: string; description: string; inputSchema: unknown }): string {
+  const schema = tool.inputSchema as { properties?: Record<string, unknown>; required?: string[] } | undefined;
+  const params = Object.keys(schema?.properties ?? {});
+  const required = schema?.required ?? [];
+  const args = params.length
+    ? ` Takes ${params
+        .slice(0, 6)
+        .map((p) => (required.includes(p) ? `${p} (required)` : p))
+        .join(', ')}.`
+    : ' Takes no arguments.';
+  return `Use this to ${humanize(tool.name).toLowerCase()}.${args}`;
+}
+
+/** The description the model actually sees: the connector's own when it is
+ * usable, otherwise its text plus a generated hint. */
+export function describeTool(tool: ChatTool): string {
+  const own = (tool.description ?? '').trim();
+  const enriched = wordCount(own) < MIN_DESCRIPTION_WORDS ? `${own ? `${own} ` : ''}${usageHint(tool)}` : own;
+  return `${enriched} (${tool.connectorName})`;
+}
+
 function openAiTools(tools: ChatTool[]): Array<Record<string, unknown>> {
   return tools.map((t) => ({
     type: 'function',
     function: {
       name: mangle(t),
-      description: `${t.description} (${t.connectorName})`,
+      description: describeTool(t),
       parameters: t.inputSchema,
     },
   }));

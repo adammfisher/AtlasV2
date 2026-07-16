@@ -12,7 +12,8 @@ import {
 } from '../db/appdb.js';
 import { logTo } from '../log.js';
 import { installFor, toolsForProject, callTool, type ChatTool } from '../mcp/manager.js';
-import { webSearchIndexed, webFetchIndexed } from '../tools/web.js';
+import { describeTool } from '../mcp/toolloop.js';
+import { webSearchIndexed, webFetchIndexed, webToolSpecs } from '../tools/web.js';
 import { SourceRegistry } from '../tools/sources.js';
 import { parseCitations, snippetFor } from '../tools/citations.js';
 import { bedrockSettings, activeModel, type BedrockTool } from '../providers/bedrock.js';
@@ -23,24 +24,35 @@ import { recallContext, scheduleExtraction, flushProjectPending, rememberEnabled
 import { scanForNarration } from '../memory/narration.js';
 import { listKnowledge } from '../memory/knowledge.js';
 
+// F: a tool spec is a prompt. These descriptions say exactly when to fire and —
+// just as important — when not to, because an over-eager memory write is how a
+// chat assistant starts feeling like surveillance.
 const MEMORY_TOOLS: BedrockTool[] = [
   {
     name: 'remember',
-    description:
-      'Store a durable fact in long-term memory when the user explicitly asks to remember something. scope "user" = a fact about the user themselves (persists across ALL projects); "project" = a fact about this project.',
+    description: [
+      'Store a durable fact in long-term memory.',
+      'FIRE WHEN: the user tells you to ("remember that…", "note that…", "keep in mind…", "save this"), or they state a durable fact about themselves or the project that will still matter in a future conversation — a role, a preference, a decision, a constraint.',
+      'DO NOT FIRE FOR: anything true only for today ("I\'m heading out at 5"); details of the task in front of you (those are already in the conversation); a question the user asked; something you inferred rather than were told; or sensitive material — health, personal difficulties, relationships, finances — unless they explicitly asked you to store that specific thing.',
+      'SCOPE: "user" for facts about the person (persists across ALL projects); "project" for facts about this project\'s work.',
+      'Call this BEFORE replying — acknowledging without calling it stores nothing, and telling the user you remembered when you did not is a lie.',
+    ].join(' '),
     schema: {
       type: 'object',
       additionalProperties: false,
       required: ['fact'],
       properties: {
-        fact: { type: 'string', description: 'the fact to remember, one sentence' },
+        fact: { type: 'string', description: 'one self-contained declarative sentence stating the fact' },
         scope: { type: 'string', enum: ['user', 'project'] },
       },
     },
   },
   {
     name: 'forget',
-    description: 'Delete a remembered fact when the user asks to forget something.',
+    description: [
+      'Delete a remembered fact. FIRE WHEN the user asks you to forget, drop, or delete something they told you before.',
+      'Pass their own words as the query — do not narrow it to what you think they meant. Call this before replying; an acknowledgement alone deletes nothing.',
+    ].join(' '),
     schema: {
       type: 'object',
       additionalProperties: false,
@@ -91,28 +103,8 @@ const DOC_TOOLS: BedrockTool[] = [
   },
 ];
 
-const WEB_TOOLS: BedrockTool[] = [
-  {
-    name: 'web_search',
-    description: 'Search the web for current information. Returns titles, URLs and snippets of the top results.',
-    schema: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['query'],
-      properties: { query: { type: 'string' } },
-    },
-  },
-  {
-    name: 'web_fetch',
-    description: 'Fetch a web page and return its readable text (use after web_search to read a result).',
-    schema: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['url'],
-      properties: { url: { type: 'string' } },
-    },
-  },
-];
+// F: the search/fetch decision tree lives with the tools themselves (tools/web.ts)
+// and is tier-aware — the small tier is capped at one search per question.
 
 function mangle(t: ChatTool): string {
   return `${t.connectorId.replace(/-/g, '_')}__${t.name}`.slice(0, 64);
@@ -374,7 +366,10 @@ chatRouter.post('/:id/messages', async (req, res) => {
           byMangled.set(name, t);
           connectorTools.push({
             name,
-            description: `${t.description} (${t.connectorName})`,
+            // F: a connector shipping "Search." leaves a small model routing on a
+            // bare name — describeTool appends a generated usage hint to thin
+            // descriptions and leaves good ones alone
+            description: describeTool(t),
             schema: t.inputSchema as Record<string, unknown>,
           });
         }
@@ -385,7 +380,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
       const docsReadable = atts.some((a) => a.kind === 'document') || knowledgeCount > 0;
       const tools: BedrockTool[] = [
         ...(memEnabled ? MEMORY_TOOLS : []),
-        ...(webEnabled ? WEB_TOOLS : []),
+        ...(webEnabled ? webToolSpecs(tierForModel(activeModelKey())) : []),
         ...(docsReadable ? DOC_TOOLS : []),
         ...connectorTools,
       ];

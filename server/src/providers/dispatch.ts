@@ -63,6 +63,25 @@ export function streamWithTools(
   return bedrockStreamWithTools(messages, tools, execute, onTool, opts);
 }
 
+/**
+ * F: streaming tool loop pinned to a SPECIFIC model. The tool-decision eval holds
+ * the tier constant so what is under test is the tool DESCRIPTIONS, not the model
+ * picker or the router. Production chat keeps using streamWithTools.
+ */
+export function streamWithToolsAs(
+  modelKey: string,
+  messages: ChatMessage[],
+  tools: BedrockTool[],
+  execute: (name: string, input: Record<string, unknown>) => Promise<string>,
+  onTool: (name: string) => void,
+  opts: { temperature?: number; maxTokens?: number; signal?: AbortSignal } = {},
+): AsyncGenerator<string> {
+  const def = resolveModel(modelKey);
+  if (def.provider === 'openai') return openai.streamWithTools(messages, tools, execute, onTool, opts);
+  if (def.provider === 'anthropic') return anthropic.streamWithTools(messages, tools, execute, onTool, opts);
+  return bedrockStreamWithTools(messages, tools, execute, onTool, { ...opts, modelId: def.model });
+}
+
 export function completeJson(
   messages: ChatMessage[],
   schema: Record<string, unknown>,

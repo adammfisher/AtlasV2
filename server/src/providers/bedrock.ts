@@ -812,6 +812,10 @@ export async function* bedrockStreamWithTools(
     thinking?: boolean;
     onThinking?: (delta: string) => void;
     onUsage?: (usage: ConverseUsage) => void;
+    /** pin a specific inference-profile id — same contract as BedrockCallOptions.
+     * The tool-decision eval holds the tier constant so what is under test is the
+     * tool DESCRIPTIONS, not the model picker. Absent, this is the active model. */
+    modelId?: string;
   } = {},
 ): AsyncGenerator<string> {
   if (!bedrockActive()) throw new Error('Bedrock is not connected');
@@ -824,6 +828,7 @@ export async function* bedrockStreamWithTools(
   };
 
   const convo: Message[] = [...msgs];
+  const modelId = opts.modelId ?? activeModelId();
   // thinking applies to the first pass only — tool continuations would need
   // the reasoning blocks replayed verbatim, which buys nothing here
   let think = opts.thinking ?? false;
@@ -835,7 +840,7 @@ export async function* bedrockStreamWithTools(
     const offerTools = iteration < MAX_TOOL_ROUNDS;
     const out = await client.send(
       new ConverseStreamCommand({
-        modelId: activeModelId(),
+        modelId,
         system,
         messages: convo,
         ...(offerTools ? { toolConfig } : {}),

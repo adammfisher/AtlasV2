@@ -24,6 +24,58 @@ export interface SearchHit {
   snippet: string;
 }
 
+/* ─── DELIVERABLE F — tool specs are prompts ────────────────────────────────── */
+
+/**
+ * The search tool's description carries the whole decision tree, because for a
+ * small model the tool description IS the policy: it is read at the exact moment
+ * the decision is made, while a rule buried in the system prompt is competing
+ * with everything else in context.
+ *
+ * `searchCap` is tier-dependent — the small tier is capped at one call, since it
+ * is the tier most likely to loop on near-identical queries.
+ */
+export function webToolSpecs(tier: 'small' | 'mid' | 'frontier'): Array<{ name: string; description: string; schema: Record<string, unknown> }> {
+  const scale =
+    tier === 'small'
+      ? 'SCALE: exactly ONE search per question. Search once, then answer from what you get. Do not chain searches.'
+      : 'SCALE: one search for a simple lookup. Two to five only for genuine multi-part research. Never more.';
+  return [
+    {
+      name: 'web_search',
+      description: [
+        'Search the web. Returns indexed <document> blocks with per-sentence indices you can cite.',
+        'SEARCH WHEN: the answer changed after your training cutoff; the topic moves fast (prices, releases, standings, weather, news); the question names a person, company, product, or event you do not recognise; or it uses temporal words — today, now, current, latest, this week, in 2026.',
+        'NEVER SEARCH WHEN: the answer is a stable fact, a definition, or settled history; the user wants code written, explained, or debugged; the task is reasoning, writing, or maths over what is already in the conversation. You already know these, and searching makes the answer slower and worse, not better.',
+        scale,
+        'QUERY: 2–6 keywords, the way a person types into a search box. No boolean operators, no quotes, no site: filters. Add the year when the answer is dated ("nvidia earnings 2026").',
+        'ANTI-PATTERNS: never fire a second query that is a near-paraphrase of the first — if the results were poor, change the terms or answer with what you have and say it was thin. Never search to confirm something you already know. Never search for the user\'s own words back at them.',
+        'If you are unsure whether to search, answer from knowledge first and offer to search.',
+      ].join(' '),
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: { query: { type: 'string', description: '2–6 plain keywords, no operators' } },
+      },
+    },
+    {
+      name: 'web_fetch',
+      description: [
+        'Fetch one web page and return its readable text as an indexed <document> you can cite.',
+        'FETCH WHEN: the user gave you a URL and the answer is inside it, or a search snippet is too thin to answer from and one specific result clearly holds the answer.',
+        'DO NOT FETCH: a page you will not actually read and use; a URL you guessed or constructed rather than one that came from the user or a search result; several results one after another hoping one helps. Fetch the single page you have a reason to believe answers the question.',
+      ].join(' '),
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['url'],
+        properties: { url: { type: 'string', description: 'an exact URL from the user or a search result — never invented' } },
+      },
+    },
+  ];
+}
+
 /** One DDG-endpoint pass. The html endpoint intermittently returns a shell
  * page with zero results — the lite endpoint has different markup and often
  * succeeds when html fails (W1: measured 7/10 on html alone). */
