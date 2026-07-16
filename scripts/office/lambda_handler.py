@@ -21,23 +21,178 @@ SKILLS = {"pptx", "docx", "xlsx", "pdf"}
 TEMPLATES = {"pptx": "dfs_default.potx", "docx": "atlas_default.dotx"}
 
 
-def _slide_to_svg(slide, w_emu, h_emu):
+def _theme_colors(prs):
+    """Resolve the deck's theme palette (dk1/lt1/accent1..6/…) → hex from the
+    first master's theme part. Without this, theme-colored fills and text (which
+    python-pptx can't give an .rgb for) vanish — e.g. a full-bleed accent title
+    background renders as blank. Best-effort; returns {} on any surprise."""
+    from lxml import etree
+
+    ns = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main"}
+    out = {}
+    try:
+        master = prs.slide_masters[0]
+        # the theme is a generic Part (no python-pptx .element) — parse its raw XML
+        theme_part = next((r.target_part for r in master.part.rels.values() if "theme" in r.reltype), None)
+        if theme_part is None:
+            return out
+        scheme = etree.fromstring(theme_part.blob).find(".//a:clrScheme", ns)
+        for child in (scheme if scheme is not None else []):
+            tag = etree.QName(child).localname
+            srgb = child.find("a:srgbClr", ns)
+            sysc = child.find("a:sysClr", ns)
+            if srgb is not None and srgb.get("val"):
+                out[tag] = "#" + srgb.get("val")
+            elif sysc is not None:
+                out[tag] = "#" + (sysc.get("lastClr") or "000000")
+    except Exception:
+        pass
+    return out
+
+
+def _wrap(text, max_chars):
+    """Greedy word-wrap to an estimated chars-per-line, so multi-line text frames
+    render with the same line breaks PowerPoint would apply (the single biggest
+    fidelity gap in the pure-SVG preview)."""
+    words, lines, cur = text.split(), [], ""
+    for wd in words:
+        if not cur:
+            cur = wd
+        elif len(cur) + 1 + len(wd) <= max_chars:
+            cur += " " + wd
+        else:
+            lines.append(cur)
+            cur = wd
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
+def _apply_transforms(r, g, b, transforms):
+    """Apply OOXML color transforms (lumMod/lumOff/tint/shade/satMod) so a themed
+    accent used at, say, lumMod 20% + lumOff 80% renders as its true light tint
+    instead of the full-saturation base — the difference between a light-pink
+    card and a dark-magenta one."""
+    if not transforms:
+        return r, g, b
+    import colorsys
+    h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
+    for t, v in transforms:
+        if t == "lumMod":
+            l *= v
+        elif t == "lumOff":
+            l += v
+        elif t == "satMod":
+            s *= v
+        elif t == "tint":  # lighten toward white
+            l = l + (1.0 - l) * (1.0 - v)
+        elif t == "shade":  # darken toward black
+            l = l * v
+    l = min(1.0, max(0.0, l))
+    s = min(1.0, max(0.0, s))
+    rr, gg, bb = colorsys.hls_to_rgb(h, l, s)
+    return int(rr * 255), int(gg * 255), int(bb * 255)
+
+
+def _clr_hex(el, theme, default=None):
+    """Resolve an <a:srgbClr>/<a:schemeClr> element to hex, honoring the theme
+    palette and any luminance/tint transforms on it."""
+    if el is None:
+        return default
+    from lxml import etree
+
+    tag = etree.QName(el).localname
+    if tag == "srgbClr":
+        base = el.get("val")
+    elif tag == "schemeClr":
+        val = {"tx1": "dk1", "bg1": "lt1", "tx2": "dk2", "bg2": "lt2"}.get(el.get("val"), el.get("val"))
+        hx = theme.get(val)
+        base = hx[1:] if hx else None
+    else:
+        base = None
+    if not base or len(base) < 6:
+        return default
+    try:
+        r, g, b = int(base[0:2], 16), int(base[2:4], 16), int(base[4:6], 16)
+    except Exception:
+        return default
+    transforms = []
+    for child in el:
+        t = etree.QName(child).localname
+        v = child.get("val")
+        if t in ("lumMod", "lumOff", "tint", "shade", "satMod") and v is not None:
+            try:
+                transforms.append((t, int(v) / 100000.0))
+            except Exception:
+                pass
+    r, g, b = _apply_transforms(r, g, b, transforms)
+    return "#%02X%02X%02X" % (min(255, max(0, r)), min(255, max(0, g)), min(255, max(0, b)))
+
+
+def _fill_hex(fill, theme, default=None):
+    """Hex of a python-pptx FillFormat's solid color, transforms included."""
+    from pptx.oxml.ns import qn
+
+    try:
+        sf = fill._xPr.find(qn("a:solidFill"))
+        if sf is not None and len(sf):
+            return _clr_hex(sf[0], theme, default)
+    except Exception:
+        pass
+    return default
+
+
+def _run_hex(run, theme, default=None):
+    """Hex of a run's explicit font color (rPr/solidFill), transforms included."""
+    from pptx.oxml.ns import qn
+
+    try:
+        rPr = run._r.find(qn("a:rPr"))
+        if rPr is not None:
+            sf = rPr.find(qn("a:solidFill"))
+            if sf is not None and len(sf):
+                return _clr_hex(sf[0], theme, default)
+    except Exception:
+        pass
+    return default
+
+
+def _is_dark(hexc):
+    """Perceived-luminance test, to pick readable default text on a fill."""
+    try:
+        r, g, b = int(hexc[1:3], 16), int(hexc[3:5], 16), int(hexc[5:7], 16)
+        return (0.299 * r + 0.587 * g + 0.114 * b) < 140
+    except Exception:
+        return False
+
+
+def _slide_to_svg(slide, w_emu, h_emu, theme=None):
     """Render a slide's shapes to an SVG (scale-to-zero visual preview — no
-    LibreOffice). EMU→px at 96dpi (EMU/9525); pt→px ×(96/72)."""
+    LibreOffice). EMU→px at 96dpi (EMU/9525); pt→px ×(96/72). Resolves theme
+    colors, fills the true slide background, wraps text, and draws tables so the
+    preview tracks the built deck instead of a cream-on-blank approximation."""
     import html as _html
     from pptx.enum.shapes import MSO_SHAPE_TYPE
     from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 
+    theme = theme or {}
     U = 9525.0
     VW, VH = w_emu / U, h_emu / U
-    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VW:.0f} {VH:.0f}" preserveAspectRatio="xMidYMid meet">']
-    parts.append(f'<rect x="0" y="0" width="{VW:.0f}" height="{VH:.0f}" fill="#FAF9F5"/>')
 
-    def hexof(color, default=None):
+    # true slide background: walk slide → layout → master for a solid fill
+    bg = "#FAF9F5"
+    for src in (slide, slide.slide_layout, slide.slide_layout.slide_master):
         try:
-            return "#" + str(color.rgb)
+            if src.background.fill.type == 1:  # solid
+                c = _fill_hex(src.background.fill, theme)
+                if c:
+                    bg = c
+                    break
         except Exception:
-            return default
+            pass
+
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {VW:.0f} {VH:.0f}" preserveAspectRatio="xMidYMid meet">']
+    parts.append(f'<rect x="0" y="0" width="{VW:.0f}" height="{VH:.0f}" fill="{bg}"/>')
 
     for sh in slide.shapes:
         try:
@@ -45,11 +200,39 @@ def _slide_to_svg(slide, w_emu, h_emu):
             w, h = sh.width / U, sh.height / U
         except Exception:
             continue
-        # fill
+
+        # tables: draw the cell grid + text (data/comparison slides carry these)
+        if getattr(sh, "has_table", False):
+            try:
+                tbl = sh.table
+                col_ws = [c.width / U for c in tbl.columns] or [w]
+                row_hs = [r.height / U for r in tbl.rows] or [h]
+                sx, sy = w / (sum(col_ws) or w), h / (sum(row_hs) or h)
+                col_ws = [c * sx for c in col_ws]
+                row_hs = [r * sy for r in row_hs]
+                ry = y
+                for ri, rh in enumerate(row_hs):
+                    rx = x
+                    for ci, cw in enumerate(col_ws):
+                        cell = tbl.cell(ri, ci)
+                        cfill = _fill_hex(cell.fill, theme) or "#FFFFFF"
+                        ctxt = "#F5F2EE" if _is_dark(cfill) else "#1A1917"
+                        parts.append(f'<rect x="{rx:.1f}" y="{ry:.1f}" width="{cw:.1f}" height="{rh:.1f}" fill="{cfill}" stroke="#D9D5CC" stroke-width="0.5"/>')
+                        ct = " ".join(cell.text.split())
+                        if ct:
+                            for li, wl in enumerate(_wrap(ct, max(1, int(cw / 6.5)))[:3]):
+                                parts.append(f'<text x="{rx+4:.0f}" y="{ry+13+li*12:.0f}" font-family="Poppins,Arial,sans-serif" font-size="10" fill="{ctxt}">{_html.escape(wl)}</text>')
+                        rx += cw
+                    ry += rh
+            except Exception:
+                pass
+            continue
+
+        # fill (solid auto-shapes, incl. theme-colored full-bleed bands)
         fill = None
         try:
-            if sh.fill.type is not None and sh.fill.type == 1:  # solid
-                fill = hexof(sh.fill.fore_color)
+            if sh.fill.type is not None and sh.fill.type == 1:
+                fill = _fill_hex(sh.fill, theme)
         except Exception:
             fill = None
         if sh.shape_type == MSO_SHAPE_TYPE.PICTURE:
@@ -58,7 +241,6 @@ def _slide_to_svg(slide, w_emu, h_emu):
             parts.append(f'<rect x="{x:.0f}" y="{y:.0f}" width="{w:.0f}" height="{h:.0f}" fill="#F1EEE7"/>')
             parts.append(f'<text x="{x+w/2:.0f}" y="{y+h/2:.0f}" font-family="Poppins,Arial" font-size="16" fill="#73716B" text-anchor="middle">chart</text>')
         elif fill:
-            shp = "ellipse" if getattr(sh, "auto_shape_type", None) is not None and str(sh.auto_shape_type) == "OVAL (9)" else "rect"
             try:
                 is_oval = sh.auto_shape_type == 9  # MSO_SHAPE.OVAL
             except Exception:
@@ -68,31 +250,38 @@ def _slide_to_svg(slide, w_emu, h_emu):
             else:
                 rx = 8 if (getattr(sh, "auto_shape_type", None) == 5) else 0
                 parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx}" fill="{fill}"/>')
-        # text
+
+        # text, with word wrapping to the frame width
         if getattr(sh, "has_text_frame", False):
             tf = sh.text_frame
             anchor = tf.vertical_anchor
-            paras = [p for p in tf.paragraphs if "".join(r.text for r in p.runs).strip()]
-            # crude vertical layout: stack lines from the top (or centered)
-            line_hs, styles, texts = [], [], []
-            for p in paras:
+            lines = []  # (txt, px, bold, ital, col, fam, align, lh)
+            for p in tf.paragraphs:
                 runs = p.runs or []
+                txt = "".join(r.text for r in runs)
+                if not txt.strip():
+                    continue
                 sz = next((r.font.size.pt for r in runs if r.font.size), 18)
                 bold = any(r.font.bold for r in runs)
                 ital = any(r.font.italic for r in runs)
-                col = next((hexof(r.font.color) for r in runs if hexof(r.font.color)), "#1A1917")
-                fam = next((r.font.name for r in runs if r.font.name), "Poppins")
-                txt = "".join(r.text for r in runs)
+                # explicit run color, else pick readable default for the fill behind it
+                col = next((_run_hex(r, theme) for r in runs if _run_hex(r, theme)), None)
+                if not col:
+                    col = "#F5F2EE" if (fill and _is_dark(fill)) else "#1A1917"
+                fam = (next((r.font.name for r in runs if r.font.name), "Poppins") or "Poppins").split(",")[0]
                 px = sz * 96 / 72
-                line_hs.append(px * 1.25); styles.append((px, bold, ital, col, fam, p.alignment)); texts.append(txt)
-            total_h = sum(line_hs)
+                lh = px * 1.22
+                max_chars = max(1, int(w / (px * 0.52)))
+                for wl in _wrap(txt, max_chars):
+                    lines.append((wl, px, bold, ital, col, fam, p.alignment, lh))
+            total_h = sum(ln[7] for ln in lines)
             if anchor == MSO_ANCHOR.MIDDLE:
                 cy = y + (h - total_h) / 2
             elif anchor == MSO_ANCHOR.BOTTOM:
                 cy = y + h - total_h
             else:
                 cy = y
-            for (px, bold, ital, col, fam, align), txt, lh in zip(styles, texts, line_hs):
+            for (txt, px, bold, ital, col, fam, align, lh) in lines:
                 cy += lh
                 if align == PP_ALIGN.CENTER:
                     tx, anc = x + w / 2, "middle"
@@ -102,7 +291,6 @@ def _slide_to_svg(slide, w_emu, h_emu):
                     tx, anc = x, "start"
                 weight = "700" if bold else "400"
                 style = ' font-style="italic"' if ital else ""
-                fam = (fam or "Poppins").split(",")[0]
                 parts.append(
                     f'<text x="{tx:.0f}" y="{cy - lh*0.28:.0f}" font-family="{_html.escape(fam)},Arial,sans-serif" '
                     f'font-size="{px:.0f}" font-weight="{weight}" fill="{col}" text-anchor="{anc}"{style}>{_html.escape(txt)}</text>'
@@ -211,6 +399,7 @@ def extract_preview(kind, file_bytes):
         from pptx import Presentation
 
         prs = Presentation(str(fp))
+        theme = _theme_colors(prs)
         slides, svgs = [], []
         for s in prs.slides:
             title, bullets = None, []
@@ -260,7 +449,7 @@ def extract_preview(kind, file_bytes):
                 slide["notes"] = notes
             slides.append(slide)
             try:
-                svgs.append(_slide_to_svg(s, prs.slide_width, prs.slide_height))
+                svgs.append(_slide_to_svg(s, prs.slide_width, prs.slide_height, theme))
             except Exception:
                 svgs.append(None)
         out["slides"] = slides
