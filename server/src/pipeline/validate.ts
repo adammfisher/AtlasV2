@@ -220,6 +220,136 @@ export function officeDoctrineCheck(
   return { ok: true };
 }
 
+/**
+ * Deterministically trim office copy to the design-doctrine word budgets, the
+ * heal that pairs with officeDoctrineCheck: an over-written slide is tightened
+ * in place rather than dropped or fatal. Mirrors the pptx word rules exactly
+ * (bullet ≤ 12 words, content slide ≤ 40 words) and only trims those — trailing
+ * copy is cut first (least-important), then the longest remaining text is
+ * shortened to shed the excess, so a content slide always lands within budget.
+ * Structural doctrine issues (position_overrides, heading skips) are left for
+ * the caller's element-drop salvage. Returns the healed clone and a trim count.
+ */
+export function healDoctrine(skillId: string, payload: unknown): { value: unknown; fixes: number } {
+  const clone = structuredClone(payload);
+  let fixes = 0;
+  const words = (s: unknown): string[] => String(s ?? '').split(/\s+/).filter(Boolean);
+  const nwords = (s: unknown): number => words(s).length;
+  const cut = (s: unknown, max: number): string => words(s).slice(0, Math.max(1, max)).join(' ');
+
+  if (skillId === 'pptx') {
+    const slides = (clone as { slides?: Array<Record<string, unknown>> }).slides ?? [];
+    const CONTENT = new Set(['content_bullets', 'content_chart', 'comparison', 'two_column', 'table', 'timeline_process']);
+    const BULLET_MAX = 12;
+    const SLIDE_MAX = 40;
+    for (const slide of slides) {
+      // 1. per-bullet cap: truncate any bullet over the word ceiling
+      const bullets = slide.bullets as string[] | undefined;
+      if (Array.isArray(bullets)) {
+        for (let i = 0; i < bullets.length; i++) {
+          if (nwords(bullets[i]) > BULLET_MAX) {
+            bullets[i] = cut(bullets[i], BULLET_MAX);
+            fixes++;
+          }
+        }
+      }
+      if (!CONTENT.has(String(slide.archetype))) continue;
+
+      // 2. total-words cap: shed the excess. Counts the exact same fields as
+      // officeDoctrineCheck so a heal here guarantees that gate passes.
+      const columns = (slide.columns as Array<{ head?: string; items?: string[] }> | undefined) ?? [];
+      const steps = (slide.steps as Array<{ label?: string; detail?: string }> | undefined) ?? [];
+      const total = (): number => {
+        let t = nwords(slide.title) + nwords(slide.subtitle);
+        for (const b of (slide.bullets as string[] | undefined) ?? []) t += nwords(b);
+        for (const c of columns) { t += nwords(c.head); for (const it of c.items ?? []) t += nwords(it); }
+        for (const s of steps) t += nwords(s.label) + nwords(s.detail);
+        return t;
+      };
+
+      let guard = 0;
+      while (total() > SLIDE_MAX && guard++ < 500) {
+        // drop trailing body units first, keeping at least one of each kind
+        const b = slide.bullets as string[] | undefined;
+        if (Array.isArray(b) && b.length > 1) { b.pop(); fixes++; continue; }
+        const col = [...columns].reverse().find((c) => (c.items ?? []).length > 1);
+        if (col?.items) { col.items.pop(); fixes++; continue; }
+        if (steps.length > 1) { steps.pop(); fixes++; continue; }
+        // only singletons remain — shorten the longest text field by the excess
+        const excess = total() - SLIDE_MAX;
+        const fields: Array<{ get: () => string; set: (v: string) => void }> = [];
+        if (Array.isArray(b)) b.forEach((_, i) => fields.push({ get: () => String(b[i] ?? ''), set: (v) => (b[i] = v) }));
+        for (const c of columns) (c.items ?? []).forEach((_, i) => fields.push({ get: () => String(c.items![i] ?? ''), set: (v) => (c.items![i] = v) }));
+        for (const s of steps) {
+          fields.push({ get: () => String(s.detail ?? ''), set: (v) => (s.detail = v) });
+          fields.push({ get: () => String(s.label ?? ''), set: (v) => (s.label = v) });
+        }
+        fields.push({ get: () => String(slide.subtitle ?? ''), set: (v) => (slide.subtitle = v) });
+        fields.push({ get: () => String(slide.title ?? ''), set: (v) => (slide.title = v) });
+        const longest = fields.filter((f) => nwords(f.get()) > 1).sort((a, z) => nwords(z.get()) - nwords(a.get()))[0];
+        if (!longest) break; // every field is down to one word; can't reduce further
+        longest.set(cut(longest.get(), nwords(longest.get()) - Math.max(1, excess)));
+        fixes++;
+      }
+    }
+  }
+  return { value: clone, fixes };
+}
+
+/**
+ * Deterministic overflow repair for the fix-and-rebuild loop. Given the visual
+ * gate's findings (e.g. "slide 5: text overflow — needs 0.82in in a 0.50in
+ * frame"), trim the flagged slides' copy in place so the SAME deck is tightened
+ * and rebuilt — no LLM regeneration, so successive passes can't drift into a
+ * different deck. Each call removes ONE increment of content from each flagged
+ * slide (drop the last bullet / column item / step, else shorten the longest
+ * text field by a third); the caller rebuilds and re-measures, trimming again
+ * only where a frame still overflows. Returns the trimmed clone and how many
+ * slides it changed (0 ⇒ nothing left to trim, so the caller stops).
+ */
+export function repairOverflow(
+  skillId: string,
+  payload: unknown,
+  findings: string[],
+): { value: unknown; fixes: number } {
+  if (skillId !== 'pptx') return { value: payload, fixes: 0 };
+  const clone = structuredClone(payload);
+  const slides = (clone as { slides?: Array<Record<string, unknown>> }).slides ?? [];
+  // slides the gate flagged, 1-based in the finding text
+  const flagged = new Set<number>();
+  for (const f of findings) {
+    const m = /\bslide\s+(\d+)\b/i.exec(f);
+    if (m) flagged.add(Number(m[1]) - 1);
+  }
+  const words = (s: unknown): string[] => String(s ?? '').split(/\s+/).filter(Boolean);
+  let fixes = 0;
+  for (const idx of flagged) {
+    const slide = slides[idx];
+    if (!slide || typeof slide !== 'object') continue;
+    const bullets = slide.bullets as string[] | undefined;
+    const columns = (slide.columns as Array<{ head?: string; items?: string[] }> | undefined) ?? [];
+    const steps = (slide.steps as Array<{ label?: string; detail?: string }> | undefined) ?? [];
+    // 1. drop a trailing body unit, keeping at least one of each kind
+    if (Array.isArray(bullets) && bullets.length > 1) { bullets.pop(); fixes++; continue; }
+    const col = [...columns].reverse().find((c) => (c.items ?? []).length > 1);
+    if (col?.items) { col.items.pop(); fixes++; continue; }
+    if (steps.length > 1) { steps.pop(); fixes++; continue; }
+    // 2. only singletons left — shorten the longest text field by ~a third
+    const fields: Array<{ get: () => string; set: (v: string) => void }> = [];
+    if (Array.isArray(bullets)) bullets.forEach((_, i) => fields.push({ get: () => String(bullets[i] ?? ''), set: (v) => (bullets[i] = v) }));
+    for (const c of columns) (c.items ?? []).forEach((_, i) => fields.push({ get: () => String(c.items![i] ?? ''), set: (v) => (c.items![i] = v) }));
+    for (const s of steps) fields.push({ get: () => String(s.detail ?? ''), set: (v) => (s.detail = v) });
+    fields.push({ get: () => String(slide.subtitle ?? ''), set: (v) => (slide.subtitle = v) });
+    const longest = fields.filter((f) => words(f.get()).length > 2).sort((a, z) => words(z.get()).length - words(a.get()).length)[0];
+    if (longest) {
+      const w = words(longest.get());
+      longest.set(w.slice(0, Math.max(2, Math.ceil(w.length * 0.66))).join(' '));
+      fixes++;
+    }
+  }
+  return { value: clone, fixes };
+}
+
 const MERMAID_TYPES = [
   'flowchart',
   'graph',

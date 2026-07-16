@@ -15,7 +15,7 @@ function bedrockModule(): typeof bedrock {
   return bedrock;
 }
 import { loadSkill, templatePath, type SkillId, type LoadedSkill } from './skills.js';
-import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile, officeDoctrineCheck, healConstraints, salvageConstraints } from './validate.js';
+import { validateJson, validateMermaid, validateSvg, validateFileMap, stripFences, extractSvg, healEntryFile, officeDoctrineCheck, healConstraints, salvageConstraints, healDoctrine, repairOverflow } from './validate.js';
 import { retrieveExemplars, formatExemplars } from './exemplars.js';
 import { OrchestrationError, injectEditContext, type ArtifactKind, type EditState } from './artifactContext.js';
 import {
@@ -153,6 +153,19 @@ async function generateJson(
   const schema = ctx.skill.schema as Record<string, unknown>;
   let lastError = '';
   let lastRaw = '';
+  // Deterministic doctrine heal: trim over-budget copy (e.g. a content slide
+  // over the 40-word cap) so an over-written slide is tightened in place rather
+  // than burning a retry or hard-failing. Returns a fully schema-AND-doctrine
+  // valid payload, or null when there was nothing trim-able to fix.
+  const tryDoctrineHeal = (value: unknown): unknown | null => {
+    const { value: trimmed, fixes } = healDoctrine(ctx.skill.id, value);
+    if (fixes === 0) return null;
+    const rv = validateJson(ctx.skill.id, schema, JSON.stringify(trimmed));
+    if (!rv.ok) return null;
+    const extra = extraValidate?.(rv.value);
+    if (extra && !extra.ok) return null;
+    return rv.value;
+  };
   for (let attempt = 0; attempt < 2; attempt++) {
     const messages =
       attempt === 0
@@ -194,6 +207,11 @@ async function generateJson(
         logTo('pipeline', `${ctx.skill.id} json valid attempt=${attempt + 1} hash=${raw.length}`);
         return { payload: result.value, firstPass: attempt === 0 };
       }
+      const healedDoc = tryDoctrineHeal(result.value);
+      if (healedDoc !== null) {
+        logTo('pipeline', `${ctx.skill.id} doctrine-trimmed to budget attempt=${attempt + 1}`);
+        return { payload: healedDoc, firstPass: false };
+      }
       lastError = extra.error;
       logTo('pipeline', `${ctx.skill.id} extra-validation attempt=${attempt + 1}: ${lastError}`);
       continue;
@@ -212,6 +230,11 @@ async function generateJson(
           if (!extra || extra.ok) {
             logTo('pipeline', `${ctx.skill.id} healed ${fixes} constraint violation(s) attempt=${attempt + 1}`);
             return { payload: rv.value, firstPass: false };
+          }
+          const healedDoc = tryDoctrineHeal(rv.value);
+          if (healedDoc !== null) {
+            logTo('pipeline', `${ctx.skill.id} healed ${fixes} constraint(s) + trimmed to budget attempt=${attempt + 1}`);
+            return { payload: healedDoc, firstPass: false };
           }
           lastError = extra.error;
           logTo('pipeline', `${ctx.skill.id} healed schema but doctrine failed attempt=${attempt + 1}: ${lastError}`);
@@ -240,6 +263,12 @@ async function generateJson(
           if (!extra || extra.ok) {
             logTo('pipeline', `${ctx.skill.id} salvaged after repair: dropped ${dropped} invalid element(s)`);
             return { payload, firstPass: false };
+          }
+          // trim the over-budget copy before resorting to dropping the whole unit
+          const healedDoc = tryDoctrineHeal(payload);
+          if (healedDoc !== null) {
+            logTo('pipeline', `${ctx.skill.id} salvaged: dropped ${dropped} + trimmed to budget`);
+            return { payload: healedDoc, firstPass: false };
           }
           const dropIdx = /\b(?:slide|section|page|sheet)\s+(\d+)\b/i.exec(extra.error);
           const arrKey = ['slides', 'sections', 'pages', 'sheets'].find(
@@ -607,28 +636,28 @@ export async function runCreateDoc(opts: {
     const dir = versionDir(opts.projectId, artifactId, 1);
     const outFile = path.join(dir, name);
     pushStep(ctx, { state: 'pending', label: `build_${skill.id}.py`, detail: 'compiling' });
-    // Bounded fix-and-rerender loop: validator findings feed a spec-revision
-    // prompt, regenerate → rebuild → re-validate, max 2 retries. Still failing
-    // deterministic checks afterwards = hard failure with findings attached —
-    // never a false success, never a loosened gate.
+    // Bounded fix-and-REBUILD loop: the validator's per-slide findings drive a
+    // DETERMINISTIC trim of exactly the flagged slides, then rebuild → re-check.
+    // No LLM regeneration — the deck stays the SAME deck, just progressively
+    // tightened where a frame overflows, so successive passes can't drift into a
+    // different deck (the "generating twice/thrice, and they don't match" bug).
+    // Rebuilds are cheap (no model call), so we allow a few more passes.
     let currentPayload = payload;
     let helper = await runHelper(skill.id, currentPayload, outFile);
     // a hard build rejection (helper.ok === false) has no file — it must count
-    // as blocked so the loop regenerates, even if its synthetic check list is thin
+    // as blocked so the loop repairs, even if its synthetic check list is thin
     let blocked = !helper.ok || helperChecksToSteps(ctx, helper.checks);
-    for (let retry = 1; blocked && retry <= 2; retry++) {
+    for (let retry = 1; blocked && retry <= 4; retry++) {
       const findings = [
         ...helper.checks.filter((c) => !c.ok && !/skip/i.test(c.label)).map((c) => c.label),
         ...(((helper.meta.findings as unknown) as string[] | undefined) ?? []),
       ];
-      pushStep(ctx, { state: 'pending', label: `fix-and-rerender ${retry}/2`, detail: findings.slice(0, 3).join(' · ') });
-      const revisionPrompt = `${officePrompt(skill, opts.instructions, opts.text, opts.context)}
-PREVIOUS SPEC (failed the design validator):
-${JSON.stringify(currentPayload)}
-VALIDATOR FINDINGS — regenerate the FULL corrected spec fixing every finding (shorten copy, split slides, drop items — never pad):
-${findings.map((f) => `- ${f}`).join('\n')}`;
-      const revised = await generateJson(ctx, revisionPrompt, maxTokens, doctrineCheck);
-      currentPayload = revised.payload;
+      const { value: trimmed, fixes } = repairOverflow(skill.id, currentPayload, findings);
+      // nothing deterministic left to trim (e.g. contrast/collision findings, or
+      // slides already at their floor) — stop retrying and fall to slide-drop salvage
+      if (fixes === 0) break;
+      pushStep(ctx, { state: 'pending', label: `fix-and-rebuild ${retry}/4`, detail: findings.slice(0, 3).join(' · ') });
+      currentPayload = trimmed;
       helper = await runHelper(skill.id, currentPayload, outFile);
       blocked = !helper.ok || helperChecksToSteps(ctx, helper.checks);
     }
