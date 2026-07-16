@@ -43,6 +43,7 @@ import {
   type ArtifactRef,
   type PipelineMessageData,
   type PipelineStep,
+  type Citation,
 } from '../../lib/api';
 import { postSse } from '../../lib/sse';
 import { Badge } from '../../components/Badge';
@@ -79,11 +80,26 @@ function sanitizeHtml(html: string): string {
 }
 
 /** Assistant text rendered as markdown (headings, tables, lists, code, bold),
- * with knowledge citations [source: filename] kept as accent badges (FR-5.5). */
-function RichText({ text }: { text: string }) {
+ * with knowledge citations [source: filename] kept as accent badges (FR-5.5) and
+ * index-grounded citations (D) rendered as numbered superscript chips.
+ *
+ * Chips are injected as placeholder tokens at each citation's END offset BEFORE
+ * markdown parsing, then swapped for HTML after — the same trick the [source:]
+ * badges use, and the reason offsets are inserted back-to-front: an earlier
+ * insertion would shift every later offset. */
+function RichText({ text, citations, onOpenPassage }: { text: string; citations?: Citation[]; onOpenPassage?: (passageId: string) => void }) {
   const html = useMemo(() => {
+    let source = text;
+    // one chip per distinct cited span, numbered in reading order
+    const chips = [...(citations ?? [])].filter((c) => c.end <= text.length && c.start >= 0).sort((a, b) => a.end - b.end);
+    if (chips.length) {
+      for (let i = chips.length - 1; i >= 0; i--) {
+        const c = chips[i]!;
+        source = `${source.slice(0, c.end)}%%CHIP${i}%%${source.slice(c.end)}`;
+      }
+    }
     const cites: string[] = [];
-    const withTokens = text.replace(/\[source: ([^\]]+)\]/g, (_m, f: string) => {
+    const withTokens = source.replace(/\[source: ([^\]]+)\]/g, (_m, f: string) => {
       cites.push(f);
       return `%%CITE${cites.length - 1}%%`;
     });
@@ -92,8 +108,19 @@ function RichText({ text }: { text: string }) {
       const f = cites[Number(i)] ?? '';
       return `<span class="chat-cite" title="From project knowledge: ${escapeHtml(f)}">${escapeHtml(f)}</span>`;
     });
+    out = out.replace(/%%CHIP(\d+)%%/g, (_m, i: string) => {
+      const c = chips[Number(i)];
+      if (!c) return '';
+      const n = Number(i) + 1;
+      const label = c.title ?? c.url ?? 'source';
+      const tip = escapeHtml(`${label}${c.snippet ? ` — ${c.snippet.slice(0, 240)}` : ''}`);
+      // a web source opens its URL; a knowledge passage opens the modal
+      return c.url
+        ? `<a class="chat-chip" href="${escapeHtml(c.url)}" target="_blank" rel="noreferrer noopener" title="${tip}">${n}</a>`
+        : `<button class="chat-chip" type="button" data-passage="${escapeHtml(c.passageId ?? '')}" title="${tip}">${n}</button>`;
+    });
     return sanitizeHtml(out);
-  }, [text]);
+  }, [text, citations]);
   // per-code-block copy affordance (claude.ai parity): decorate each <pre>
   // after render — the HTML is a sanitized string, so buttons attach here
   const ref = useRef<HTMLDivElement>(null);
@@ -114,8 +141,53 @@ function RichText({ text }: { text: string }) {
       pre.style.position = 'relative';
       pre.appendChild(btn);
     }
-  }, [html]);
+    // knowledge chips carry a passage id rather than a URL — open the modal.
+    // The HTML is a sanitized string (inline handlers are stripped), so the
+    // click has to be attached here.
+    for (const chip of Array.from(root.querySelectorAll<HTMLButtonElement>('.chat-chip[data-passage]'))) {
+      const passageId = chip.dataset.passage;
+      if (!passageId || chip.dataset.wired) continue;
+      chip.dataset.wired = '1';
+      chip.onclick = () => onOpenPassage?.(passageId);
+    }
+  }, [html, onOpenPassage]);
   return <div ref={ref} className="chat-md" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/** The passage behind a knowledge citation chip (D.4).
+ *
+ * A web chip is a link and needs no UI. A knowledge chip has nowhere to point —
+ * the passage lives in the project index — so clicking one shows the exact
+ * sentences the claim was drawn from. (components/KnowledgeModal.tsx is
+ * file-centric, has no passage addressing, and is currently imported nowhere, so
+ * it is deliberately not reused here.) */
+function PassageModal({ citation, onClose }: { citation: Citation; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.45)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg rounded-xl p-4"
+        style={{ background: C.panel, border: `1px solid ${C.borderSoft}` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-2">
+          <span className="flex items-center gap-1.5 text-xs" style={{ color: C.mute, fontFamily: sans }}>
+            <BookOpen size={13} />
+            {citation.title ?? 'Project knowledge'}
+          </span>
+          <button onClick={onClose} style={{ color: C.mute }} title="Close">
+            <X size={14} />
+          </button>
+        </div>
+        <p className="text-sm whitespace-pre-wrap" style={{ color: C.text, fontFamily: serif }}>
+          {citation.snippet || 'This passage is no longer available.'}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /** Uploaded-file chip: hover reveals a download action that pulls the original
@@ -252,6 +324,8 @@ interface LiveExchange {
   userAttachments?: Array<{ id: string; name: string; kind: string }>;
   userText: string;
   assistantText: string;
+  /** D: arrives once the stream ends and the server has validated every index */
+  citations?: Citation[];
   thinkingText?: string;
   started: boolean;
   error: string | null;
@@ -302,6 +376,8 @@ export function ChatView({
   const [menu, setMenu] = useState(false);
   const [plusMenu, setPlusMenu] = useState(false);
   const [live, setLive] = useState<LiveExchange | null>(null);
+  /** the knowledge passage behind a clicked citation chip (D.4) */
+  const [passage, setPassage] = useState<Citation | null>(null);
   const [bedrockModal, setBedrockModal] = useState(false);
   const [thinking, setThinking] = useState(false); // extended thinking toggle
   const [editing, setEditing] = useState<string | null>(null); // message id being edited
@@ -606,6 +682,11 @@ export function ChatView({
         } else if (event === 'thinking') {
           const delta = typeof data.delta === 'string' ? data.delta : '';
           setLive((l) => (l ? { ...l, thinkingText: (l.thinkingText ?? '') + delta } : l));
+        } else if (event === 'citations') {
+          // the raw stream showed <cite> markup; swap in the validated clean
+          // text and its chips in one paint
+          const d = data as { text?: string; citations?: Citation[] };
+          setLive((l) => (l ? { ...l, assistantText: d.text ?? l.assistantText, citations: d.citations ?? [] } : l));
         } else if (event === 'assistant_text') {
           setLive((l) => (l ? { ...l, summary: (data as { text?: string }).text ?? '' } : l));
         } else if (event === 'error') {
@@ -858,7 +939,7 @@ export function ChatView({
                     </details>
                   ) : null}
                   <div style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
-                    <RichText text={m.text ?? ''} />
+                    <RichText text={m.text ?? ''} citations={m.citations} onOpenPassage={(id) => setPassage(m.citations?.find((c) => c.passageId === id) ?? null)} />
                   </div>
                   <span className="flex items-center gap-2 mt-1.5">
                     <button
@@ -985,7 +1066,7 @@ export function ChatView({
                       ) : null}
                       <ToolChips chips={live.toolChips} />
                       <div style={{ color: C.text, fontFamily: serif, fontSize: 15 }}>
-                        <RichText text={live.assistantText} />
+                        <RichText text={live.assistantText} citations={live.citations} onOpenPassage={(id) => setPassage(live.citations?.find((c) => c.passageId === id) ?? null)} />
                       </div>
                     </>
                   ) : null}
@@ -1276,6 +1357,7 @@ export function ChatView({
             : 'Connect Amazon Bedrock in the model menu to start.'}
         </p>
       </div>
+      {passage ? <PassageModal citation={passage} onClose={() => setPassage(null)} /> : null}
     </div>
   );
 }

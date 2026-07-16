@@ -4,6 +4,8 @@
  * Both are best-effort with short timeouts — failures return honest error
  * strings the model can relay.
  */
+import type { SourceRegistry } from './sources.js';
+
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Atlas/1.0';
 
 function decodeEntities(s: string): string {
@@ -16,10 +18,16 @@ function decodeEntities(s: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
+export interface SearchHit {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 /** One DDG-endpoint pass. The html endpoint intermittently returns a shell
  * page with zero results — the lite endpoint has different markup and often
  * succeeds when html fails (W1: measured 7/10 on html alone). */
-async function ddgPass(query: string, endpoint: 'html' | 'lite'): Promise<string[]> {
+async function ddgPass(query: string, endpoint: 'html' | 'lite'): Promise<SearchHit[]> {
   const url =
     endpoint === 'html'
       ? `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
@@ -27,7 +35,7 @@ async function ddgPass(query: string, endpoint: 'html' | 'lite'): Promise<string
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10_000) });
   if (!res.ok) return [];
   const html = await res.text();
-  const results: string[] = [];
+  const results: SearchHit[] = [];
   if (endpoint === 'html') {
     const linkRe = /<a[^>]*class="result__a"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
     const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/g;
@@ -38,27 +46,33 @@ async function ddgPass(query: string, endpoint: 'html' | 'lite'): Promise<string
       let u = m[1]!;
       const uddg = /uddg=([^&]+)/.exec(u);
       if (uddg) u = decodeURIComponent(uddg[1]!);
-      results.push(`${decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim()}\n${u}\n${snippets[i] ?? ''}`);
+      results.push({
+        title: decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim(),
+        url: u,
+        snippet: snippets[i] ?? '',
+      });
       i++;
     }
   } else {
     // lite: bare <a rel="nofollow" href="url">title</a> rows
     for (const m of html.matchAll(/<a[^>]*rel="nofollow"[^>]*href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/g)) {
       if (results.length >= 5) break;
-      results.push(`${decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim()}\n${m[1]!}`);
+      results.push({ title: decodeEntities(m[2]!.replace(/<[^>]+>/g, '')).trim(), url: m[1]!, snippet: '' });
     }
   }
   return results;
 }
 
-export async function webSearch(query: string): Promise<string> {
-  // W1 hardening: html endpoint → lite fallback → one retry of each. Honest
-  // failure text only after all four passes come back empty.
+const SEARCH_FAILED = 'search failed: no results from any endpoint — tell the user search is currently unreliable';
+
+/** W1 hardening: html endpoint → lite fallback → one retry of each. Empty only
+ * after all passes come back empty. */
+async function searchHits(query: string): Promise<SearchHit[]> {
   for (let attempt = 0; attempt < 3; attempt++) {
     for (const endpoint of ['html', 'lite'] as const) {
       try {
         const results = await ddgPass(query, endpoint);
-        if (results.length) return results.join('\n\n');
+        if (results.length) return results;
       } catch {
         // timeout/network — try the next pass
       }
@@ -66,7 +80,39 @@ export async function webSearch(query: string): Promise<string> {
     // DDG's bot detection is bursty — backoff with jitter recovers it
     await new Promise((r) => setTimeout(r, 1500 * (attempt + 1) + Math.random() * 1000));
   }
-  return 'search failed: no results from any endpoint — tell the user search is currently unreliable';
+  return [];
+}
+
+export async function webSearch(query: string): Promise<string> {
+  const hits = await searchHits(query);
+  if (!hits.length) return SEARCH_FAILED;
+  return hits.map((h) => [h.title, h.url, h.snippet].filter(Boolean).join('\n')).join('\n\n');
+}
+
+/**
+ * D.1: search, then hand the model INDEXED documents rather than a text blob, so
+ * every claim it draws can be cited to a real sentence and validated afterwards.
+ * Each hit becomes one document; its sentences come from the title + snippet,
+ * which is all a search result actually asserts.
+ */
+export async function webSearchIndexed(query: string, registry: SourceRegistry): Promise<string> {
+  const hits = await searchHits(query);
+  if (!hits.length) return SEARCH_FAILED;
+  const from = registry.size;
+  for (const h of hits) {
+    registry.add({ title: h.title, url: h.url, text: [h.title, h.snippet].filter(Boolean).join('. ') });
+  }
+  return registry.renderFrom(from);
+}
+
+/** D.1: fetch, then present the page as one indexed document. */
+export async function webFetchIndexed(url: string, registry: SourceRegistry): Promise<string> {
+  const raw = await webFetch(url);
+  // pass failures straight through — they are instructions to the model, not sources
+  if (/^(only http|fetch failed|unsupported content-type|page contained no readable text)/.test(raw)) return raw;
+  const from = registry.size;
+  registry.add({ title: url, url, text: raw, maxSentences: 120 });
+  return registry.renderFrom(from);
 }
 
 const FETCH_CAP = 24_000;

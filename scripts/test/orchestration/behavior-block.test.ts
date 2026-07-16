@@ -20,7 +20,12 @@ for (const tier of ['small', 'mid', 'frontier'] as BehaviorTier[]) {
   check(block.includes('<current_artifact>'), `${tier}: references <current_artifact>`);
   const hasExamples = block.includes('<examples>');
   check(tier === 'small' ? hasExamples : !hasExamples, `${tier}: examples ${tier === 'small' ? 'present' : 'absent'}`);
-  console.log(`${tier}: ${block.length} chars, examples=${hasExamples}`);
+  // citation rules are OPT-IN per conversation (D): absent by default, present
+  // when the conversation can surface indexed sources
+  check(!block.includes('<citation_rules>'), `${tier}: citation rules absent by default`);
+  const withCites = buildBehaviorBlock(tier, { citations: true });
+  check(withCites.includes('<citation_rules>') && withCites.includes('</citation_rules>'), `${tier}: citation rules present when enabled`);
+  console.log(`${tier}: ${block.length} chars (+cites ${withCites.length}), examples=${hasExamples}`);
 }
 console.log(fails === 0 ? '\nBEHAVIOR-BLOCK: PASS' : `\nBEHAVIOR-BLOCK: ${fails} FAILURES`);
 process.exit(fails === 0 ? 0 : 1);

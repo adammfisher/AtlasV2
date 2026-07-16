@@ -18,7 +18,8 @@ import { activeModelKey } from '../providers/bedrock.js';
 //   v1 — routing/artifact doctrine (orchestration brain)
 //   v2 — + <tone_and_formatting> (polish layer, Deliverable A)
 //   v3 — + <memory_etiquette> (polish layer, Deliverable C)
-export const ATLAS_BEHAVIOR_VERSION = 3;
+//   v4 — + <citation_rules>, opt-in per conversation (polish layer, Deliverable D)
+export const ATLAS_BEHAVIOR_VERSION = 4;
 export type BehaviorTier = 'small' | 'mid' | 'frontier';
 
 export function tierForModel(modelKey: string): BehaviorTier {
@@ -140,15 +141,49 @@ const RULES_LEAN = `<tone_and_formatting>
 </tool_use>`;
 
 /**
+ * Citation mechanics (Deliverable D.2). Included ONLY when this conversation can
+ * put indexed sources in front of the model (web tools enabled, or the project
+ * has knowledge). Gating on conversation CONFIGURATION rather than on whether a
+ * given turn happens to have sources is deliberate: sources arrive mid-stream
+ * from the tool loop, long after the system prompt is built, and a per-turn gate
+ * would change the system prefix from turn to turn and destroy the prompt cache
+ * (Deliverable E).
+ */
+const CITATION_RULES = `<citation_rules>
+- Sources are given to you as <document index="N"><sentence index="M">…</sentence></document>. When a claim rests on one, wrap it: <cite index="N-M">the claim</cite>.
+- A range is "N-M:P" (document N, sentences M through P). Several sources are comma-separated: "0-3,2-1". Cite the smallest span that actually supports the claim.
+- ONLY cite what the sources genuinely say. If no source supports a claim, either leave it out or state it plainly as general knowledge with no cite tag — an uncited sentence is honest, a wrong citation is not.
+- NEVER invent an index. Never cite a document or sentence number you were not given: every index is checked against the real sources, and one that does not resolve is thrown away.
+- Quote at most one short phrase (under 15 words) from any single source, and paraphrase everything else. Never reproduce long passages of someone else's text, even with a citation.
+</citation_rules>`;
+
+const CITATION_RULES_LEAN = `<citation_rules>
+- Sources arrive as <document index="N"><sentence index="M">…</sentence></document>. Wrap any claim resting on one: <cite index="N-M">claim</cite>; ranges are "N-M:P", multiple are comma-separated ("0-3,2-1"). Cite the smallest span that supports the claim.
+- Only cite what a source actually says, and never invent an index — every index is validated against the real sources and dropped if it doesn't resolve. A claim with no source is fine uncited as general knowledge; a wrong citation is not.
+- Quote at most one short phrase (<15 words) per source and paraphrase the rest.
+</citation_rules>`;
+
+export interface BehaviorOptions {
+  /** this conversation can surface indexed sources (web tools on, or project
+   * knowledge exists) — adds <citation_rules>. Stable per conversation config. */
+  citations?: boolean;
+}
+
+/**
  * Assemble the versioned, XML-tagged behavior block for a tier. Small/mid get the
  * full rules (small also gets few-shot exemplars); frontier gets the lean variant
  * (frontier models over-comply with shouty, verbose rules). This is a fixed ~400-
  * to ~600-token block — it does NOT inline any SKILL.md (progressive disclosure
  * keeps skills at their ~100-token metadata tier until a skill is triggered).
  */
-export function buildBehaviorBlock(tier: BehaviorTier = tierForModel(activeModelKey())): string {
-  const body = tier === 'frontier' ? RULES_LEAN : tier === 'small' ? `${RULES_FULL}\n${RULES_EXAMPLES}` : RULES_FULL;
-  return `<atlas_behavior version="${ATLAS_BEHAVIOR_VERSION}" tier="${tier}">\n${body}\n</atlas_behavior>`;
+export function buildBehaviorBlock(
+  tier: BehaviorTier = tierForModel(activeModelKey()),
+  opts: BehaviorOptions = {},
+): string {
+  const lean = tier === 'frontier';
+  const base = lean ? RULES_LEAN : tier === 'small' ? `${RULES_FULL}\n${RULES_EXAMPLES}` : RULES_FULL;
+  const cites = opts.citations ? `\n${lean ? CITATION_RULES_LEAN : CITATION_RULES}` : '';
+  return `<atlas_behavior version="${ATLAS_BEHAVIOR_VERSION}" tier="${tier}">\n${base}${cites}\n</atlas_behavior>`;
 }
 
 const RECENT_COUNT = 12;

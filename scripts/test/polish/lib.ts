@@ -30,11 +30,16 @@ export interface AskOptions {
   /** extra system sections appended after the behavior block (memory recall, sources, …) */
   extraSystem?: string[];
   maxTokens?: number;
+  /** include <citation_rules> — production does this whenever the conversation
+   * can surface indexed sources (web tools on, or project knowledge present) */
+  citations?: boolean;
 }
 
 /** One turn against a pinned tier with the real behavior block in the system prompt. */
 export async function ask(tier: BehaviorTier, prompt: string, opts: AskOptions = {}): Promise<string> {
-  const system = [PERSONA, buildBehaviorBlock(tier), ...(opts.extraSystem ?? [])].filter(Boolean).join('\n\n');
+  const system = [PERSONA, buildBehaviorBlock(tier, { citations: opts.citations }), ...(opts.extraSystem ?? [])]
+    .filter(Boolean)
+    .join('\n\n');
   return (
     await completeTextAs(
       MODEL_FOR_TIER[tier],

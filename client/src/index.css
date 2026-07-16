@@ -110,6 +110,34 @@ textarea:focus-visible {
 .chat-md a { color: var(--accent); text-decoration: underline; }
 .chat-md strong { font-weight: 600; }
 .chat-md hr { border: none; border-top: 1px solid rgb(var(--md-neutral) / 0.28); margin: 1em 0; }
+/* index-grounded citation chips (D.4): a numbered superscript marker after the
+   cited claim. Hover shows title + snippet (title attr); click opens the source
+   URL, or the passage modal for project knowledge. */
+.chat-md .chat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05em;
+  height: 1.05em;
+  padding: 0 0.2em;
+  margin: 0 0.1em;
+  border-radius: 3px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-family: system-ui, sans-serif;
+  font-size: 0.62em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: filter 0.12s ease;
+}
+.chat-md .chat-chip:hover {
+  filter: brightness(1.25);
+}
+
 .chat-md .chat-cite {
   display: inline-flex;
   align-items: center;

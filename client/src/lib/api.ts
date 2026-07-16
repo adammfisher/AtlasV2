@@ -45,6 +45,20 @@ export interface TextMessage {
   thinking?: string;
   toolCalls?: Array<{ tool: string; connector: string }>;
   attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
+  /** index-grounded citations (D). start/end are offsets into `text`; they are
+   * stored with the message so chips survive a reload. */
+  citations?: Citation[];
+}
+
+export interface Citation {
+  start: number;
+  end: number;
+  docIndex: number;
+  sentIndices: number[];
+  url?: string;
+  title?: string;
+  passageId?: string;
+  snippet?: string;
 }
 
 export interface PipelineMessageData {

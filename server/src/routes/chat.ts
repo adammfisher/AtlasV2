@@ -12,7 +12,9 @@ import {
 } from '../db/appdb.js';
 import { logTo } from '../log.js';
 import { installFor, toolsForProject, callTool, type ChatTool } from '../mcp/manager.js';
-import { webSearch, webFetch } from '../tools/web.js';
+import { webSearchIndexed, webFetchIndexed } from '../tools/web.js';
+import { SourceRegistry } from '../tools/sources.js';
+import { parseCitations, snippetFor } from '../tools/citations.js';
 import { bedrockSettings, activeModel, type BedrockTool } from '../providers/bedrock.js';
 import { streamWithTools } from '../providers/dispatch.js';
 import { attachmentDataUrl, attachmentContent } from './uploads.js';
@@ -292,6 +294,11 @@ chatRouter.post('/:id/messages', async (req, res) => {
           return false;
         }
       })();
+      // D: one source registry per turn. Everything the model is shown — search
+      // hits, fetched pages, knowledge passages — is registered here with stable
+      // indices, and it is the only authority on whether a <cite index> is real.
+      const sources = new SourceRegistry();
+
       let recall = '';
       if (memEnabled) {
         try {
@@ -300,7 +307,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
           await flushProjectPending(conv.project_id, conv.id);
           // C.3: personal memories are withheld from impersonal technical Q&A;
           // project knowledge is never gated (document Q&A depends on it)
-          recall = await recallContext(conv.project_id, text.trim().slice(0, 200), { workflowId });
+          recall = await recallContext(conv.project_id, text.trim().slice(0, 200), { workflowId, sources });
         } catch (err) {
           logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
         }
@@ -314,15 +321,19 @@ chatRouter.post('/:id/messages', async (req, res) => {
       const webConv = getSetting(`websearch:${conv.id}`); // null/'' = no override
       const webEnabled = webConv === '1' || webConv === '0' ? webConv === '1' : getSetting('webSearchEnabled') !== '0';
       const convStyle = getSetting(`style:${conv.id}`) ?? '';
+      // D.2: citation rules ride the behavior block whenever this conversation
+      // CAN surface indexed sources. Gated on configuration, not on whether this
+      // turn happens to have sources — those arrive mid-stream from the tool
+      // loop, and a per-turn gate would move the system prefix every turn and
+      // destroy the prompt cache (E).
+      const knowledgeCount = (await listKnowledge(conv.project_id).catch(() => [])).length;
+      const citationsPossible = webEnabled || knowledgeCount > 0;
       const system = [
         PERSONA,
         // versioned, tier-appropriate behavior rules (create-vs-edit-vs-describe,
         // artifact-vs-inline, honesty, when-to-search) — the always-on brain rules
-        buildBehaviorBlock(),
+        buildBehaviorBlock(tierForModel(activeModelKey()), { citations: citationsPossible }),
         convStyle,
-        webEnabled
-          ? 'CITATIONS: when your answer draws on web_search or web_fetch results, cite each key claim inline as a markdown link to its source URL — [source title](url). Never invent URLs; only link URLs that appeared in tool results.'
-          : '',
         memEnabled
           ? 'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".'
           : '',
@@ -367,7 +378,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
         logTo('mcp', `connector tools unavailable: ${err instanceof Error ? err.message : err}`);
       }
       // document reads only matter when there is something to read
-      const docsReadable = atts.some((a) => a.kind === 'document') || (await listKnowledge(conv.project_id).catch(() => [])).length > 0;
+      const docsReadable = atts.some((a) => a.kind === 'document') || knowledgeCount > 0;
       const tools: BedrockTool[] = [
         ...(memEnabled ? MEMORY_TOOLS : []),
         ...(webEnabled ? WEB_TOOLS : []),
@@ -391,8 +402,9 @@ chatRouter.post('/:id/messages', async (req, res) => {
           const scope = input.scope === 'user' ? 'user' : conv.project_id;
           if (name === 'remember') return rememberFact(scope, String(input.fact ?? ''), conv.id);
           if (name === 'forget') return forgetFact(scope, String(input.query ?? ''), conv.project_id);
-          if (name === 'web_search') return webSearch(String(input.query ?? ''));
-          if (name === 'web_fetch') return webFetch(String(input.url ?? ''));
+          // D.1: both return INDEXED documents registered in `sources`
+          if (name === 'web_search') return webSearchIndexed(String(input.query ?? ''), sources);
+          if (name === 'web_fetch') return webFetchIndexed(String(input.url ?? ''), sources);
           if (name === 'read_document') {
             return readDocument(conv.project_id, atts, String(input.name ?? ''), input.slides ? String(input.slides) : undefined);
           }
@@ -455,10 +467,16 @@ chatRouter.post('/:id/messages', async (req, res) => {
         // dropping everything the user watched stream in
         if (abort.signal.aborted) {
           if (full) {
+            // a stopped stream can hold half-written <cite> markup — clean it
+            // rather than persisting raw tags into the transcript
+            const stopped = parseCitations(full, sources, conv.id);
             await persistAssistant('text', {
-              text: full,
+              text: stopped.text,
               ...(chips.length ? { toolCalls: chips } : {}),
               ...(thinkingFull ? { thinking: thinkingFull } : {}),
+              ...(stopped.citations.length
+                ? { citations: stopped.citations.map((c) => ({ ...c, snippet: snippetFor(c, sources) })) }
+                : {}),
             });
             scheduleExtraction(conv.id, conv.project_id);
           }
@@ -466,6 +484,21 @@ chatRouter.post('/:id/messages', async (req, res) => {
         }
         throw err;
       }
+      // D.3: parse <cite> spans out of the buffered text and validate every index
+      // against the registry. Invalid tags are dropped (CITE_INVALID) so an
+      // invented citation can never render as a chip — a chip promises the claim
+      // is grounded. Offsets index the CLEAN text the client renders.
+      const parsed = parseCitations(full, sources, conv.id);
+      const citations = parsed.citations.map((c) => ({ ...c, snippet: snippetFor(c, sources) }));
+      full = parsed.text;
+      if (parsed.citations.length || parsed.invalid) {
+        logTo('pipeline', `citations conv=${conv.id} valid=${parsed.citations.length} dropped=${parsed.invalid} sources=${sources.size}`);
+      }
+      // The client rendered raw deltas as they streamed, so it is showing <cite>
+      // markup right now. Hand it the clean text WITH the citations in one event
+      // so the markup is replaced by chips in a single paint.
+      if (citations.length || parsed.invalid) sse(res, 'citations', { text: full, citations });
+
       // C.2: scan the BUFFERED final text (a phrase can straddle two SSE deltas).
       // Logs MEMORY_NARRATION; never blocks or rewrites — the user has already
       // watched this stream, and a false positive eating a real answer is worse
@@ -476,6 +509,8 @@ chatRouter.post('/:id/messages', async (req, res) => {
         text: full,
         ...(chips.length ? { toolCalls: chips } : {}),
         ...(thinkingFull ? { thinking: thinkingFull } : {}),
+        // stored with the message so chips survive a reload
+        ...(citations.length ? { citations } : {}),
       });
       scheduleExtraction(conv.id, conv.project_id);
       sse(res, 'done', { messageId: id });

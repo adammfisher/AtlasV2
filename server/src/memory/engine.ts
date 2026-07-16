@@ -45,6 +45,7 @@ import {
   type Scope,
   type Profile,
 } from './store.js';
+import type { SourceRegistry } from '../tools/sources.js';
 
 export const USER_CATEGORIES = ['user_preference', 'user_fact'] as const;
 export const PROJECT_CATEGORIES = ['project_context', 'decision', 'learned_fact'] as const;
@@ -145,6 +146,13 @@ function rank(h: { score: number; created_at?: number; mention_count?: number })
   return 0.6 * h.score + 0.25 * recency + 0.15 * mentions;
 }
 
+/** Knowledge chunks are stored prefixed with their file name — putKnowledgeChunk
+ * writes `[report.pptx] <chunk>` — and the vector hit carries no metadata for it,
+ * so the name is recovered from the content itself. */
+function sourceName(content: string): string | undefined {
+  return /^\[([^\]]{1,80})\]\s/.exec(content)?.[1];
+}
+
 /* ---------- relevance gate (Deliverable C.3) ---------- */
 
 /** Workflow ids that are plain technical/factual Q&A — no personal referent
@@ -180,6 +188,11 @@ export function shouldRecallMemories(query: string, workflowId?: string): boolea
 export interface RecallOptions {
   /** the routed workflow id — drives the impersonal-Q&A gate */
   workflowId?: string;
+  /** D.1: when present, knowledge passages are registered as INDEXED documents
+   * and rendered with sentence indices so the model can cite them and the
+   * post-processor can validate what it cited. Absent, the legacy
+   * "[source: filename]" prose form is used. */
+  sources?: SourceRegistry;
 }
 
 export async function recallContext(projectId: string, query: string, opts: RecallOptions = {}): Promise<string> {
@@ -270,11 +283,18 @@ export async function recallContext(projectId: string, query: string, opts: Reca
 
       if (mChosen.length) parts.push(`Relevant memories:\n${mChosen.map((h) => h.content).join('\n')}`);
       if (kChosen.length) {
-        parts.push(
-          `The following passages have ALREADY been retrieved from this project's documents for you — they are the relevant excerpts. Answer directly from them; do NOT say you will search, look up, or check files (you have no file-search tool). When you use information from a passage, cite it inline as [source: filename].\n${kChosen
-            .map((h) => h.content)
-            .join('\n')}`,
-        );
+        const preamble =
+          "The following passages have ALREADY been retrieved from this project's documents for you — they are the relevant excerpts. Answer directly from them; do NOT say you will search, look up, or check files (you have no file-search tool).";
+        if (opts.sources) {
+          // D.1: indexed form — each passage is a document with cited sentences
+          const from = opts.sources.size;
+          for (const h of kChosen) {
+            opts.sources.add({ title: sourceName(h.content) ?? h.key, passageId: h.key, text: h.content });
+          }
+          parts.push(`${preamble} Cite them with <cite index="N-M"> as your citation rules describe.\n${opts.sources.renderFrom(from)}`);
+        } else {
+          parts.push(`${preamble} When you use information from a passage, cite it inline as [source: filename].\n${kChosen.map((h) => h.content).join('\n')}`);
+        }
       }
       const chosen = [...kChosen, ...mChosen];
       // recalled notes shouldn't decay — extend their ttl (fire-and-forget)
