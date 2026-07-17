@@ -425,6 +425,48 @@ export function stripFences(source: string): string {
 }
 
 /**
+ * Extract the first balanced top-level JSON value from text that may carry
+ * leading/trailing non-JSON content — the unconstrained plain-text streaming
+ * path (bedrock.ts viaPlain, used for all office-JSON generation) only
+ * demands JSON via the system prompt, nothing structurally stops the model
+ * from appending a trailing sentence of commentary, especially when the
+ * user's own request explicitly invites it ("...and tell me what you
+ * included"). `JSON.parse` treats one extra character after a complete,
+ * valid object as a hard failure — this recovers the value that's actually
+ * there instead of discarding a correct generation over trailing prose.
+ * Returns the input trimmed, unchanged, if no balanced structure is found, so
+ * a genuinely malformed response still fails validation with an honest error.
+ */
+export function extractJsonValue(text: string): string {
+  const trimmed = text.trim();
+  const start = trimmed.search(/[{[]/);
+  if (start === -1) return trimmed;
+  const open = trimmed[start];
+  const close = open === '{' ? '}' : ']';
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === open) {
+      depth++;
+    } else if (ch === close) {
+      depth--;
+      if (depth === 0) return trimmed.slice(start, i + 1);
+    }
+  }
+  return trimmed; // never balanced — let JSON.parse report the real error
+}
+
+/**
  * E4B sometimes writes literal backslash-n sequences (and stray JSON fragments)
  * inside react/site file strings instead of real newlines — the rendered page
  * then shows "\n" as text. Caught here so the repair loop fixes it honestly.

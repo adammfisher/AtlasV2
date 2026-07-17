@@ -24,6 +24,7 @@ import { getSetting, setSetting } from '../db/db.js';
 import { logTo } from '../log.js';
 import type { ChatMessage } from '../llama/client.js';
 import { modelAllowed, runAsAccount } from '../lib/account.js';
+import { extractJsonValue } from '../pipeline/validate.js';
 
 export interface BedrockSettings {
   connected: boolean;
@@ -703,8 +704,12 @@ export async function bedrockCompleteJson(
       if (event.messageStop) stopReason = event.messageStop.stopReason ?? '';
     }
     assertNotTruncated(stopReason, raw.length);
-    // strip markdown fences the model may add without constrained decoding
-    return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    // strip markdown fences the model may add without constrained decoding,
+    // then recover the JSON value itself in case anything trails after it —
+    // nothing here structurally stops the model from appending a sentence of
+    // commentary the way forced tool-use would (FIXLOG FX-8)
+    const fenceStripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    return extractJsonValue(fenceStripped);
   };
 
   const complex = (msg: string): boolean => /grammar|compilation|timed out|too complex|too large/i.test(msg);

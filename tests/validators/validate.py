@@ -57,6 +57,15 @@ def v_pptx(path: Path, spec: dict) -> list[str]:
     for want in spec.get("contains", []):
         if want.lower() not in joined.lower():
             findings.append(f"missing requested content: {want!r}")
+    if spec.get("_design"):
+        # the product's own deterministic visual gate (AX-design): overflow,
+        # collisions, margins, WCAG contrast, font families, placeholder scan
+        try:
+            import validate_common as vc  # type: ignore
+
+            findings.extend(f"design: {f}" for f in vc.visual_gate_pptx(path))
+        except Exception as e:  # noqa: BLE001
+            findings.append(f"design gate could not run: {e}")
     return findings
 
 
@@ -177,8 +186,15 @@ def v_svg(path: Path, spec: dict) -> list[str]:
 
 def v_delegated(kind: str, path: Path, spec: dict) -> list[str]:
     """mermaid / react / site — product validators via node (js-validate.ts)."""
+    args = [str(ROOT / "node_modules" / ".bin" / "tsx"), str(ROOT / "tests" / "validators" / "js-validate.ts"), kind, str(path)]
+    if spec.get("contains"):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump({"contains": spec["contains"]}, f)
+            args.append(f.name)
     proc = subprocess.run(
-        [str(ROOT / "node_modules" / ".bin" / "tsx"), str(ROOT / "tests" / "validators" / "js-validate.ts"), kind, str(path)],
+        args,
         capture_output=True,
         text=True,
         timeout=120,
@@ -201,8 +217,11 @@ def main() -> int:
     ap.add_argument("kind")
     ap.add_argument("file")
     ap.add_argument("--spec", default=None)
+    ap.add_argument("--design", action="store_true", help="pptx: also run the product's deterministic visual gate")
     args = ap.parse_args()
     spec = json.loads(Path(args.spec).read_text()) if args.spec else {}
+    if args.design:
+        spec["_design"] = True
     path = Path(args.file)
     if not path.exists():
         print(json.dumps({"ok": False, "kind": args.kind, "findings": ["file does not exist"]}))

@@ -138,8 +138,30 @@ function kindFromExt(ext: string): string | null {
   return null;
 }
 
+// A small set of unambiguous file-format words. A literal format name is more
+// decisive than any generic content-noun's character length could indicate —
+// "onboarding checklist PDF" was scoring 'checklist' (9, create-md) over
+// 'pdf' (3, create-pdf) and misrouting. Checked first, and only decides
+// anything when it uniquely identifies a single workflow, so it can't itself
+// introduce a new ambiguity.
+const FORMAT_DECISIVE_WORDS = ['pdf', 'pptx', 'powerpoint', 'docx', 'xlsx', 'csv', 'svg', 'mmd'];
+
 /** unique deliverable-noun match for a create request; null on tie/none. */
 function matchCreate(message: string): { id: WorkflowId; skill: SkillId } | null {
+  for (const word of FORMAT_DECISIVE_WORDS) {
+    if (!hasWord(message, word)) continue;
+    const owners = CREATE_PRIORITY.filter((id) => (wf(id).triggers.nounObjects ?? []).includes(word));
+    if (owners.length === 1) return { id: owners[0]!, skill: CREATE_SKILL[owners[0]!]! };
+  }
+  // Fell through: no decisive format word, or it's shared by >1 workflow (not
+  // decisive on its own) — original longest-matched-noun scoring. This is
+  // deliberately UNCHANGED from before the format-word check above: an
+  // earlier version excluded create-md whenever any other workflow also had
+  // a hit, but that broke legitimate cases where create-md's own noun is the
+  // right, more decisive answer ("Write a README..." lost to a stray "tool"
+  // match from create-react-app's noun list, since 'CLI tool' genuinely
+  // contains the word "tool" — not a false-positive substring, just a less
+  // decisive generic word than "readme").
   const scored = CREATE_PRIORITY.map((id) => ({ id, hit: longestHit(message, wf(id).triggers.nounObjects ?? []) })).filter((s) => s.hit > 0);
   if (!scored.length) return null;
   const best = Math.max(...scored.map((s) => s.hit));

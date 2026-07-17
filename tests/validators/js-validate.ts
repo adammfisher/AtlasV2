@@ -11,17 +11,21 @@ import { transform } from 'esbuild';
 import { validateMermaid, validateFileMap } from '../../server/src/pipeline/validate.js';
 
 async function main(): Promise<number> {
-  const [kind, file] = process.argv.slice(2);
+  const [kind, file, specArg] = process.argv.slice(2);
   if (!kind || !file) {
-    console.log(JSON.stringify({ ok: false, findings: ['usage: js-validate <kind> <file>'] }));
+    console.log(JSON.stringify({ ok: false, findings: ['usage: js-validate <kind> <file> [spec.json]'] }));
     return 2;
   }
+  const spec = specArg ? (JSON.parse(readFileSync(specArg, 'utf8')) as { contains?: string[] }) : {};
   const findings: string[] = [];
   const raw = readFileSync(file, 'utf8');
 
   if (kind === 'mermaid') {
     const res = validateMermaid(raw);
     if (!res.ok) findings.push(`mermaid parse failed: ${res.error ?? 'unknown'}`);
+    for (const want of spec.contains ?? []) {
+      if (!raw.toLowerCase().includes(want.toLowerCase())) findings.push(`missing requested content: ${JSON.stringify(want)}`);
+    }
   } else if (kind === 'react' || kind === 'site') {
     let payload: { files?: Record<string, string>; entry?: string };
     try {
@@ -46,6 +50,10 @@ async function main(): Promise<number> {
         }
       }
       if (!/export\s+default/.test(files[entry] ?? '')) findings.push(`entry ${entry} has no default export`);
+    }
+    const joined = Object.values(files).join('\n').toLowerCase();
+    for (const want of spec.contains ?? []) {
+      if (!joined.includes(want.toLowerCase())) findings.push(`missing requested content: ${JSON.stringify(want)}`);
     }
   } else {
     findings.push(`unknown kind ${kind}`);
