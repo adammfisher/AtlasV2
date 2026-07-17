@@ -14,3 +14,59 @@ Entries are appended chronologically; IDs are `FX-<n>`.
 - **Fix:** removed the stray token. Also added the sanctioned `e2etest` account (isolated DynamoDB partition `A#e2etest|`) used by the new test harness — approved at the Phase 0 gate (open question 3/4).
 - **Files changed:** `users.config.json`.
 - **Regression lock:** `tests/unit/config.spec.ts` (U-CONF-1) parses `users.config.json` + `models.config.json` + `axiom.config.json` strictly and asserts every account's `models` keys resolve against `models.config.json`.
+
+---
+
+## FX-2 — any stream close was treated as success; stream lifetime tied to component lifetime (PRIORITY ZERO, part 1)
+
+- **Symptom (user report):** the app returns to the start/home screen before artifact generation completes; artifact creation feels clunky.
+- **Evidence:** INFRA-2 at Phase 1 (pre-fix, commit ef52d2f): a transcript cut before its `done` event ended the busy state silently with no error — captured trace in test-results. Baseline parity `x4.spec` (streaming resilience) red; top-level `artifacts.spec` pptx build chain timing out at 4m. Server protocol emits a terminal `done {messageId}` event (`server/src/routes/chat.ts`) that the client never consumed.
+- **Root cause:** `client/src/lib/sse.ts` fired `onClose()` on ANY reader close and `ChatView.onClose` unconditionally cleared the live exchange (`setLive(null)`). In a conversation with no persisted messages, `empty = messages.length === 0 && live === null` re-rendered the "What are we building?" home state — mid-generation, whenever the connection dropped (network blip, sleep, proxy restart, CloudFront's 120s origin_read_timeout vs 83–93s silent first-token buffering on big decks). Compounding: the SSE consumer lived inside ChatView, so unmounting (view switch) orphaned the stream; and a mid-stream `read()` rejection left the promise unhandled — permanently stuck busy composer.
+- **Why it happened:** the happy path (clean close right after `done`) behaves identically to the failure path at the socket level, so the missing `done` check was invisible in normal use; the `setLive(null)`-always was itself a deliberate patch for an earlier stuck-composer bug (comment preserved in git history) that traded one failure mode for a worse one.
+- **Fix:** new `client/src/lib/stream.ts` — a module-level, conversation-keyed stream store. Completion is keyed on the `done` event; close-without-done (and mid-stream read rejection, now caught in `sse.ts`) surfaces an in-place "Connection lost" error with retry; the live exchange is cleared only after the refetched conversation actually contains the persisted `messageId`; user aborts keep the old semantics. ChatView renders store state via `useSyncExternalStore` — the stream survives unmount/nav.
+- **Files changed:** `client/src/lib/stream.ts` (new), `client/src/lib/sse.ts`, `client/src/views/Chat/ChatView.tsx`, `client/src/App.tsx`.
+- **Regression lock:** A0-1 (×9 kinds), A0-2 (3-minute stream), A0-4a/A0-4b (error + cut), A0-L1/A0-L2 (live, incl. genuine network drop), INFRA-1/2.
+
+---
+
+## FX-3 — new-chat send never promoted its conversation (PRIORITY ZERO, part 2)
+
+- **Symptom:** sending from the fresh empty state created the conversation server-side, but on stream end the view collapsed back to the empty home state; the chat only existed in the sidebar.
+- **Evidence:** paper trace TESTPLAN §3 H5: `send()` created the conversation locally (`target`) but `App.activeConv` stayed null, so ChatView's conversation query stayed disabled and `messages` stayed [].
+- **Root cause:** the created conversation id never left `send()`'s closure — no promotion path to App state existed.
+- **Fix:** `onConvCreated` callback: ChatView reports the created id, App adopts it (`setActiveConv`), the URL updates to `/c/<id>`, and the conv-change effect now skips its live-panel reset when the conversation being switched to is actively streaming.
+- **Files changed:** `client/src/views/Chat/ChatView.tsx`, `client/src/App.tsx`.
+- **Regression lock:** A0-1 runs on fresh conversations (the exchange must remain on screen with the query active); S-phase adds an explicit empty-state→send→URL test.
+
+---
+
+## FX-4 — mid-stream error events were erased by the close handler
+
+- **Symptom:** a pipeline error flashed and vanished; the user saw a silent reset instead of the failure.
+- **Root cause:** `error` events set `live.error`, but the unconditional `setLive(null)` on close deleted the visible error a frame later.
+- **Fix:** in the store, a close after a server `error` event marks the exchange finished but KEEPS it rendered (error box + retry); the composer unlocks via `finished`, so the old stuck-composer failure cannot return.
+- **Files changed:** `client/src/lib/stream.ts` (same change set as FX-2).
+- **Regression lock:** A0-4a.
+
+---
+
+## FX-5 — per-chunk synchronous re-render jank ("clunky")
+
+- **Symptom:** the UI stuttered during generation; typing/clicking lagged.
+- **Root cause:** every SSE chunk forced a synchronous React state update (hundreds to thousands per generation — site transcript: 1409 gen deltas), each re-parsing the full markdown text and issuing a smooth-scroll `scrollIntoView`.
+- **Fix:** store notifications are coalesced to animation frames (≤1 render per frame); autoscroll is bottom-sticky only and uses instant scrolling during streaming.
+- **Files changed:** `client/src/lib/stream.ts`, `client/src/views/Chat/ChatView.tsx`.
+- **Regression lock:** A0-5 (mid-stream click must respond <1s; long-task counts logged per run).
+
+---
+
+## FX-6 — network drop during create_doc/edit_doc generation silently discarded the assistant's turn forever (PRIORITY ZERO, live-stack finding)
+
+- **Symptom:** discovered while verifying A0-L2 (the live twin of the mocked A0-4b connection-drop test) against the real stack. A0-L2 failed 3× in a row with the poll for "artifact card or persisted message" never resolving — not a slow-but-eventually-correct result, a permanent one: `GET /conversations/:id` showed only the user's message, no assistant response, indefinitely (confirmed with a direct 5-minute API poll, bypassing the browser entirely).
+- **Evidence:** a minimal reproduction script (`fetch` the message POST, read two SSE chunks to confirm the router step fired, `controller.abort()` client-side, then poll the conversation API directly) showed 0 assistant messages after 300s. `pipeline.log` confirmed the router decision logged and nothing else — no `json valid`, no `pipeline error`, nothing — for that conversation, ever.
+- **Root cause:** `server/src/routes/chat.ts`'s outer `catch` block is the *only* error handler for the `create_doc`/`edit_doc` pipeline (`runCreateDoc`/`runEditDoc`). It gated all persistence — even an honest "generation failed" message — behind `if (!abort.signal.aborted)`. That guard was written for the plain-chat token-stream's semantics ("a Stop click shouldn't get an ugly error appended"), but that case is handled entirely by a *different*, inner try/catch further up (which already preserves partial prose on user-stop and `return`s before ever reaching the outer catch). `res.on('close')` — the only signal available — cannot distinguish a deliberate Stop from a genuine network drop; both set the same `abort.signal.aborted`. When the client disconnects before `runCreateDoc`'s Bedrock call returns, the call rejects (AbortError), propagates out of `runCreateDoc`, lands in the outer catch, and — because the signal is aborted — every branch that would persist a message was skipped. The user's request was answered by nothing, permanently: no error, no retry affordance, nothing to recover on reload.
+- **Why it happened:** the happy path (abort landing *after* the model call already returned, e.g. during the office-file build helper or the chat-summary call) doesn't hit this bug, because later pipeline steps either run in a spawned subprocess with its own independent timeout (unaffected by `ctx.signal`) or catch their own errors internally (`summarize()`) — so the pipeline finishes and persists anyway. Only an early disconnect (before the model call returns) hits the silent-discard path, which is exactly the harder-to-notice, worse-timed case: the more of the (slow, expensive) generation already in flight, the more silently it gets thrown away.
+- **Fix:** the outer catch now always persists an honest record — `"Generation was interrupted before it finished (connection lost). Send the request again to retry."` on abort, the existing honest error text otherwise — regardless of `abort.signal.aborted`. Only the *live* SSE push (`sse(res, 'error', ...)`) stays conditional on the client still being connected to receive it; the durable DB write never is. The `OrchestrationError` (missing edit-state) branch got the same treatment for consistency.
+- **Files changed:** `server/src/routes/chat.ts`.
+- **Regression lock:** `A0-L3` (new, API-level, sub-second — reproduces the exact abort-before-model-returns race deterministically without depending on live generation timing); `A0-L2` (live, end-to-end through the real UI, at real generation speed — re-verified 3× after the fix).
+- **Separate test-only defect found and fixed during verification (no product change):** `A0-L2` still failed 3× *after* the product fix above, but the evidence changed shape — trace-level network inspection showed `GET /conversations/:id` returning 200 with real content (1506 bytes, stable) within the first reload cycle every time. The test's reload-poll called `page.locator(...).count()` as an instantaneous snapshot immediately after `composer.waitFor()` resolved — but `page.reload()`'s `load` event fires once the static shell (composer included) mounts, *before* the `useQuery(['conversation', convId])` fetch resolves and re-renders. The count checks were racing that async fetch and reading the DOM before React had anything to show. Fixed in `tests/e2e/live-smoke/a0-live.spec.ts` by giving each reload's content check its own bounded `waitFor` instead of an instantaneous count. Re-verified 3× green (55s-1.6m each, down from hitting the full 400s ceiling every time).

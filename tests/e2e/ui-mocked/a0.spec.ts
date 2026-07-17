@@ -41,7 +41,7 @@ for (const kind of KINDS) {
     // screen (never collapses to the empty home state), composer usable
     expect(page.url()).toBe(urlBefore);
     await expect(chat.emptyState).toHaveCount(0);
-    await expect(chat.liveExchange.or(page.locator('[data-testid="artifact-card"]').first())).toBeVisible();
+    await expect(page.locator('[data-testid="live-exchange"], [data-testid="artifact-card"]').first()).toBeVisible();
     await expect(chat.composer).toBeEditable();
     await expect(page.getByTestId('artifact-panel')).toHaveAttribute('data-kind', kind);
   });

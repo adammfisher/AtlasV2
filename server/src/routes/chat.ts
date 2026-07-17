@@ -593,26 +593,37 @@ chatRouter.post('/:id/messages', async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logTo('pipeline', `pipeline error: ${message}`);
-    if (!abort.signal.aborted) {
-      // edit-state missing: NEVER describe or invent the artifact — ask which
-      // one to edit (the permanent modify-bug guard, surfaced honestly).
-      if (err instanceof OrchestrationError) {
-        const ask =
-          "I can't find the file or artifact you want me to edit — which one do you mean? " +
-          'Point me at the deck, document, sheet, or code and I\'ll make the change to it.';
+    // edit-state missing: NEVER describe or invent the artifact — ask which
+    // one to edit (the permanent modify-bug guard, surfaced honestly).
+    if (err instanceof OrchestrationError) {
+      const ask =
+        "I can't find the file or artifact you want me to edit — which one do you mean? " +
+        'Point me at the deck, document, sheet, or code and I\'ll make the change to it.';
+      const id = await persistAssistant('text', { text: ask });
+      if (!abort.signal.aborted) {
         sse(res, 'route', { intent: 'chat' });
         sse(res, 'token', { delta: ask });
-        const id = await persistAssistant('text', { text: ask });
         sse(res, 'done', { messageId: id });
-        return;
       }
-      const honest =
-        err instanceof PipelineError
-          ? `Generation failed: ${message}`
-          : `Something went wrong: ${message}`;
-      await persistAssistant('text', { text: honest });
-      sse(res, 'error', { message: honest, retryable: true });
+      return;
     }
+    // FX-6: this catch is the ONLY handler for create_doc/edit_doc failures
+    // (the plain-chat token stream has its own try/catch above that already
+    // preserves partial prose on user-stop and returns before reaching here).
+    // A `!abort.signal.aborted` guard used to skip persistence entirely on
+    // any abort — indistinguishable from a genuine network drop — so a
+    // connection blip mid-generation silently discarded the user's turn
+    // forever: no persisted message, no error, nothing to recover on reload.
+    // Always leave an honest, durable record; only the live SSE push (which
+    // has no listener left to reach) is conditional on the client still
+    // being connected.
+    const honest = abort.signal.aborted
+      ? 'Generation was interrupted before it finished (connection lost). Send the request again to retry.'
+      : err instanceof PipelineError
+        ? `Generation failed: ${message}`
+        : `Something went wrong: ${message}`;
+    await persistAssistant('text', { text: honest });
+    if (!abort.signal.aborted) sse(res, 'error', { message: honest, retryable: true });
   } finally {
     clearInterval(keepAlive);
     res.end();

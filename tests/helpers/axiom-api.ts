@@ -63,14 +63,18 @@ export async function cleanupE2E(): Promise<void> {
 export async function* streamMessage(
   convId: string,
   text: string,
-  opts?: { thinking?: boolean; signal?: AbortSignal },
+  opts?: {
+    thinking?: boolean;
+    signal?: AbortSignal;
+    attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>;
+  },
 ): AsyncGenerator<{ t: number; chunk: string }> {
   const t0 = Date.now();
   const t = await loginE2E();
   const res = await fetch(`${API}/conversations/${convId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-    body: JSON.stringify({ text, attachments: [], retry: false, thinking: opts?.thinking ?? false }),
+    body: JSON.stringify({ text, attachments: opts?.attachments ?? [], retry: false, thinking: opts?.thinking ?? false }),
     signal: opts?.signal ?? null,
   });
   if (!res.ok || !res.body) throw new Error(`stream POST → ${res.status}: ${await res.text()}`);

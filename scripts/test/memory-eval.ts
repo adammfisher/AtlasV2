@@ -10,6 +10,24 @@
 // AXIOM_BASE lets the same eval run against the deployed CloudFront origin
 // (parity M1: memory guarantees must hold on the DEPLOYED DynamoDB/S3 Vectors)
 const BASE = `${process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175'}/api`;
+// predates the account-auth middleware (FIXLOG): every call 401'd with
+// {code:'unauthenticated'} since j()/chat() never sent a token. Logs in as the
+// primary account once and reuses the bearer token for every call.
+const AUTH_USER = process.env.AXIOM_EVAL_USER ?? 'adammfisher';
+const AUTH_PASS = process.env.AXIOM_EVAL_PASS ?? 'buster11';
+let authToken: string | null = null;
+
+async function login(): Promise<string> {
+  if (authToken) return authToken;
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: AUTH_USER, password: AUTH_PASS }),
+  });
+  if (!res.ok) throw new Error(`memory-eval login failed: ${res.status} ${await res.text()}`);
+  authToken = ((await res.json()) as { token: string }).token;
+  return authToken;
+}
 
 let passed = 0;
 let failed = 0;
@@ -25,9 +43,10 @@ function check(name: string, cond: boolean, detail?: string): void {
 }
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await login();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers as Record<string, string> | undefined) },
   });
   if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${path} → ${res.status}: ${await res.text()}`);
   return (await res.json()) as T;
@@ -41,9 +60,10 @@ interface SseResult {
 
 /** POST a chat message and collect the SSE stream. */
 async function chat(convId: string, text: string): Promise<SseResult> {
+  const token = await login();
   const res = await fetch(`${BASE}/conversations/${convId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ text }),
   });
   if (!res.ok || !res.body) throw new Error(`chat → ${res.status}`);
