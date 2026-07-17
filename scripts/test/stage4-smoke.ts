@@ -5,6 +5,23 @@
  */
 const API = 'http://127.0.0.1:5175/api';
 
+// harness rot (FIXLOG): predates the account-auth middleware — chat() sent no
+// Authorization header at all, so every call 401'd instantly (the "0s" timing
+// on every row) and the unchecked body was parsed as if it were an SSE
+// stream, silently yielding tools:[] / text:'' instead of a visible failure.
+let authToken: string | null = null;
+async function login(): Promise<string> {
+  if (authToken) return authToken;
+  const res = await fetch(`${API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'adammfisher', password: 'buster11' }),
+  });
+  if (!res.ok) throw new Error(`login failed: ${res.status} ${await res.text()}`);
+  authToken = ((await res.json()) as { token: string }).token;
+  return authToken;
+}
+
 const CASES: Array<{ prompt: string; expect: string }> = [
   { prompt: 'list the files in this project', expect: 'fs_list' },
   { prompt: 'read the file roadmap.md and summarize it', expect: 'fs_read' },
@@ -19,18 +36,20 @@ const CASES: Array<{ prompt: string; expect: string }> = [
 ];
 
 async function chat(prompt: string): Promise<{ tools: string[]; text: string }> {
+  const token = await login();
   const conv = (await (
     await fetch(`${API}/conversations`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ projectId: 'p1' }),
     })
   ).json()) as { id: string };
   const res = await fetch(`${API}/conversations/${conv.id}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ text: prompt }),
   });
+  if (!res.ok) throw new Error(`chat → ${res.status}: ${await res.text()}`);
   const body = await res.text();
   const tools: string[] = [];
   let text = '';

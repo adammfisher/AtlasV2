@@ -7,8 +7,10 @@
  */
 import { loadSkill, type SkillId } from '../../server/src/pipeline/skills.js';
 import { validateJson } from '../../server/src/pipeline/validate.js';
-import { completeJson } from '../../server/src/llama/json.js';
+import { completeJsonOffice } from '../../server/src/llama/json.js';
 import { logTo } from '../../server/src/log.js';
+import { runAsAccount } from '../../server/src/lib/account.js';
+import { ensureBedrockConnected } from '../../server/src/providers/bedrock.js';
 
 const OFFICE_PROMPTS: Array<[SkillId, string]> = [
   ['pptx', 'Build a QBR deck from the Q3 pipeline numbers: revenue 4.2M vs 3.8M plan, win rate 31%'],
@@ -66,7 +68,16 @@ async function runSet(name: string, prompts: Array<[SkillId, string]>): Promise<
     const { system, user } = officePrompt(skillId, text);
     const started = Date.now();
     try {
-      const raw = await completeJson(
+      // completeJsonOffice, not completeJson: this gate exists to measure the
+      // REAL generation pipeline's first-pass validity (office/product skills
+      // always go through completeJsonOffice — a forced Claude model + plain
+      // unconstrained streaming, deliberately avoiding json_schema/tool-use
+      // constrained decoding for schemas too complex for those grammars).
+      // completeJson takes a different path (whatever model is "active" +
+      // constrained decoding with its own documented type-shape limitations
+      // on complex schemas) that the real pipeline never uses for these
+      // skills — measuring it here was measuring the wrong thing.
+      const raw = await completeJsonOffice(
         [
           { role: 'system', content: system },
           { role: 'user', content: user },
@@ -92,16 +103,23 @@ async function runSet(name: string, prompts: Array<[SkillId, string]>): Promise<
 }
 
 async function main(): Promise<void> {
-  console.log('— office 20-prompt set (gate ≥90%)');
-  const office = await runSet('office', OFFICE_PROMPTS);
-  console.log('— product 10-prompt set (gate ≥90%)');
-  const product = await runSet(
-    'product',
-    PRODUCT_PROMPTS.map((p): [SkillId, string] => ['product', p]),
-  );
-  console.log(`\nGATE office-validity: ${office >= 90 ? 'PASS' : 'FAIL'} (${office}%)`);
-  console.log(`GATE product-validity: ${product >= 90 ? 'PASS' : 'FAIL'} (${product}%)`);
-  if (office < 90 || product < 90) process.exitCode = 1;
+  // harness rot (FIXLOG): this predates per-account Bedrock — completeJson()
+  // falls back to a raw fetch against the retired local-llama server whenever
+  // cloudReady() is false, which it always was here since nothing ever
+  // connected Bedrock or set an account context for this standalone script.
+  await runAsAccount('adammfisher', () => ensureBedrockConnected());
+  await runAsAccount('adammfisher', async () => {
+    console.log('— office 20-prompt set (gate ≥90%)');
+    const office = await runSet('office', OFFICE_PROMPTS);
+    console.log('— product 10-prompt set (gate ≥90%)');
+    const product = await runSet(
+      'product',
+      PRODUCT_PROMPTS.map((p): [SkillId, string] => ['product', p]),
+    );
+    console.log(`\nGATE office-validity: ${office >= 90 ? 'PASS' : 'FAIL'} (${office}%)`);
+    console.log(`GATE product-validity: ${product >= 90 ? 'PASS' : 'FAIL'} (${product}%)`);
+    if (office < 90 || product < 90) process.exitCode = 1;
+  });
 }
 
 void main();
