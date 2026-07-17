@@ -78,7 +78,7 @@ def build(payload: dict, out: Path) -> dict:
 
     out.parent.mkdir(parents=True, exist_ok=True)
     engine = "weasyprint"
-    force_pure = os.environ.get("ATLAS_PDF_ENGINE") == "xhtml2pdf"
+    force_pure = os.environ.get("AXIOM_PDF_ENGINE") == "xhtml2pdf"
     try:
         if force_pure:
             raise ImportError("forced pure-python engine")

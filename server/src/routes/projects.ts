@@ -62,7 +62,7 @@ projectsRouter.post('/', (req, res) => {
     const row: ProjectRow = { id, name: name.trim(), instructions: instructions?.trim() ?? '', settings: '{}', created_at: now() };
     await putProject(row);
     // holistic memory: every new project gets its own (isolated) memory, on by default
-    const mem = (await listInstalls()).find((i) => i.connector_id === 'memory' || i.connector_id === 'atlas-memory');
+    const mem = (await listInstalls()).find((i) => i.connector_id === 'memory' || i.connector_id === 'axiom-memory');
     if (mem) {
       const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
       enabled.add(id);

@@ -13,14 +13,14 @@ Pre-req: `pnpm dev` running, model loaded (`/api/health` ready).
 
 ## 2. Memory recall
 
-1. Tell Atlas: **"remember this: our launch codename is Bluebird"** → `memory_upsert` chip.
+1. Tell Axiom: **"remember this: our launch codename is Bluebird"** → `memory_upsert` chip.
 2. New conversation, same project: **"what's our launch codename?"** — the answer
    carries a "Known context" recall (top-3 `memory_search` hits are injected into
    the system prompt for every chat in a memory-enabled project).
 
 ## 3. Per-project isolation
 
-1. Plugins → Filesystem → toggle OFF for General, ON for Atlas Core only.
+1. Plugins → Filesystem → toggle OFF for General, ON for Axiom Core only.
 2. Chat in General: "list the files in this project" — no tool chip; the model
    answers without filesystem access.
 3. `pnpm test:stage4-gates` proves the same at the API layer (tool invisibility +

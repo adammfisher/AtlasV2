@@ -4,7 +4,7 @@
  * never touch the primary account's data. TESTPLAN.md §4.
  */
 
-const BASE_ORIGIN = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+const BASE_ORIGIN = process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175';
 export const API = `${BASE_ORIGIN}/api`;
 export const MARK = '[e2e]'; // shared title marker — teardown deletes marked conversations
 

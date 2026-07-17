@@ -2,7 +2,7 @@
 
 Running log for the design-doctrine workstream: SKILL.md doctrine, ugliness-resistant
 schemas, deterministic builders, exemplar library, hard visual gate, design eval.
-Routing (three-stage router, `<atlas_behavior>`) is owned by a parallel workstream and
+Routing (three-stage router, `<axiom_behavior>`) is owned by a parallel workstream and
 is untouched here.
 
 ---
@@ -33,7 +33,7 @@ is untouched here.
   layouts incl. custom chart/2-col layouts. `dfs_library.pptx`: 286 curated slides.
 
 ### DOCX
-- `build_docx.py`: renders onto `atlas_default.dotx` styles but hardcodes table header
+- `build_docx.py`: renders onto `axiom_default.dotx` styles but hardcodes table header
   shading (#371447 + white bold) as direct formatting, not a named table style. No
   heading-hierarchy validation (level skips pass silently).
 - Schema: heading/level/paragraphs/table; no block-type enum, no style-name discipline.
@@ -336,7 +336,7 @@ wrong width → overflow), and the footer's +45% brightness landed at 3.71:1
 number). Enforced when soffice exists; amber skip otherwise (matches repo
 convention for soffice-dependent checks).
 
-**Vision critique (ADVISORY, `ATLAS_VISION_CRITIQUE=1`, default OFF)**: builder
+**Vision critique (ADVISORY, `AXIOM_VISION_CRITIQUE=1`, default OFF)**: builder
 emits ≤ 12 JPEG thumbnails (soffice + pdfplumber, no poppler dependency) in meta;
 orchestrator sends them to the active multimodal Bedrock model with a FIXED
 rubric (overlap, overflow, contrast, alignment/grid, whitespace, palette,
@@ -430,7 +430,7 @@ covers cells).
 
 Rendered spot check: `04-competitive-comparison` — 3-column comparison panels,
 parallel rows, banded table with dk2 header, no accent line under titles.
-Vision-rubric scoring stays available behind `ATLAS_VISION_CRITIQUE=1` (advisory;
+Vision-rubric scoring stays available behind `AXIOM_VISION_CRITIQUE=1` (advisory;
 not used for the pass/fail above).
 
 ---
@@ -477,21 +477,21 @@ xlsx zero formula errors (#REF!/#DIV/0!/#VALUE!/#N/A/#NAME?) · pdf margins ≥
 0.75", orphans/widows ≥ 3, page N of M.
 
 ### Config flags
-- `ATLAS_VISION_CRITIQUE=1` — advisory vision critique (thumbnails from the
+- `AXIOM_VISION_CRITIQUE=1` — advisory vision critique (thumbnails from the
   builder, fixed rubric through the active multimodal Bedrock model, strict
   JSON, cost/latency logged). Default OFF; never gates.
-- `ATLAS_PDF_ENGINE=xhtml2pdf` — force the pure-python PDF fallback (testing).
+- `AXIOM_PDF_ENGINE=xhtml2pdf` — force the pure-python PDF fallback (testing).
 
 ### Confirmations
 - **Routing untouched**: zero A–F commits touch `router.ts`, `workflows.ts`, or
-  the `<atlas_behavior>` block (verified per-commit). The only orchestrator.ts
+  the `<axiom_behavior>` block (verified per-commit). The only orchestrator.ts
   changes are the office design path (doctrine check, exemplar injection, fix
   loop, vision pass).
 - **Scale-to-zero preserved**: no always-on services; the office Lambda remains
   the only Python runtime; `deploy-office.sh` bundles the new schemas +
   paged.css into the existing zip-swap flow; `lambda_handler.py` untouched.
 - **Clean-room**: no Anthropic SKILL.md prose, scripts, or license text copied;
-  all doctrine paraphrased in Atlas's own words; geometry and palette extracted
+  all doctrine paraphrased in Axiom's own words; geometry and palette extracted
   from the repo's own DFS templates.
 
 ### Workstream interleaving (for archaeology)

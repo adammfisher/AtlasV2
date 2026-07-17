@@ -100,7 +100,7 @@ export function CustomServerModal({
           ))}
         </div>
         {transport === 'stdio'
-          ? field('Command (inside the Atlas repo/runtimes)', command, setCommand, 'servers/my-server.ts')
+          ? field('Command (inside the Axiom repo/runtimes)', command, setCommand, 'servers/my-server.ts')
           : field('URL (loopback or public — private ranges blocked)', url, setUrl, 'http://127.0.0.1:9000/mcp')}
 
         <label className="block mb-3">
@@ -121,7 +121,7 @@ export function CustomServerModal({
           : null}
 
         <p className="text-xs mb-4" style={{ color: C.mute, fontFamily: sans }}>
-          Adding a server is your consent to run it. stdio commands must resolve inside the Atlas
+          Adding a server is your consent to run it. stdio commands must resolve inside the Axiom
           repo — arbitrary host binaries are refused.
           {credential
             ? transport === 'streamable-http'

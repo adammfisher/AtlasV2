@@ -11,14 +11,14 @@ branch `stage-4`, merged to `main`, tagged `stage-4`.
   (memory_search/upsert, graph_query/add_fact over `mem_*` tables, always
   project-filtered; FTS5 chunk recall via `mem_chunks` + `mem_chunks_fts`),
   `sqlite` (sql_query/sql_schema, `PRAGMA query_only`, paths jailed to dataDir).
-  Spawned with cwd=dataDir and env scrubbed to the three ATLAS_* vars + PATH.
+  Spawned with cwd=dataDir and env scrubbed to the three AXIOM_* vars + PATH.
 - **Manager** (`server/src/mcp/manager.ts`): per-(connector, project) client
   cache, install (5s initialize timeout, allowlist blocks private ranges except
   loopback), restart/remove, custom add (stdio must resolve inside the repo),
   KC probe (1s, boot + directory fetch), audit log (`logs/audit.log` — tool,
   path, project, ts; never contents).
 - **Credentials**: AES-256-GCM at `dataDir/credentials/<ref>.enc`, key in
-  `.atlas-key` (0600), masked in UI, deleted with the install.
+  `.axiom-key` (0600), masked in UI, deleted with the install.
 - **§6.3 chat tool loop** (`mcp/toolloop.ts`): OpenAI-format tools array on chat
   completions (Gemma function calling via `--jinja`), tool_calls executed through
   the manager, ≤4 iterations, final answer streamed; executed calls render as dim
@@ -27,7 +27,7 @@ branch `stage-4`, merged to `main`, tagged `stage-4`.
   the chat system prompt for memory-enabled projects. Semantic recall note shows
   in the memory panel (FTS5-only until an EmbeddingGemma GGUF lands — none present).
 - **Directory** rewritten to the PRD §6.1 nine (the Stage-1 manifest had drifted:
-  no sqlite, `atlas-memory` id, slack instead of sharepoint, KC pre-available).
+  no sqlite, `axiom-memory` id, slack instead of sharepoint, KC pre-available).
   Legacy install rows migrated at boot.
 - **Plugin panels live**: install (real pending state), restart/remove with
   spinners, working credential save, custom-server modal (consent text, repo-jail

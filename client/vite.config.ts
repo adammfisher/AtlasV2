@@ -6,15 +6,15 @@ import { buildThemeCss } from './src/theme/themes';
  * (rather than emitting a stylesheet) is deliberate: the palette vars have to
  * be live on the very first paint, and a <style> in the head cannot be beaten
  * by a network request. ~4KB, so there is nothing to save by splitting it. */
-function atlasTheme(): Plugin {
+function axiomTheme(): Plugin {
   const SOURCE = /[\\/]src[\\/]theme[\\/]themes\.ts$/;
   return {
-    name: 'atlas-theme',
+    name: 'axiom-theme',
     transformIndexHtml() {
       return [
         {
           tag: 'style',
-          attrs: { id: 'atlas-theme' },
+          attrs: { id: 'axiom-theme' },
           children: buildThemeCss(),
           injectTo: 'head',
         },
@@ -29,7 +29,7 @@ function atlasTheme(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), atlasTheme()],
+  plugins: [react(), axiomTheme()],
   server: {
     port: 5173,
     host: '127.0.0.1',

@@ -7,9 +7,9 @@
  * then asserts: conversation scoping, artifact scoping, and — the leak that
  * actually matters — project B's fact must NOT recall inside project A.
  *
- * Usage: [ATLAS_BASE=https://…cloudfront.net] tsx scripts/test/parity-m2-isolation.ts
+ * Usage: [AXIOM_BASE=https://…cloudfront.net] tsx scripts/test/parity-m2-isolation.ts
  */
-const BASE = `${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api`;
+const BASE = `${process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175'}/api`;
 
 let passed = 0;
 let failed = 0;

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Atlas office-helper toolchain bootstrap (PRD §0.1, Stage 3). Idempotent.
+# Axiom office-helper toolchain bootstrap (PRD §0.1, Stage 3). Idempotent.
 # Creates runtimes/python/venv and installs exact-pinned wheels.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -7,7 +7,7 @@ cd "$(dirname "$0")/../.."
 VENV=runtimes/python/venv
 # python@3.13 pinned: brew python@3.14 has a broken pyexpat (dlopen symbol error)
 # and the office wheel ecosystem lags 3.14. Recorded in HANDOFF-3.
-PYTHON=${ATLAS_PYTHON:-/opt/homebrew/opt/python@3.13/bin/python3.13}
+PYTHON=${AXIOM_PYTHON:-/opt/homebrew/opt/python@3.13/bin/python3.13}
 
 if [ ! -x "$VENV/bin/python" ]; then
   echo "creating venv at $VENV"

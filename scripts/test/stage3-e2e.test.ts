@@ -107,15 +107,15 @@ async function main(): Promise<void> {
 
   console.log('— gate 1: nine skills end-to-end');
   const NINE: Array<[string, string]> = [
-    ['pptx', 'Build a five-slide deck summarizing the Atlas pilot results: 12 teams onboarded, 87% weekly active, 3 blockers'],
+    ['pptx', 'Build a five-slide deck summarizing the Axiom pilot results: 12 teams onboarded, 87% weekly active, 3 blockers'],
     ['docx', 'Write a one-page project kickoff memo for the data migration: goals, timeline, owners'],
     ['xlsx', 'Create a budget tracker spreadsheet: 5 expense categories, monthly plan vs actual with variance formulas'],
     ['pdf', 'Create a two-page onboarding checklist PDF for new analysts'],
-    ['md', 'Write a README for the atlas-org-intel service: purpose, setup, API overview'],
+    ['md', 'Write a README for the axiom-org-intel service: purpose, setup, API overview'],
     ['mermaid', 'Diagram the org-intel ingest flow: sources, embed, graph store, MCP tools'],
     ['svg', 'Create an icon of a compass, minimal line style'],
     ['react', 'Build a small counter widget with increment and reset buttons'],
-    ['site', 'Static HTML landing page (plain HTML and CSS, no React) for Atlas: hero, three feature blocks, footer'],
+    ['site', 'Static HTML landing page (plain HTML and CSS, no React) for Axiom: hero, three feature blocks, footer'],
   ];
   const artifacts: Record<string, { artifactId: string; ver: number; conv: string }> = {};
   for (const [skill, prompt] of NINE) {

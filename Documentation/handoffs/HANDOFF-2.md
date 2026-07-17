@@ -34,7 +34,7 @@ Most of PRD §9 Stage 2's CRUD scope (new chat, title rule, recents ordering, pr
 - The files-dir jail (`projectFilesRoot`) has no consumer route yet — the filesystem MCP server adopts it in Stage 4; the helper + tests exist now so the contract is pinned.
 - `scopedMessages`/`mem_*` helpers are likewise ahead of their consumers (chat memory recall is Stage 4); they're covered by the test so regressions surface early.
 - Chat answers still render raw markdown asterisks in the serif bubble (noted post-Stage-1; rendering lands with the vendored `marked` in Stage 3).
-- HANDOFF-1 open questions remain open (CLAUDE-CODE-PROMPT.md still references `atlas-ui.jsx`; userName "AF" initials; sqlite built-in dropped from the v2 directory).
+- HANDOFF-1 open questions remain open (CLAUDE-CODE-PROMPT.md still references `axiom-ui.jsx`; userName "AF" initials; sqlite built-in dropped from the v2 directory).
 
 ## Exact entry point for the next session
 

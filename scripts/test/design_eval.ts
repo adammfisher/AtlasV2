@@ -43,7 +43,7 @@ const EVALS: Eval[] = [
         { archetype: 'content_chart', title: 'Usage pricing lifted expansion revenue every month', chart: { kind: 'line', categories: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'], series: [{ name: 'Expansion $K', values: [180, 220, 275, 310, 355, 410] }], sort: 'time' }, speaker_notes: notes('Steady slope since the Q1 pricing change; no discounting behind it.') },
         { archetype: 'content_chart', title: 'Churn fell in every segment, led by mid-market', chart: { kind: 'bar', categories: ['Mid-market', 'SMB', 'Enterprise'], series: [{ name: 'Churn delta pts', values: [1.8, 1.1, 0.4] }], sort: 'value_desc' }, speaker_notes: notes('Mid-market drove the win — the onboarding rework hit hardest there.') },
         { archetype: 'big_stat', title: 'Net revenue retention set a company record', stat: { value: '134%', label: 'Net revenue retention, Q3 2026' }, support: 'Up nine points since usage-based pricing shipped.', speaker_notes: notes('The one number to remember from this deck.') },
-        { archetype: 'closing_cta', title: 'Fund the capacity plan and Q4 compounds the gains', subtitle: 'Decisions by Friday · revenue@atlas.dev', speaker_notes: notes('End on the ask: two hires and the infra budget.') },
+        { archetype: 'closing_cta', title: 'Fund the capacity plan and Q4 compounds the gains', subtitle: 'Decisions by Friday · revenue@axiom.dev', speaker_notes: notes('End on the ask: two hires and the infra budget.') },
       ],
     },
   },
@@ -54,12 +54,12 @@ const EVALS: Eval[] = [
     spec: {
       title: 'Compliance reporting is broken — we make it push-button',
       slides: [
-        { archetype: 'title', title: 'Compliance reporting is broken — we make it push-button', subtitle: 'Series A · Atlas Compliance · 2026', speaker_notes: notes('One sentence: what we do and why now.') },
+        { archetype: 'title', title: 'Compliance reporting is broken — we make it push-button', subtitle: 'Series A · Axiom Compliance · 2026', speaker_notes: notes('One sentence: what we do and why now.') },
         { archetype: 'content_bullets', title: 'Mid-market firms burn a quarter per audit cycle', bullets: ['Audits take 11 weeks of manual evidence pulls', 'Compliance teams average 1.5 people', 'Fines rose 40% since 2024'], icons: ['time', 'people', 'risk'], speaker_notes: notes('The problem is labor, not knowledge — evidence collection is copy-paste work.') },
         { archetype: 'content_bullets', title: 'We automate evidence collection end to end', bullets: ['Connectors pull evidence from 40 systems', 'Controls map once, reuse every audit', 'Auditor portal cuts review cycles 60%'], icons: ['gear', 'check', 'growth'], speaker_notes: notes('Demo available; the connector library is the moat.') },
         { archetype: 'big_stat', title: 'The wedge market alone is a billion-dollar problem', stat: { value: '$1.4B', label: 'US mid-market compliance tooling spend, 2026' }, support: 'Growing 18% annually as frameworks multiply.', speaker_notes: notes('Bottom-up from 34K firms × observed ACV; sources in appendix.') },
         { archetype: 'content_chart', title: 'Revenue tripled in twelve months on zero paid acquisition', chart: { kind: 'line', categories: ['Q4', 'Q1', 'Q2', 'Q3'], series: [{ name: 'ARR $K', values: [240, 380, 520, 710] }], sort: 'time' }, speaker_notes: notes('All inbound and partner-led; sales team is two people.') },
-        { archetype: 'closing_cta', title: 'Raising $8M to own the auditor channel', subtitle: 'adam@atlascompliance.dev', speaker_notes: notes('Use of funds: 60% GTM, 30% connectors, 10% ops.') },
+        { archetype: 'closing_cta', title: 'Raising $8M to own the auditor channel', subtitle: 'adam@axiomcompliance.dev', speaker_notes: notes('Use of funds: 60% GTM, 30% connectors, 10% ops.') },
       ],
     },
   },
@@ -68,12 +68,12 @@ const EVALS: Eval[] = [
     kind: 'pptx',
     prompt: 'Product launch plan with a 5-step timeline_process',
     spec: {
-      title: 'Atlas Flows launches October 20 in five gated phases',
+      title: 'Axiom Flows launches October 20 in five gated phases',
       slides: [
-        { archetype: 'title', title: 'Atlas Flows launches October 20 in five gated phases', subtitle: 'Launch plan · GTM team', speaker_notes: notes('Every phase has an exit gate; dates hold only if gates pass.') },
+        { archetype: 'title', title: 'Axiom Flows launches October 20 in five gated phases', subtitle: 'Launch plan · GTM team', speaker_notes: notes('Every phase has an exit gate; dates hold only if gates pass.') },
         { archetype: 'timeline_process', title: 'Five phases from beta to general availability', steps: [{ label: 'Private beta', detail: '30 accounts, Aug 18' }, { label: 'Beta expansion', detail: '150 accounts, Sep 8' }, { label: 'Pricing lock', detail: 'Sep 22' }, { label: 'Public launch', detail: 'Oct 20' }, { label: 'GA + SLA', detail: 'Nov 10' }], speaker_notes: notes('Gates: NPS 45 at each expansion, error budget intact.') },
         { archetype: 'content_bullets', title: 'Launch week concentrates on three channels', bullets: ['Founder webinar with 2,000 registrants target', 'Partner co-announcements with 5 integrators', 'Lifecycle email to 18K trial signups'], speaker_notes: notes('No paid spend at launch; paid starts week three if organic converts.') },
-        { archetype: 'closing_cta', title: 'Gate reviews every Monday — first one August 25', subtitle: 'launch@atlas.dev', speaker_notes: notes('Standing 30-minute gate review; owners on the invite.') },
+        { archetype: 'closing_cta', title: 'Gate reviews every Monday — first one August 25', subtitle: 'launch@axiom.dev', speaker_notes: notes('Standing 30-minute gate review; owners on the invite.') },
       ],
     },
   },
@@ -85,9 +85,9 @@ const EVALS: Eval[] = [
       title: 'We win on time-to-value; they win on suite breadth',
       slides: [
         { archetype: 'title', title: 'We win on time-to-value; they win on suite breadth', subtitle: 'Competitive review · Q3 2026', speaker_notes: notes('Honest framing: where we win and where we lose deals today.') },
-        { archetype: 'comparison', title: 'Setup time is our wedge in every evaluated deal', columns: [{ head: 'Atlas', items: ['3-day setup', '$29 per seat', 'API-first'] }, { head: 'CompetitorA', items: ['6-week setup', '$45 per seat', 'Suite bundle'] }, { head: 'CompetitorB', items: ['4-week setup', '$38 per seat', 'Services-led'] }], speaker_notes: notes('Same three rows per column; setup time decides evals under 500 seats.') },
+        { archetype: 'comparison', title: 'Setup time is our wedge in every evaluated deal', columns: [{ head: 'Axiom', items: ['3-day setup', '$29 per seat', 'API-first'] }, { head: 'CompetitorA', items: ['6-week setup', '$45 per seat', 'Suite bundle'] }, { head: 'CompetitorB', items: ['4-week setup', '$38 per seat', 'Services-led'] }], speaker_notes: notes('Same three rows per column; setup time decides evals under 500 seats.') },
         { archetype: 'table', title: 'Win rates hold above 60% wherever setup time matters', table: { headers: ['Segment', 'Win rate', 'Deals', 'Trend'], rows: [['SMB', '71%', '48', 'up'], ['Mid-market', '63%', '31', 'up'], ['Enterprise', '38%', '12', 'flat']] }, speaker_notes: notes('Enterprise losses are suite-breadth losses — roadmap answer, not GTM.') },
-        { archetype: 'closing_cta', title: 'Double down where setup time decides the deal', subtitle: 'competitive@atlas.dev', speaker_notes: notes('Asks: SMB/mid-market focus, enterprise patience.') },
+        { archetype: 'closing_cta', title: 'Double down where setup time decides the deal', subtitle: 'competitive@axiom.dev', speaker_notes: notes('Asks: SMB/mid-market focus, enterprise patience.') },
       ],
     },
   },
@@ -103,7 +103,7 @@ const EVALS: Eval[] = [
         { archetype: 'timeline_process', title: 'A three-phase rollout kept stores selling throughout', steps: [{ label: 'Pilot', detail: '4 stores, two weeks' }, { label: 'Wave rollout', detail: '36 stores over a weekend' }, { label: 'Automation', detail: 'Close checklist automated' }], speaker_notes: notes('The weekend migration is the story customers repeat.') },
         { archetype: 'big_stat', title: 'The close now takes a quarter of the time', stat: { value: '3 days', label: 'Month-end close, down from 12' }, support: 'Zero post-close corrections in the last five months.', speaker_notes: notes('Time saved went to analysis, not headcount cuts.') },
         { archetype: 'quote', title: '', quote: 'We migrated 40 stores in a weekend and nobody noticed. That never happens.', attribution: 'Dana Whitfield, VP Operations, Corewell Retail', speaker_notes: notes('Direct quote from the QBR; approved for external use.') },
-        { archetype: 'closing_cta', title: 'Three more retail rollouts start this quarter', subtitle: 'references@atlas.dev', speaker_notes: notes('Corewell hosts a reference call monthly; book via the alias.') },
+        { archetype: 'closing_cta', title: 'Three more retail rollouts start this quarter', subtitle: 'references@axiom.dev', speaker_notes: notes('Corewell hosts a reference call monthly; book via the alias.') },
       ],
     },
   },
@@ -118,7 +118,7 @@ const EVALS: Eval[] = [
         { archetype: 'timeline_process', title: 'Detection was fast; rollback path was not', steps: [{ label: 'Config push', detail: '14:02, all regions' }, { label: 'Alerts fire', detail: '14:05, error rate 40%' }, { label: 'Root cause found', detail: '14:19' }, { label: 'Rollback done', detail: '14:43, manual' }], speaker_notes: notes('17 minutes finding it, 24 minutes rolling back — rollback is the fix target.') },
         { archetype: 'content_chart', title: 'Error rate recovered in full within the hour', chart: { kind: 'line', categories: ['14:00', '14:10', '14:20', '14:30', '14:40', '15:00'], series: [{ name: 'Error %', values: [0.1, 38, 41, 35, 12, 0.2] }], sort: 'time' }, speaker_notes: notes('No data loss; retries absorbed the write path.') },
         { archetype: 'content_bullets', title: 'Three fixes remove this failure class entirely', bullets: ['Config pushes canary one region first', 'One-click rollback shipped last sprint', 'Config linting blocks the bad shape'], icons: ['check', 'gear', 'risk'], speaker_notes: notes('Two of three fixes already merged; canary lands next week.') },
-        { archetype: 'closing_cta', title: 'Fix owners report at the April reliability review', subtitle: 'sre@atlas.dev', speaker_notes: notes('Action items tracked in the reliability board, not this deck.') },
+        { archetype: 'closing_cta', title: 'Fix owners report at the April reliability review', subtitle: 'sre@axiom.dev', speaker_notes: notes('Action items tracked in the reliability board, not this deck.') },
       ],
     },
   },
@@ -132,7 +132,7 @@ const EVALS: Eval[] = [
         { archetype: 'title', title: 'Every core KPI beat plan in Q3', subtitle: 'Board update · October 2026', speaker_notes: notes('One table, one stat, one ask — short board deck by design.') },
         { archetype: 'table', title: 'Five KPIs, all green against the operating plan', table: { headers: ['Metric', 'Plan', 'Actual', 'Delta'], rows: [['ARR $M', '11.2', '12.1', '+0.9'], ['NRR %', '128', '134', '+6'], ['Burn $M', '1.9', '1.7', '-0.2'], ['Churn %', '2.8', '2.1', '-0.7'], ['Headcount', '96', '94', '-2']] }, speaker_notes: notes('Deltas all favorable; burn under plan while beating revenue.') },
         { archetype: 'big_stat', title: 'Runway extends past the next raise window', stat: { value: '31 mo', label: 'Runway at current burn, October 2026' }, support: 'Raise timing is now a choice, not a deadline.', speaker_notes: notes('The strategic consequence of the KPI table.') },
-        { archetype: 'closing_cta', title: 'Approve the Q4 hiring plan as circulated', subtitle: 'board@atlas.dev', speaker_notes: notes('Plan pre-read went out Monday; vote today.') },
+        { archetype: 'closing_cta', title: 'Approve the Q4 hiring plan as circulated', subtitle: 'board@axiom.dev', speaker_notes: notes('Plan pre-read went out Monday; vote today.') },
       ],
     },
   },
@@ -146,7 +146,7 @@ const EVALS: Eval[] = [
         { archetype: 'title', title: 'The funnel leaks at trial activation, not acquisition', subtitle: 'Funnel review · September 2026', speaker_notes: notes('Spend more on activation, not on top-of-funnel.') },
         { archetype: 'content_chart', title: 'Activation drops harder than any other stage', chart: { kind: 'bar', categories: ['Visit→Signup', 'Signup→Trial', 'Trial→Active', 'Active→Paid'], series: [{ name: 'Conversion %', values: [3.1, 61, 24, 48] }], sort: 'given' }, bullets: ['Trial→Active is the outlier', 'Benchmark for our tier is 40%'], speaker_notes: notes('Stage order preserved deliberately — the funnel reads left to right.') },
         { archetype: 'content_bullets', title: 'Three activation fixes ship this quarter', bullets: ['Guided first-run replaces the empty state', 'Sample data loads on signup', 'Day-two email shows the aha metric'], icons: ['idea', 'gear', 'growth'], speaker_notes: notes('Each fix targets the day-one drop the cohort data shows.') },
-        { archetype: 'closing_cta', title: 'Re-measure the funnel at the November review', subtitle: 'growth@atlas.dev', speaker_notes: notes('Success = Trial→Active at 35% by November.') },
+        { archetype: 'closing_cta', title: 'Re-measure the funnel at the November review', subtitle: 'growth@axiom.dev', speaker_notes: notes('Success = Trial→Active at 35% by November.') },
       ],
     },
   },
@@ -163,7 +163,7 @@ const EVALS: Eval[] = [
         { archetype: 'section_divider', title: 'Where we go', speaker_notes: notes('Part two: the plan.') },
         { archetype: 'quote', title: '', quote: 'The companies that win the mid-market win the decade.', attribution: 'Priya Sharma, CEO', speaker_notes: notes('Priya lands the why before the roadmap slide.') },
         { archetype: 'content_bullets', title: 'Three bets take us up-market in 2027', bullets: ['SSO and audit logs ship in Q1', 'Partner-led onboarding for 500+ seats', 'Pricing tier built for ops teams'], icons: ['check', 'people', 'money'], speaker_notes: notes('Each bet has an owner and a quarterly gate.') },
-        { archetype: 'closing_cta', title: 'Team OKRs land next week — align yours to the bet', subtitle: 'strategy@atlas.dev', speaker_notes: notes('Managers cascade OKRs by Friday next.') },
+        { archetype: 'closing_cta', title: 'Team OKRs land next week — align yours to the bet', subtitle: 'strategy@axiom.dev', speaker_notes: notes('Managers cascade OKRs by Friday next.') },
       ],
     },
   },
@@ -179,7 +179,7 @@ const EVALS: Eval[] = [
         { archetype: 'content_chart', title: 'Feature usage barely separates the two cohorts', chart: { kind: 'bar', categories: ['Retained', 'Churned'], series: [{ name: 'Features used', values: [7.2, 6.8] }], sort: 'given' }, speaker_notes: notes('The feature-gap hypothesis dies here.') },
         { archetype: 'content_chart', title: 'Churn risk rises sharply past 400ms p95', chart: { kind: 'line', categories: ['<200', '200-300', '300-400', '400-500', '>500'], series: [{ name: 'Churn %', values: [1.1, 1.4, 2.2, 4.8, 7.9] }], sort: 'given' }, speaker_notes: notes('The knee at 400ms sets the SLO target.') },
         { archetype: 'big_stat', title: 'The fix has a measurable ceiling', stat: { value: '-38%', label: 'Modeled year-one churn if p95 < 300ms' }, support: 'Latency program business case follows from this number.', speaker_notes: notes('Model assumptions documented in the appendix.') },
-        { archetype: 'closing_cta', title: 'Fund the latency SLO program for Q1', subtitle: 'research@atlas.dev', speaker_notes: notes('The ask ties directly to the modeled ceiling.') },
+        { archetype: 'closing_cta', title: 'Fund the latency SLO program for Q1', subtitle: 'research@axiom.dev', speaker_notes: notes('The ask ties directly to the modeled ceiling.') },
       ],
     },
   },
@@ -188,12 +188,12 @@ const EVALS: Eval[] = [
     kind: 'pptx',
     prompt: 'One-metric investor teaser: big_stat + quote',
     spec: {
-      title: 'Atlas: the retention engine for B2B SaaS',
+      title: 'Axiom: the retention engine for B2B SaaS',
       slides: [
-        { archetype: 'title', title: 'Atlas: the retention engine for B2B SaaS', subtitle: 'Investor teaser · 2026', speaker_notes: notes('Two slides of substance by design — teaser, not deck.') },
-        { archetype: 'big_stat', title: 'Customers keep more revenue every quarter', stat: { value: '134%', label: 'Median customer NRR after 12 months on Atlas' }, support: 'Across 212 production customers; cohort table on request.', speaker_notes: notes('The single number the fund remembers.') },
-        { archetype: 'quote', title: '', quote: 'Atlas paid for itself before the first renewal cycle closed.', attribution: 'CFO, mid-market logistics customer', speaker_notes: notes('Attribution anonymized at customer request; verifiable in diligence.') },
-        { archetype: 'closing_cta', title: 'Data room opens November 1', subtitle: 'raise@atlas.dev', speaker_notes: notes('Meetings the week of Nov 4.') },
+        { archetype: 'title', title: 'Axiom: the retention engine for B2B SaaS', subtitle: 'Investor teaser · 2026', speaker_notes: notes('Two slides of substance by design — teaser, not deck.') },
+        { archetype: 'big_stat', title: 'Customers keep more revenue every quarter', stat: { value: '134%', label: 'Median customer NRR after 12 months on Axiom' }, support: 'Across 212 production customers; cohort table on request.', speaker_notes: notes('The single number the fund remembers.') },
+        { archetype: 'quote', title: '', quote: 'Axiom paid for itself before the first renewal cycle closed.', attribution: 'CFO, mid-market logistics customer', speaker_notes: notes('Attribution anonymized at customer request; verifiable in diligence.') },
+        { archetype: 'closing_cta', title: 'Data room opens November 1', subtitle: 'raise@axiom.dev', speaker_notes: notes('Meetings the week of Nov 4.') },
       ],
     },
   },
@@ -204,10 +204,10 @@ const EVALS: Eval[] = [
     spec: {
       title: 'Self-serve migration removes the biggest onboarding queue',
       slides: [
-        { archetype: 'title', title: 'Self-serve migration removes the biggest onboarding queue', subtitle: 'Feature overview · Atlas Migrate', speaker_notes: notes('The feature that unblocked the SMB motion.') },
+        { archetype: 'title', title: 'Self-serve migration removes the biggest onboarding queue', subtitle: 'Feature overview · Axiom Migrate', speaker_notes: notes('The feature that unblocked the SMB motion.') },
         { archetype: 'two_column', title: 'Customers migrate without filing a ticket', bullets: ['Average migration runs 41 minutes', 'Rollback is one click for 30 days', 'Support tickets from migration fell 82%'], stat: { value: '87%', label: 'Migrations completed fully self-serve' }, speaker_notes: notes('Right panel is the proof; bullets say what changed.') },
         { archetype: 'content_bullets', title: 'Three guardrails make self-serve safe', bullets: ['Dry-run validates every record first', 'Conflicts queue for review, never overwrite', 'Full audit log ships with every run'], icons: ['check', 'risk', 'gear'], speaker_notes: notes('Safety story matters as much as speed for ops buyers.') },
-        { archetype: 'closing_cta', title: 'Migrate goes default-on for new signups Nov 1', subtitle: 'product@atlas.dev', speaker_notes: notes('Rollout flag flips per cohort; support briefed.') },
+        { archetype: 'closing_cta', title: 'Migrate goes default-on for new signups Nov 1', subtitle: 'product@axiom.dev', speaker_notes: notes('Rollout flag flips per cohort; support briefed.') },
       ],
     },
   },
@@ -222,7 +222,7 @@ const EVALS: Eval[] = [
         { archetype: 'agenda', title: 'Scorecard first, then the red OKR in depth', bullets: ['Q3 scorecard', 'Revenue OKR', 'Reliability OKR', 'Hiring OKR (red)', 'Q4 targets'], speaker_notes: notes('Most time on the red one; greens get a slide each.') },
         { archetype: 'comparison', title: 'Target versus actual across the three OKRs', columns: [{ head: 'Revenue', items: ['Target: $11.2M ARR', 'Actual: $12.1M', 'Status: green'] }, { head: 'Reliability', items: ['Target: 99.95%', 'Actual: 99.97%', 'Status: green'] }, { head: 'Hiring', items: ['Target: 12 hires', 'Actual: 7 hires', 'Status: red'] }], speaker_notes: notes('Parallel rows: target, actual, status — read down each column.') },
         { archetype: 'content_bullets', title: 'The hiring miss traces to one bottleneck', bullets: ['Offer-accept rate held at 81%', 'Onsite capacity capped at 9 per week', 'Sourcing pipeline grew 3x in September'], speaker_notes: notes('Fix is interviewer capacity, not brand or comp.') },
-        { archetype: 'closing_cta', title: 'Q4 targets lock Friday — flag conflicts now', subtitle: 'okrs@atlas.dev', speaker_notes: notes('Same three OKR families roll forward with new numbers.') },
+        { archetype: 'closing_cta', title: 'Q4 targets lock Friday — flag conflicts now', subtitle: 'okrs@axiom.dev', speaker_notes: notes('Same three OKR families roll forward with new numbers.') },
       ],
     },
   },
@@ -231,7 +231,7 @@ const EVALS: Eval[] = [
     kind: 'docx',
     prompt: 'DOCX: 6-page project report (headings, TOC, a table, a figure)',
     spec: {
-      metadata: { title: 'Atlas Data Platform Migration — Final Report', author: 'Platform Team' },
+      metadata: { title: 'Axiom Data Platform Migration — Final Report', author: 'Platform Team' },
       blocks: [
         { kind: 'heading', level: 1, text: 'Executive summary' },
         { kind: 'paragraph', text: 'The data platform migration completed on June 30, two weeks ahead of schedule and 12% under budget. All four regional pipelines now run on the consolidated platform, processing cost fell 38%, and data freshness improved from daily to hourly in every region. This report records the approach, the measured outcomes, the incidents encountered, and the follow-on work we recommend for the fourth quarter.' },
@@ -346,9 +346,9 @@ const EVALS: Eval[] = [
     kind: 'pdf',
     prompt: 'PDF: branded 4-page client report (running header/footer, page counter, no broken tables)',
     spec: {
-      meta: { title: 'Atlas Engagement Report — Corewell Q3', page_size: 'Letter', margins_in: { top: 0.9, right: 0.85, bottom: 0.9, left: 0.85 } },
+      meta: { title: 'Axiom Engagement Report — Corewell Q3', page_size: 'Letter', margins_in: { top: 0.9, right: 0.85, bottom: 0.9, left: 0.85 } },
       sections: [
-        { kind: 'heading', level: 1, text: 'Atlas Engagement Report — Corewell Q3' },
+        { kind: 'heading', level: 1, text: 'Axiom Engagement Report — Corewell Q3' },
         { kind: 'paragraph', text: 'This report summarizes the third quarter of the Corewell engagement: the close-automation rollout across all 40 stores, the measured outcomes against the success criteria agreed in April, and the recommended focus for the fourth quarter. All figures are drawn from the shared telemetry workspace and were reviewed with the Corewell operations team on September 28.' },
         { kind: 'heading', level: 2, text: 'Engagement summary' },
         { kind: 'paragraph', text: 'The quarter closed all three success criteria. Month-end close time fell from twelve days to three, post-close corrections dropped to zero for five consecutive months, and the finance team reclaimed roughly 140 analyst-hours per month. The wave-based rollout completed without a single store losing transaction capture, and the final wave of 36 stores migrated over a single weekend.' },
@@ -362,7 +362,7 @@ const EVALS: Eval[] = [
         { kind: 'paragraph', text: 'One support incident occurred during the quarter: a ledger mapping error in the August wave produced duplicate journal lines for two stores, caught by the reconciliation gate before posting. The fix shipped within six hours and the gate that caught it is now part of the standard rollout checklist. Support ticket volume fell 62% quarter over quarter as the self-serve runbook matured.' },
         { kind: 'heading', level: 2, text: 'Recommendations for Q4' },
         { kind: 'numbered_list', items: ['Extend close automation to the two remaining regional entities', 'Adopt the audit-log API to retire the last manual export', 'Schedule the annual disaster-recovery rehearsal for November', 'Review license count against the 94% utilization figure'] },
-        { kind: 'paragraph', text: 'The engagement moves to quarterly cadence from October. The Atlas team thanks the Corewell operations and finance teams for a quarter of disciplined execution; the working relationship on the reconciliation gate in particular is the reason the August incident stayed invisible to store operations.' },
+        { kind: 'paragraph', text: 'The engagement moves to quarterly cadence from October. The Axiom team thanks the Corewell operations and finance teams for a quarter of disciplined execution; the working relationship on the reconciliation gate in particular is the reason the August incident stayed invisible to store operations.' },
         { kind: 'quote', text: 'The close went from the worst week of the month to a non-event.', attribution: 'Controller, Corewell' },
       ],
     },
@@ -494,7 +494,7 @@ function buildAndScore(kind: Kind, spec: Record<string, unknown>, builderDir: st
   writeFileSync(payloadFile, JSON.stringify(spec));
   const template = kind === 'pptx'
     ? path.join(repoRoot, 'skills/pptx/templates/dfs_default.potx')
-    : path.join(repoRoot, 'skills/docx/templates/atlas_default.dotx');
+    : path.join(repoRoot, 'skills/docx/templates/axiom_default.dotx');
   try {
     sh(py, [path.join(builderDir, `build_${kind}.py`), '--payload', payloadFile, '--out', outFile, '--template', template], { cwd: builderDir });
   } catch (err) {

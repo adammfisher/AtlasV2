@@ -15,7 +15,7 @@ export interface SkillMeta {
 
 /**
  * Registry metadata — the ~100-token always-visible tier (PRD §5), display fields
- * per reference/atlas-v2-ui.jsx (8 rows; react+site merged visually). The 'site'
+ * per reference/axiom-v2-ui.jsx (8 rows; react+site merged visually). The 'site'
  * skill id stays seeded in skills_state for the Stage 3 router contract.
  */
 export const SKILL_REGISTRY: SkillMeta[] = [

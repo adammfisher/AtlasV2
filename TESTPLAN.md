@@ -1,4 +1,4 @@
-# ATLAS V2 — MASTER TEST PLAN
+# AXIOM V2 — MASTER TEST PLAN
 
 Status: **Phase 0 draft — awaiting user GO at the Phase 0 gate.**
 Author: automated test-engineering session, 2026-07-17.
@@ -25,7 +25,7 @@ Companion docs: `FIXLOG.md` (created in Phase 1, one entry per defect), `PARITY-
 Deterministic (no model, no server): `test:behavior-block`, `orchestration/det-check.ts`, `stage1-smoke.ts`, `heal-check.ts`, `salvage-check.ts`, `parity-s1-disclosure.ts`, `test:design` (python venv + git archive).
 Live model, no server: `test:pipeline-validity`, `test:routing` (305-case dataset × 3 tiers), `test:e2e-brain` (31 checks), `test:polish` (~175 Bedrock calls, deliverables A–F), plus one-off orchestration checks (`ceiling-check`, `truncation-check`, `pptx-e2e`, `react-plain-check`, `office-model-check`, untracked `gen15.ts`).
 Live + dev server: `test:memory-eval` (8 scenarios, sandbox project p3), `test:stage4-gates` (deterministic, DynamoDB), `test:stage4-smoke` (10 tool prompts), `test:stage3-e2e` (9-skill artifact e2e), `test:isolation` (**stale — SQLite-bound, cannot pass against DynamoDB; superseded by `parity-m2-isolation.ts`**), `scenarios.ts`/`scenarios2.ts` (58 checks, not npm-wired).
-Playwright: `tests/e2e/` — **~111 tests / 39 files** (33 parity spec files ≈89 tests + 6 top-level files = 22 tests, of which the 6 top-level are flagged stale by PARITY-LOOP-LOG). Config: workers=1, retries=0, 240s timeout, global-setup logs in as the primary account, `ATLAS_BASE` switches local/deployed. **Selectors are text/DOM-based — no `data-testid` anywhere** (documented "phantom locator" flakes).
+Playwright: `tests/e2e/` — **~111 tests / 39 files** (33 parity spec files ≈89 tests + 6 top-level files = 22 tests, of which the 6 top-level are flagged stale by PARITY-LOOP-LOG). Config: workers=1, retries=0, 240s timeout, global-setup logs in as the primary account, `AXIOM_BASE` switches local/deployed. **Selectors are text/DOM-based — no `data-testid` anywhere** (documented "phantom locator" flakes).
 Mock servers: `mock:kc` (:7979), `mock-connectors.ts` (:7981/2), `parity-mock-mcp.ts` (:7983).
 
 ### 1.3 Historical gates (rediscovered, exact)
@@ -103,7 +103,7 @@ Environment at baseline: dev server already running on :5175, healthy, Bedrock c
 
 **Two distinct "home screens" exist**, and both are reachable mid-stream:
 - (a) ChatView's empty state "What are we building?" — shown when `messages.length === 0 && live === null` (`ChatView.tsx:737`);
-- (b) the LoginView — the whole app unmounts when `atlas-unauth` fires (`App.tsx:28-33`).
+- (b) the LoginView — the whole app unmounts when `axiom-unauth` fires (`App.tsx:28-33`).
 
 **Hypotheses, ranked (each becomes a Phase 2 experiment):**
 
@@ -123,7 +123,7 @@ Environment at baseline: dev server already running on :5175, healthy, Bedrock c
 
 Exactly per the command's §4 layout (`tests/unit`, `tests/integration`, `tests/e2e/ui-mocked`, `tests/e2e/live-smoke`, `tests/evals`, `tests/validators`, `tests/fixtures/{sse,files}`, `tests/helpers`), integrated with — not forking — the existing `tests/e2e` parity suite and `scripts/test` eval harnesses. Adjustments grounded in the survey:
 
-- **Playwright projects**: extend the existing root `playwright.config.ts` to three projects — `ui-mocked` (chromium, parallel-safe, all network via recorded fixtures), `live-smoke` (chromium, workers=1, real server+Bedrock Nova 2 Lite structural assertions), `parity-legacy` (the existing 39 spec files, workers=1) — `retries: 0`, `trace/video: retain-on-failure`, reporters `list`+`html`+`junit`. Existing `ATLAS_BASE` convention kept (the command's `ATLAS_BASE_URL` name is NOT introduced; the repo standard is `ATLAS_BASE`).
+- **Playwright projects**: extend the existing root `playwright.config.ts` to three projects — `ui-mocked` (chromium, parallel-safe, all network via recorded fixtures), `live-smoke` (chromium, workers=1, real server+Bedrock Nova 2 Lite structural assertions), `parity-legacy` (the existing 39 spec files, workers=1) — `retries: 0`, `trace/video: retain-on-failure`, reporters `list`+`html`+`junit`. Existing `AXIOM_BASE` convention kept (the command's `AXIOM_BASE_URL` name is NOT introduced; the repo standard is `AXIOM_BASE`).
 - **Stream recorder/replayer** (`tests/helpers/sse-record.ts` / `sse-replay.ts`): record one real transcript per skill from the live server (Nova 2 Lite for chat, Haiku for office JSON — the real pipeline), store under `tests/fixtures/sse/<skill>.sse.jsonl` (event, data, dt-ms); replay via `page.route` on `POST */conversations/*/messages` with realistic pacing, `slow=Nx` stretch mode (90s+), `cut@<event|ms>` mode (terminate without `done` — reproduces H1/H2), and `error@` injection (A0-4).
 - **Seeding/teardown**: no local DB exists, so per-file DB-prefix isolation is done at the **account layer**: a dedicated `e2etest` account in `users.config.json` gives an isolated DynamoDB partition (`A#e2etest|`) with its own seeded p1/p2/p3; `ui-mocked` needs no backend at all (fixtures include the REST reads); live-smoke conversations are `[e2e]`-marked and swept via the existing `cleanupMarked()` pattern + artifact bulk delete. (Adding the account requires fixing defect #1 first — Phase 1.)
 - **`data-testid`**: added across Sidebar/ChatView/composer/ArtifactPanel/LivePanel/ModelMenu/Projects (inert product change, sanctioned by command §2.4); new POMs (`ChatPage`, `ArtifactPanel` via `frameLocator`, `ProjectsPage`, `MemoryPanel`, `ModelPicker`) use them; existing parity helpers keep working untouched.

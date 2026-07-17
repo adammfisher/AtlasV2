@@ -666,7 +666,7 @@ def main() -> None:
     checks.append(vc.post_render_bleed(out))
     meta["findings"] = ([f"OVERFLOW slide {o['slide']} {o['frame']}: {o['detail']}" for o in meta["overflow_flags"]] + findings)[:12]
     meta["overflow_flags"] = len(meta["overflow_flags"])
-    if os.environ.get("ATLAS_VISION_CRITIQUE") == "1":
+    if os.environ.get("AXIOM_VISION_CRITIQUE") == "1":
         meta["thumbs_b64"] = vc.render_thumbnails(out)
     vc.emit(out, meta, checks)
 

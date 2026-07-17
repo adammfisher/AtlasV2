@@ -2,7 +2,7 @@
 
 Character & polish layer (tone/formatting, reminder reinjection, memory etiquette, citations,
 cache-optimal assembly, tool-description enrichment). Runs AFTER the orchestration brain, which owns
-routing and the `<atlas_behavior>` block. This log is append-per-session.
+routing and the `<axiom_behavior>` block. This log is append-per-session.
 
 Sibling logs: `BRAIN-LOG.md` (routing/behavior block), `DESIGN-LOG.md` (visual/office).
 
@@ -12,16 +12,16 @@ Sibling logs: `BRAIN-LOG.md` (routing/behavior block), `DESIGN-LOG.md` (visual/o
 
 ### Precondition check
 
-The orchestration brain's `<atlas_behavior>` block **exists** (`server/src/pipeline/context.ts:104`,
-`ATLAS_BEHAVIOR_VERSION = 1`). This command is unblocked and extends it.
+The orchestration brain's `<axiom_behavior>` block **exists** (`server/src/pipeline/context.ts:104`,
+`AXIOM_BEHAVIOR_VERSION = 1`). This command is unblocked and extends it.
 
 ### Starting state of the files this command owns
 
 **`server/src/pipeline/context.ts` (222 lines).** Two unrelated concerns share the file: the versioned
 behavior block and conversation-history compaction.
-- `ATLAS_BEHAVIOR_VERSION = 1`; `tierForModel()` maps `nova`→`small`, `sonnet`→`frontier`, everything
+- `AXIOM_BEHAVIOR_VERSION = 1`; `tierForModel()` maps `nova`→`small`, `sonnet`→`frontier`, everything
   else (`haiku`, `nemotron`)→`mid`.
-- `buildBehaviorBlock(tier)` emits `<atlas_behavior version tier>` wrapping one of three bodies:
+- `buildBehaviorBlock(tier)` emits `<axiom_behavior version tier>` wrapping one of three bodies:
   `RULES_FULL` (small+mid), `RULES_FULL + RULES_EXAMPLES` (small only), `RULES_LEAN` (frontier).
 - Existing sections: `create_edit_describe`, `artifact_vs_inline`, `update_vs_rewrite`,
   `read_before_write`, `when_to_search`, `honesty`, `output_format`, `tool_use`.
@@ -85,7 +85,7 @@ tokens (tools + system); the same tools with a `toolConfig`-terminal `cachePoint
 (tools only). So a `cachePoint` after section 5 does capture the tool definitions, as the brief's
 ordering intends.
 
-**Consequence 3 — the E gate is reachable on sonnet, not on haiku.** Atlas's stable prefix measured
+**Consequence 3 — the E gate is reachable on sonnet, not on haiku.** Axiom's stable prefix measured
 **1550 tokens** in the end: over sonnet's 1024 minimum, well under haiku's 4096. Cache reads on
 sonnet (0.90 hit ratio), **zero on haiku** — reported honestly rather than engineered around by
 padding the prompt.
@@ -119,7 +119,7 @@ Cache summary from the 10-turn conversation: **sonnet — 1550-token cache write
 turn 1, cache reads on 9/10 turns (hit ratio 0.90).** 9/10 is the ceiling: turn 1
 can only write.
 
-### `<atlas_behavior>` version history
+### `<axiom_behavior>` version history
 
 | v | Added | By |
 |---|---|---|
@@ -153,7 +153,7 @@ Three results worth carrying forward, because two of them are negative:
    hard from turn ~13 (`### Headers`, bold on every term). The control now scores
    9/25 against the reminded run's 38/38. The reminder went from unproven to
    load-bearing because the block grew — which is worth remembering the next time
-   someone adds a section to `<atlas_behavior>`.
+   someone adds a section to `<axiom_behavior>`.
 2. **The 12 tool-decision probes (F) do not discriminate.** The control with the
    old bare descriptions also scores 12/12 — nova gets the textbook cases right
    either way. Where the enrichment demonstrably pays is SCALE: on a research
@@ -181,11 +181,11 @@ already covers the dropped turns. Found by B's drift test, not by looking for it
 ### Open questions / next steps
 
 1. **Haiku is the DEFAULT model and will never cache in production today.** Its
-   measured 4096-token minimum is above Atlas's real ~1550-token stable prefix, so
+   measured 4096-token minimum is above Axiom's real ~1550-token stable prefix, so
    haiku shows zero cache reads. Sonnet (1024) hits 0.90. Options: leave it (the
    flag is honest and costs nothing), or grow the prefix past 4096 — but padding a
    prompt to win a cache is a bad trade, so this is reported rather than "fixed".
-2. **`REMINDER_TOKENS = 30_000` is effectively dead code.** Atlas's context ceiling
+2. **`REMINDER_TOKENS = 30_000` is effectively dead code.** Axiom's context ceiling
    is ~12k tokens (24k-char/12-message window + attachments), so the token trigger
    can never fire and the turn trigger does all the work. Either lower it to
    something reachable (~8k) or drop it; it is kept at the brief's default for now.

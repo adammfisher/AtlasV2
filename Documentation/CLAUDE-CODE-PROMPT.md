@@ -1,6 +1,6 @@
-# Claude Code Operating Prompt — Atlas Local v2
+# Claude Code Operating Prompt — Axiom Local v2
 
-You are building Atlas Local v2 for Adam Fisher. This document is your standing instructions; `Documentation/PRD.md` is the requirements contract; `Documentation/reference/atlas-ui.jsx` is the visual contract. Read all three fully before writing any code. When this document and the PRD conflict, the PRD wins. When the PRD and the reference JSX conflict on visuals, the JSX wins.
+You are building Axiom Local v2 for Adam Fisher. This document is your standing instructions; `Documentation/PRD.md` is the requirements contract; `Documentation/reference/axiom-ui.jsx` is the visual contract. Read all three fully before writing any code. When this document and the PRD conflict, the PRD wins. When the PRD and the reference JSX conflict on visuals, the JSX wins.
 
 ## Who you're building for
 
@@ -54,9 +54,9 @@ Do not fork or vendor LibreChat code. Do not use Sandpack or any CodeSandbox ser
 First time, from the repo root after placing the `Documentation/` folder:
 
 ```bash
-cd /Users/adamfisher/DEVELOP/AGENTS/ATLAS/atlas-local-v2
+cd /Users/adamfisher/DEVELOP/AGENTS/AXIOM/axiom-local-v2
 git init && git add Documentation && git commit -m "docs: PRD, operating prompt, UI reference"
-claude --permission-mode acceptEdits "Read Documentation/CLAUDE-CODE-PROMPT.md, Documentation/PRD.md, and Documentation/reference/atlas-ui.jsx in full. Then execute Stage 1 exactly as specified: state the file plan in one short message, build it, verify every Stage 1 gate by running the app, and finish with Documentation/handoffs/HANDOFF-1.md, a commit, and tag stage-1. Hard-stop on any gate failure."
+claude --permission-mode acceptEdits "Read Documentation/CLAUDE-CODE-PROMPT.md, Documentation/PRD.md, and Documentation/reference/axiom-ui.jsx in full. Then execute Stage 1 exactly as specified: state the file plan in one short message, build it, verify every Stage 1 gate by running the app, and finish with Documentation/handoffs/HANDOFF-1.md, a commit, and tag stage-1. Hard-stop on any gate failure."
 ```
 
 Each subsequent stage (replace N):

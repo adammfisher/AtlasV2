@@ -25,7 +25,7 @@ import { report, type CaseResult } from './lib.js';
 import type { ChatMessage } from '../../../server/src/llama/client.js';
 
 const PERSONA =
-  'You are Atlas, an AI assistant running on Amazon Bedrock. You help with conversation, analysis, ' +
+  'You are Axiom, an AI assistant running on Amazon Bedrock. You help with conversation, analysis, ' +
   'and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and ' +
   'small app prototypes. Be direct, concise, and concrete.';
 
@@ -50,7 +50,7 @@ export async function runCache(): Promise<{ passed: number; failed: number; resu
   const unit = (name: string, pass: boolean, detail = ''): void => {
     results.push({ name, tier: 'frontier', pass, detail });
   };
-  const MODEL = 'sonnet'; // caching-capable, and its 1024 minimum is under Atlas's ~1.5k prefix (haiku's 4096 is not)
+  const MODEL = 'sonnet'; // caching-capable, and its 1024 minimum is under Axiom's ~1.5k prefix (haiku's 4096 is not)
 
   // ── gate 1: prefix byte-stability, observed on the real Converse payload
   const prefixes: string[] = [];
@@ -78,7 +78,7 @@ export async function runCache(): Promise<{ passed: number; failed: number; resu
   __setConverseObserver(null);
 
   unit('sentinel becomes a real cachePoint block', sawCachePoint.every(Boolean), 'no cachePoint block in the payload');
-  unit('sentinel never leaks into the prompt as text', !prefixes.some((p) => p.includes('atlas:cachePoint')), 'the sentinel was sent as prompt text');
+  unit('sentinel never leaks into the prompt as text', !prefixes.some((p) => p.includes('axiom:cachePoint')), 'the sentinel was sent as prompt text');
   const distinct = new Set(prefixes);
   unit('prefix is byte-identical across consecutive turns', distinct.size === 1, `${distinct.size} distinct prefixes across ${prefixes.length} turns`);
 

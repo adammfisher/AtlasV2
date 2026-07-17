@@ -1,4 +1,4 @@
-# Atlas Local v2 — Product Requirements Document
+# Axiom Local v2 — Product Requirements Document
 
 > **SUPERSEDED (2026-07-07):** the product has migrated to AWS Bedrock inference,
 > AWS-native memory, and claude.ai feature parity. The authoritative current-state
@@ -6,25 +6,25 @@
 > (stage gates, local-model era) that code comments reference (PRD §…).
 
 **Audience:** Claude Code (executing agent) · **Owner:** Adam Fisher
-**Visual contract:** `Documentation/reference/atlas-ui.jsx` — the interactive mockup. Every element and interaction in that file ships for real. Appendix A maps each one to a stage.
+**Visual contract:** `Documentation/reference/axiom-ui.jsx` — the interactive mockup. Every element and interaction in that file ships for real. Appendix A maps each one to a stage.
 **Companion:** `Documentation/CLAUDE-CODE-PROMPT.md` — operating instructions for the executing agent. Read it first.
 
 ---
 
 ## 0. Product definition
 
-Atlas Local is a fully on-device AI workspace — a Claude.ai-class product running against local Gemma models — for corporate machines where cloud AI is blocked. It ships as a folder, requires no admin rights and no Docker, and never sends data off the machine unless the user explicitly connects Amazon Bedrock.
+Axiom Local is a fully on-device AI workspace — a Claude.ai-class product running against local Gemma models — for corporate machines where cloud AI is blocked. It ships as a folder, requires no admin rights and no Docker, and never sends data off the machine unless the user explicitly connects Amazon Bedrock.
 
 The product is the mockup. Five surfaces off a persistent sidebar: **Chat** (streaming conversation plus a staged document-generation pipeline with validation and versioned artifacts), **Projects** (hard-isolated workspaces), **Artifacts** (versioned output gallery), **Plugins** (an MCP connector directory with per-project enablement and a reserved Knowledge Core slot), and **Skills** (the document playbook registry that drives generation).
 
-**Architecture decision (final, do not revisit):** purpose-built app — Vite/React client, Express/TypeScript server, llama.cpp `llama-server` sidecar, better-sqlite3 persistence, bundled-Python office helpers, MCP SDK plugin layer. LibreChat is a pattern reference only; none of its code is used. Rationale: the mockup UI shares nothing with LibreChat's client, and the validated Atlas architecture decisions (sqlite-vec, constrained decoding, skill playbooks, MCP-first) carry over directly.
+**Architecture decision (final, do not revisit):** purpose-built app — Vite/React client, Express/TypeScript server, llama.cpp `llama-server` sidecar, better-sqlite3 persistence, bundled-Python office helpers, MCP SDK plugin layer. LibreChat is a pattern reference only; none of its code is used. Rationale: the mockup UI shares nothing with LibreChat's client, and the validated Axiom architecture decisions (sqlite-vec, constrained decoding, skill playbooks, MCP-first) carry over directly.
 
 ### 0.1 Environment facts
 
 - Dev machine: Adam's macOS (Apple Silicon, 24 GB unified).
 - **E4B GGUF is already on disk in: `/Users/adamfisher/Library/Application Support/AtlasLocal/models`**. The app must discover any `*.gguf` in that directory and classify it by filename (`e2b`, `e4b`, `12b`, `embeddinggemma` substrings, case-insensitive). E4B is the only model guaranteed present; everything must work with E4B alone.
 - App data root: `/Users/adamfisher/Library/Application Support/AtlasLocal/` with subdirectories `models/` (exists), `data/`, `artifacts/`, `credentials/`, `logs/` (create on boot).
-- Repo root: `/Users/adamfisher/DEVELOP/AGENTS/ATLAS/atlas-local-v2/`.
+- Repo root: `/Users/adamfisher/DEVELOP/AGENTS/AXIOM/axiom-local-v2/`.
 - `llama-server` acquisition for dev: probe PATH; if absent, run `brew install llama.cpp` (documented, allowed). Pin the installed version in `HANDOFF-1.md`.
 - Python for office helpers (dev): `python3 -m venv runtimes/python/venv` + `scripts/dev/bootstrap-python.sh` installing pinned wheels. The portable python-build-standalone swap is Stage 5.
 - No CDN at runtime, ever. All client dependencies bundled by Vite; mermaid, marked, esbuild-wasm, and React UMD assets vendored into `client/public/vendor/`.
@@ -32,7 +32,7 @@ The product is the mockup. Five surfaces off a persistent sidebar: **Chat** (str
 ### 0.2 Configuration file (repo root, created in Stage 1)
 
 ```json
-// atlas.config.json
+// axiom.config.json
 {
   "userName": "Adam",
   "dataDir": "/Users/adamfisher/Library/Application Support/AtlasLocal",
@@ -60,8 +60,8 @@ The product is the mockup. Five surfaces off a persistent sidebar: **Chat** (str
 ## 1. Repository layout
 
 ```
-atlas-local-v2/
-├── atlas.config.json
+axiom-local-v2/
+├── axiom.config.json
 ├── package.json                 # pnpm workspaces: client, server, servers/*
 ├── client/                      # Vite + React 18 + Tailwind 3
 │   ├── public/vendor/           # react UMD, mermaid.min.js, marked.min.js, esbuild.wasm
@@ -91,7 +91,7 @@ atlas-local-v2/
 │   └── demo/stage{3,4}-demo.md
 ├── directory/connectors.json
 ├── packaging/build-portable.sh
-└── Documentation/{PRD.md,CLAUDE-CODE-PROMPT.md,reference/atlas-ui.jsx,handoffs/}
+└── Documentation/{PRD.md,CLAUDE-CODE-PROMPT.md,reference/axiom-ui.jsx,handoffs/}
 ```
 
 ---
@@ -169,7 +169,7 @@ Hard isolation invariant (enforced in every query helper, tested in Stage 2): no
 event: stage     data: {"stage":"routing"}
 event: stage     data: {"stage":"generating","skill":"pptx",
                         "skillChip":"Presentations skill · 4.2k tokens",
-                        "extraChip":"atlas_default.potx",
+                        "extraChip":"axiom_default.potx",
                         "modelChip":"Gemma 4 E4B · constrained JSON",
                         "escalated":false,"edit":false}
 event: token     data: {"delta":"…"}            # plain-chat answers only, serif bubble
@@ -192,7 +192,7 @@ Every user message first hits the router — a constrained-JSON call to the resi
 
 System prompt (verbatim):
 ```
-You are a routing classifier inside Atlas. Output ONLY a raw JSON object, no markdown.
+You are a routing classifier inside Axiom. Output ONLY a raw JSON object, no markdown.
 Decide what the user's latest message asks for.
 intents: chat (conversation/questions), create_doc (make a document/deck/sheet/pdf/diagram/site/component), edit_doc (modify the most recent generated artifact).
 skills: pptx docx xlsx pdf md mermaid svg react site, or null when intent is chat.
@@ -210,7 +210,7 @@ If the routed skill is disabled in `skills_state`, stream a plain assistant mess
 
 ### 4.2 Plain chat
 
-`intent: chat` → streamed completion on the selected chat model. System prompt assembled from: base persona ("You are Atlas, a fully on-device assistant…runs entirely on this machine"), the active project's `instructions`, and (Stage 4+) memory recall. Tokens stream via `token` events into the serif bubble; "Thinking…" spinner until first token.
+`intent: chat` → streamed completion on the selected chat model. System prompt assembled from: base persona ("You are Axiom, a fully on-device assistant…runs entirely on this machine"), the active project's `instructions`, and (Stage 4+) memory recall. Tokens stream via `token` events into the serif bubble; "Thinking…" spinner until first token.
 
 ### 4.3 Document generation (`create_doc`)
 
@@ -229,7 +229,7 @@ with `response_format json_schema` from `schema.json`. Emit `step` "…JSON emit
 4. Helper execution (office formats): write payload to a temp file, spawn the venv Python:
 ```
 runtimes/python/venv/bin/python scripts/office/build_pptx.py \
-  --payload /tmp/atlas-xxxx.json --template skills/pptx/templates/atlas_default.potx \
+  --payload /tmp/axiom-xxxx.json --template skills/pptx/templates/axiom_default.potx \
   --out "<dataDir>/artifacts/<projectId>/<artifactId>/v1/<name>"
 ```
 Helper contract: exit 0 + single-line JSON on stdout `{"ok":true,"file":"…","meta":{"slides":8,"bytes":1471234},"checks":[{"label":"OOXML schema","ok":true},…]}`. Each emitted check becomes a `check` event. Non-zero exit → `error` event with stderr tail.
@@ -279,7 +279,7 @@ Nine skills, ids exactly: `pptx docx xlsx pdf md mermaid svg react site`. For ea
 
 docx: `{metadata{title,author}, sections[]{heading, level(1-3), paragraphs[], table{headers[],rows[][]} optional, pageBreakBefore}`. xlsx: `{sheets[]{name, cells[]{ref,value(string|number via two optional typed fields valueText/valueNumber — no anyOf),formula,format}, widths[]}}`. pdf: `{pages[]{blocks[]{kind enum(heading,para,table), text, headers[], rows[][]}}}`.
 
-`make_default_templates.py` (run once in bootstrap) programmatically builds `atlas_default.potx` (title + bullets + two-content + chart + summary layouts, Atlas coral/charcoal theme matching `tokens.ts`), `atlas_default.dotx` (Heading 1–3 + body styles), and a starter xlsx theme — so generation works with zero user templates. Helpers accept `--template`; per-project template libraries are post-v1 (the chip still shows the template filename used).
+`make_default_templates.py` (run once in bootstrap) programmatically builds `axiom_default.potx` (title + bullets + two-content + chart + summary layouts, Axiom coral/charcoal theme matching `tokens.ts`), `axiom_default.dotx` (Heading 1–3 + body styles), and a starter xlsx theme — so generation works with zero user templates. Helpers accept `--template`; per-project template libraries are post-v1 (the chip still shows the template filename used).
 
 ---
 
@@ -287,20 +287,20 @@ docx: `{metadata{title,author}, sections[]{heading, level(1-3), paragraphs[], ta
 
 ### 6.1 Directory manifest — `directory/connectors.json`
 
-Exactly the nine mockup connectors with the mockup's names, vendors, descriptions, transports, runtimes, and tool lists: `filesystem`, `memory`, `sqlite` (status `bundled`, auto-installed on first boot, connected); `knowledge-core` (status `planned`, url `http://127.0.0.1:7979/mcp`, the six org_* tools in toolsPreview, the AOI-parser warning text); `github`, `jira`, `confluence`, `sharepoint` (status `available`, streamable-http, corp placeholder URLs, token auth); `postgres` (available, stdio via the venv Python, connection-string auth). Schema fields per the design spec already delivered (id, name, vendor, description, icon, category, transport, launch/url, auth, toolsPreview, projectScopable, status, healthCheck, minAtlasVersion).
+Exactly the nine mockup connectors with the mockup's names, vendors, descriptions, transports, runtimes, and tool lists: `filesystem`, `memory`, `sqlite` (status `bundled`, auto-installed on first boot, connected); `knowledge-core` (status `planned`, url `http://127.0.0.1:7979/mcp`, the six org_* tools in toolsPreview, the AOI-parser warning text); `github`, `jira`, `confluence`, `sharepoint` (status `available`, streamable-http, corp placeholder URLs, token auth); `postgres` (available, stdio via the venv Python, connection-string auth). Schema fields per the design spec already delivered (id, name, vendor, description, icon, category, transport, launch/url, auth, toolsPreview, projectScopable, status, healthCheck, minAxiomVersion).
 
 ### 6.2 Lifecycle (server `mcp/`)
 
-- **Built-ins** (Stage 4): three Node MCP servers in `servers/`, built with `@modelcontextprotocol/sdk` (`McpServer` + stdio transport), spawned by the manager with cwd jailed to `dataDir` scopes and env scrubbed to `{ATLAS_PROJECT_ID, ATLAS_DB_PATH, ATLAS_DATA_DIR}`.
+- **Built-ins** (Stage 4): three Node MCP servers in `servers/`, built with `@modelcontextprotocol/sdk` (`McpServer` + stdio transport), spawned by the manager with cwd jailed to `dataDir` scopes and env scrubbed to `{AXIOM_PROJECT_ID, AXIOM_DB_PATH, AXIOM_DATA_DIR}`.
   - `filesystem`: tools `fs_read fs_write fs_list fs_search`, root = `dataDir/projects/<projectId>/files/` (created per project); `fs_write` outside root → error; every call appended to `logs/audit.log` (tool, path, project, ts — no contents).
-  - `memory`: `memory_search memory_upsert graph_query graph_add_fact` over the `mem_*` tables, always filtered by `ATLAS_PROJECT_ID`. `memory_search`: if an `embeddinggemma*.gguf` exists in the models dir, a second llama-server (`--embeddings`, embedPort) powers sqlite-vec semantic search merged with FTS5; otherwise FTS5-only and the plugin detail panel shows "Semantic recall off — add an EmbeddingGemma GGUF to the models folder" (small dim note under tools).
+  - `memory`: `memory_search memory_upsert graph_query graph_add_fact` over the `mem_*` tables, always filtered by `AXIOM_PROJECT_ID`. `memory_search`: if an `embeddinggemma*.gguf` exists in the models dir, a second llama-server (`--embeddings`, embedPort) powers sqlite-vec semantic search merged with FTS5; otherwise FTS5-only and the plugin detail panel shows "Semantic recall off — add an EmbeddingGemma GGUF to the models folder" (small dim note under tools).
   - `sqlite`: `sql_query sql_schema`, read-only (`PRAGMA query_only`), file path must resolve inside `dataDir`.
 - **Install** (directory remote): create install row, validate URL against allowlist (block private ranges except loopback; loopback explicitly allowed for 7979), attempt MCP initialize with 5 s timeout. Success → `connected`, auto-enable in active project (mockup behavior). Failure → status `error`, `last_error` stored, detail panel shows it. The mockup's animated "Installing…" state is the real pending connect.
 - **Custom add**: modal fields → `POST /plugins/custom`; stdio commands must resolve inside the repo/runtimes (no arbitrary host binaries); one-time consent is the modal itself in v1.
 - **Per-project enablement**: `enabled_projects` JSON array; the chat tool injector (§6.3) only exposes tools whose connector is enabled in the active project. Card toggle = toggle in active project; detail panel rows = per-project. Captions exactly per mockup.
 - **Restart/Remove**: restart tears down and respawns/reconnects (button spinner = real). Remove deletes install + credentials and strips the id from all projects.
 - **Knowledge Core probe**: on boot and on `/plugins/directory` fetch, try MCP initialize on `127.0.0.1:7979` (1 s timeout). Respond → flip the entry to `available` live (the reserved card becomes installable with zero code changes). No response → stays `planned` with the dashed card, amber notice, and disabled "Reserved — port 7979" button.
-- **Credentials**: AES-256-GCM file store `dataDir/credentials/<ref>.enc`, key in `dataDir/.atlas-key` (chmod 600, generated on first boot). Values never logged, never in the DB, masked in UI exactly as mocked.
+- **Credentials**: AES-256-GCM file store `dataDir/credentials/<ref>.enc`, key in `dataDir/.axiom-key` (chmod 600, generated on first boot). Values never logged, never in the DB, masked in UI exactly as mocked.
 
 ### 6.3 Tool use in chat (Stage 4)
 
@@ -312,7 +312,7 @@ When the router says `chat` and the active project has enabled connectors, the c
 
 - **Active project** is server state (`settings.activeProjectId`). It drives: chat header breadcrumb, where new conversations/artifacts file, plugin toggle context, filesystem server root. Clicking a project card activates it (accent border + "Active" chip per mockup).
 - **New chat** creates a conversation in the active project; title = first user message truncated at 42 chars + "…"; sidebar recents = conversations across all projects ordered by `updated_at` (switching to a conversation in another project switches the active project — record this rule in the UI with the breadcrumb).
-- Seed data on first boot (mockup parity): the three projects (Lightspeed Atlas active, Client Redline, Org Intel Dev with their exact instruction strings) and the Q3 QBR demo conversation with its two pipeline messages — inserted as fixture rows (`scripts/dev` seed), with the four seed artifacts. The QBR pptx seed artifact gets a real generated file at seed time (run the pipeline helpers during seeding so downloads work).
+- Seed data on first boot (mockup parity): the three projects (Lightspeed Axiom active, Client Redline, Org Intel Dev with their exact instruction strings) and the Q3 QBR demo conversation with its two pipeline messages — inserted as fixture rows (`scripts/dev` seed), with the four seed artifacts. The QBR pptx seed artifact gets a real generated file at seed time (run the pipeline helpers during seeding so downloads work).
 - **Artifacts on disk:** `dataDir/artifacts/<projectId>/<artifactId>/v<n>/<filename>` (site/react = directory of files). Download streams the file (or a zip for multi-file). Restore sets `current_version` (history rows labeled exactly: current / targeted edit / initial generation, with Restore buttons). "Open preview" renders: office files → extraction-based preview (markitdown text for v1, labeled "text preview"); md/mermaid/svg/react/site → real rendered preview in the sandbox.
 - Empty chat state: `What are we building, {userName}?`, subtitle, and the five exact suggestion chips from the mockup; clicking fills the input.
 - The footer line, the Local lock badge, the disclaimer string — all verbatim from the mockup.
@@ -334,7 +334,7 @@ When the router says `chat` and the active project has enabled connectors, the c
 Every stage: work on a branch, finish with all gates green, write `Documentation/handoffs/HANDOFF-<n>.md` (template in CLAUDE-CODE-PROMPT.md), commit, tag `stage-<n>`. A gate failure = hard stop + handoff documenting the failure. Do not start stage n+1 in the same session.
 
 ### Stage 1 — Shell, full UI, model online
-**Scope:** repo scaffold (pnpm workspaces, TS strict, ESLint); `tokens.ts` with the exact mockup palette/fonts; port `reference/atlas-ui.jsx` into split components under `views/` — **all five views, every component, pixel-faithful**, running on seed fixtures served from the real API (`/projects /conversations /skills /plugins/directory /artifacts /models /settings` returning seeded data); server boot creates dataDir subfolders, opens the DB, applies `schema.sql`, seeds fixtures, **spawns llama-server with the E4B GGUF discovered in the models dir**, `/health` green; **real streaming chat**: plain messages run §4.2 end-to-end (router stubbed to always-`chat` this stage), tokens stream into the serif bubble; pipeline messages render from the seeded QBR fixture; model menu reads the real registry (E4B present; E2B/12B rows show absent state; Bedrock "Add model" opens the modal which returns a clear "Stage 5" notice); all other interactions work against the API with optimistic UI (project create/activate, skill toggles persist, plugin toggles persist, artifact gallery/detail from fixtures).
+**Scope:** repo scaffold (pnpm workspaces, TS strict, ESLint); `tokens.ts` with the exact mockup palette/fonts; port `reference/axiom-ui.jsx` into split components under `views/` — **all five views, every component, pixel-faithful**, running on seed fixtures served from the real API (`/projects /conversations /skills /plugins/directory /artifacts /models /settings` returning seeded data); server boot creates dataDir subfolders, opens the DB, applies `schema.sql`, seeds fixtures, **spawns llama-server with the E4B GGUF discovered in the models dir**, `/health` green; **real streaming chat**: plain messages run §4.2 end-to-end (router stubbed to always-`chat` this stage), tokens stream into the serif bubble; pipeline messages render from the seeded QBR fixture; model menu reads the real registry (E4B present; E2B/12B rows show absent state; Bedrock "Add model" opens the modal which returns a clear "Stage 5" notice); all other interactions work against the API with optimistic UI (project create/activate, skill toggles persist, plugin toggles persist, artifact gallery/detail from fixtures).
 **Gates:** `pnpm dev` cold-starts everything with one command; `/health` shows the E4B file name; a fresh question gets a real streamed E4B answer in <2 s to first token on the dev machine; every view renders with zero console errors and zero network requests leaving localhost; kill -9 the llama-server process → UI banner appears and recovery works.
 **Deliverable 1:** running app — the complete mockup UI live against real APIs, with genuine on-device E4B chat. Demo: open app, ask "what can you do?", watch it stream.
 
@@ -370,13 +370,13 @@ E4B constrained-JSON quality is the central bet — the Stage 3 90% gate exists 
 
 ---
 
-## Appendix A — UI parity matrix (every element in `reference/atlas-ui.jsx`)
+## Appendix A — UI parity matrix (every element in `reference/axiom-ui.jsx`)
 
 Every row ships. "Stage" = when it becomes real (UI itself exists from Stage 1).
 
 | # | Element / interaction | Stage | Implementation note |
 |---|---|---|---|
-| A1 | Sidebar brand block (gradient A, "Atlas", "Local · on-device") | 1 | static, tokens.ts |
+| A1 | Sidebar brand block (gradient A, "Axiom", "Local · on-device") | 1 | static, tokens.ts |
 | A2 | New chat button | 2 | creates conversation in active project |
 | A3 | Nav: Projects/Artifacts/Plugins/Skills with active accent state | 1 | client router |
 | A4 | Recents list, active highlight, click-to-open | 2 | live query, updated_at order |

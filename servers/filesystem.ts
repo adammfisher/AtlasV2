@@ -1,6 +1,6 @@
 /**
- * Atlas built-in filesystem MCP server (PRD §6.2).
- * Root jailed to dataDir/projects/<ATLAS_PROJECT_ID>/files/; fs_write outside
+ * Axiom built-in filesystem MCP server (PRD §6.2).
+ * Root jailed to dataDir/projects/<AXIOM_PROJECT_ID>/files/; fs_write outside
  * the root errors; every call appends to logs/audit.log (no file contents).
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -9,10 +9,10 @@ import { z } from 'zod';
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const projectId = process.env.ATLAS_PROJECT_ID ?? 'p1';
-const dataDir = process.env.ATLAS_DATA_DIR ?? '';
+const projectId = process.env.AXIOM_PROJECT_ID ?? 'p1';
+const dataDir = process.env.AXIOM_DATA_DIR ?? '';
 if (!dataDir) {
-  console.error('ATLAS_DATA_DIR is required');
+  console.error('AXIOM_DATA_DIR is required');
   process.exit(1);
 }
 const ROOT = path.join(dataDir, 'projects', projectId, 'files');
@@ -33,7 +33,7 @@ function resolveInRoot(p: string): string {
   return full;
 }
 
-const server = new McpServer({ name: 'atlas-filesystem', version: '1.0.0' });
+const server = new McpServer({ name: 'axiom-filesystem', version: '1.0.0' });
 
 server.tool(
   'fs_list',

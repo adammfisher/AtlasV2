@@ -1,4 +1,4 @@
-/* Typed client for the Atlas API (all under /api, proxied to :5175 in dev). */
+/* Typed client for the Axiom API (all under /api, proxied to :5175 in dev). */
 
 export interface Project {
   id: string;
@@ -185,7 +185,7 @@ export interface ModelEntry {
 }
 
 export interface ModelsRegistry {
-  /** The Claude models Atlas exposes — the only selectable inference backends. */
+  /** The Claude models Axiom exposes — the only selectable inference backends. */
   bedrockModels: Array<{ id: string; name: string; sub: string; provider?: string; available?: boolean; vision?: boolean }>;
   models: ModelEntry[];
   selected: string;
@@ -228,7 +228,7 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('atlas_token');
+  const token = localStorage.getItem('axiom_token');
   const res = await fetch(`/api${path}`, {
     ...init,
     headers: {
@@ -245,10 +245,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // which tore down a perfectly good session and lost whatever was on screen.
     // Signing the user out is destructive, so it needs the explicit signal.
     if (res.status === 401 && body.code === 'unauthenticated') {
-      localStorage.removeItem('atlas_token');
-      window.dispatchEvent(new CustomEvent('atlas-unauth'));
+      localStorage.removeItem('axiom_token');
+      window.dispatchEvent(new CustomEvent('axiom-unauth'));
     }
-    window.dispatchEvent(new CustomEvent('atlas-error', { detail: message }));
+    window.dispatchEvent(new CustomEvent('axiom-error', { detail: message }));
     throw new Error(message);
   }
   return res.json() as Promise<T>;

@@ -1,5 +1,5 @@
 {
-  "service": "atlas-parity",
+  "service": "axiom-parity",
   "replicas": 3,
   "flags": {
     "beta_ui": true,

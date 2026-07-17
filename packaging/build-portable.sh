@@ -1,5 +1,5 @@
 #!/bin/bash
-# Atlas Local portable build (PRD Stage 5).
+# Axiom Local portable build (PRD Stage 5).
 # Produces dist/AtlasLocal/ — a folder that runs on a clean macOS account with
 # no Homebrew on PATH: vendored node, standalone python, vendored llama-server
 # (+ dylibs), bundled server + MCP servers, built client served by Express.
@@ -13,7 +13,7 @@ rm -rf "$DIST"
 mkdir -p "$DIST"/{runtimes/llama,server,servers,data/models}
 
 echo "==> client build"
-pnpm --filter @atlas/client build
+pnpm --filter @axiom/client build
 mkdir -p "$DIST/client"
 cp -R client/dist "$DIST/client/dist"
 
@@ -119,9 +119,9 @@ mkdir -p "$DIST/scripts"
 cp -R scripts/office "$DIST/scripts/office"
 
 echo "==> portable config + launcher"
-cat > "$DIST/atlas.config.json" <<'JSON'
+cat > "$DIST/axiom.config.json" <<'JSON'
 {
-  "userName": "Atlas user",
+  "userName": "Axiom user",
   "dataDir": "./data",
   "models": { "dir": "./data/models", "manifestUrl": null },
   "llamaServer": {
@@ -139,7 +139,7 @@ JSON
 
 cat > "$DIST/start.command" <<'CMD'
 #!/bin/bash
-# Atlas Local — double-click to start. Everything runs from this folder.
+# Axiom Local — double-click to start. Everything runs from this folder.
 set -e
 cd "$(dirname "$0")"
 export PATH="$PWD/runtimes/python/venv/bin:$PWD/runtimes/node/bin:/usr/bin:/bin"
@@ -148,7 +148,7 @@ if ! ls data/models/*e4b*.gguf >/dev/null 2>&1; then
   open data/models
   read -p "Press Enter once the model file is in place…"
 fi
-echo "Starting Atlas Local on http://127.0.0.1:5175 …"
+echo "Starting Axiom Local on http://127.0.0.1:5175 …"
 ( sleep 4 && open "http://127.0.0.1:5175" ) &
 exec ./runtimes/node/bin/node server/index.mjs
 CMD

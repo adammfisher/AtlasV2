@@ -26,7 +26,7 @@ async function latestArtifact(kind: string, after: number): Promise<ArtifactRow>
 }
 
 async function download(id: string, ver: number, out: string): Promise<string> {
-  const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${id}/versions/${ver}/download`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
+  const res = await fetch(`${process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175'}/api/artifacts/${id}/versions/${ver}/download`, { headers: { Authorization: `Bearer ${process.env.AXIOM_TEST_TOKEN}` } });
   expect(res.ok, `download v${ver} → ${res.status}`).toBe(true);
   const file = path.join(TMP, out);
   writeFileSync(file, Buffer.from(await res.arrayBuffer()));

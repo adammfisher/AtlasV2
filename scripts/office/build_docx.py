@@ -188,7 +188,7 @@ def main() -> None:
     payload = vc.load_payload(args.payload)
     vc.spec_gate("docx", payload)
     out = Path(args.out)
-    template = args.template or "skills/docx/templates/atlas_default.dotx"
+    template = args.template or "skills/docx/templates/axiom_default.dotx"
     meta = build(payload, template, out)
 
     checks = [vc.openxml_audit(out), vc.zip_sanity(out)]

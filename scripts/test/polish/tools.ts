@@ -41,7 +41,7 @@ const MEMORY_TOOLS: BedrockTool[] = [
 ];
 
 const PERSONA =
-  'You are Atlas, an AI assistant running on Amazon Bedrock. You help with conversation, analysis, ' +
+  'You are Axiom, an AI assistant running on Amazon Bedrock. You help with conversation, analysis, ' +
   'and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and ' +
   'small app prototypes. Be direct, concise, and concrete.';
 
@@ -67,7 +67,7 @@ const PROBES: Probe[] = [
 
   // 2 should-fetch: the user hands over a URL
   { prompt: 'read https://example.com/pricing and tell me what the enterprise tier costs', expect: 'web_fetch', why: 'user supplied a URL' },
-  { prompt: "what does this page say? https://example.com/blog/atlas-release", expect: 'web_fetch', why: 'user supplied a URL' },
+  { prompt: "what does this page say? https://example.com/blog/axiom-release", expect: 'web_fetch', why: 'user supplied a URL' },
 
   // 2 memory-write: explicit imperative + durable personal fact
   { prompt: 'remember that I prefer Rust over Go for systems work', expect: 'remember', why: 'explicit imperative' },

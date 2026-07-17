@@ -13,7 +13,7 @@
 import { spawnSync } from 'node:child_process';
 
 const args = new Set(process.argv.slice(2));
-const live = args.has('--live') || args.has('--ceiling') || process.env.ATLAS_CEILING === '1';
+const live = args.has('--live') || args.has('--ceiling') || process.env.AXIOM_CEILING === '1';
 
 interface Suite {
   name: string;

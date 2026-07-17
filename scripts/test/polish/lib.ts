@@ -2,7 +2,7 @@
  * Shared harness for the polish evals (Deliverables A–G).
  *
  * Every eval holds the MODEL constant per tier and varies only the prompt, so
- * what is under test is the doctrine in <atlas_behavior>, never the router or
+ * what is under test is the doctrine in <axiom_behavior>, never the router or
  * the model picker.
  */
 import { runAsAccount } from '../../../server/src/lib/account.js';
@@ -22,7 +22,7 @@ export const MODEL_FOR_TIER: Record<BehaviorTier, string> = {
 /** Mirrors the PERSONA line in routes/chat.ts. The behavior block is what is
  * under test; the persona is here only so the prompt is shaped like production. */
 const PERSONA =
-  'You are Atlas, an AI assistant running on Amazon Bedrock. You help with conversation, analysis, ' +
+  'You are Axiom, an AI assistant running on Amazon Bedrock. You help with conversation, analysis, ' +
   'and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and ' +
   'small app prototypes. Be direct, concise, and concrete.';
 

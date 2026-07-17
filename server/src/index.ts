@@ -58,7 +58,7 @@ app.use((req, res, next) => {
     req.path === '/api/health' ||
     req.path.startsWith('/api/internal/');
   const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  const cookie = /(?:^|;\s*)atlas_token=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
+  const cookie = /(?:^|;\s*)axiom_token=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
   // next() runs the whole downstream chain INSIDE this promise, so a synchronous
   // throw in any route rejects it too. Answering every rejection with 401 made
   // unrelated bugs look like auth failures — and the client ends the session on
@@ -155,7 +155,7 @@ if (existsSync(clientDist)) {
 
 const host = IS_LAMBDA ? '0.0.0.0' : '127.0.0.1'; // LWA proxies from inside the container
 const server = app.listen(Number(process.env.PORT ?? config.server.port), host, () => {
-  log(`Atlas server listening on http://${host}:${process.env.PORT ?? config.server.port}`);
+  log(`Axiom server listening on http://${host}:${process.env.PORT ?? config.server.port}`);
 });
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {

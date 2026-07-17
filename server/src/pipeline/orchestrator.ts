@@ -300,7 +300,7 @@ interface HelperResult {
   checks: Array<{ label: string; ok: boolean }>;
 }
 
-/** Fixed rubric for the ADVISORY vision-critique pass (ATLAS_VISION_CRITIQUE=1,
+/** Fixed rubric for the ADVISORY vision-critique pass (AXIOM_VISION_CRITIQUE=1,
  * default OFF). Deterministic checks are the gate; this only logs and annotates. */
 const VISION_RUBRIC = `You are a strict presentation-design reviewer. Score each slide thumbnail
 against exactly these dimensions: overlap (shapes/text colliding), overflow (text touching or
@@ -349,7 +349,7 @@ const VISION_SCHEMA = {
 /** ADVISORY vision critique: thumbnail grid → active multimodal model → strict
  * JSON, logged with cost/latency. Never gates — deterministic checks decide. */
 async function visionCritique(ctx: Ctx, skillId: string, helper: HelperResult): Promise<void> {
-  if (process.env.ATLAS_VISION_CRITIQUE !== '1') return;
+  if (process.env.AXIOM_VISION_CRITIQUE !== '1') return;
   const thumbs = (helper.meta.thumbs_b64 as unknown as string[] | undefined) ?? [];
   if (!thumbs.length) {
     pushStep(ctx, { state: 'warn', label: 'Vision critique skipped — no thumbnails (soffice absent?)' });
@@ -439,7 +439,7 @@ async function runHelper(
   outFile: string,
 ): Promise<HelperResult> {
   if (process.env.AWS_LAMBDA_FUNCTION_NAME) return runHelperLambda(skillId, payload, outFile);
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'atlas-'));
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'axiom-'));
   const payloadFile = path.join(tmp, 'payload.json');
   writeFileSync(payloadFile, JSON.stringify(payload));
   const args = [
@@ -1069,7 +1069,7 @@ export async function* streamPlainChat(
   signal: AbortSignal,
 ): AsyncGenerator<string> {
   const PERSONA =
-    'You are Atlas, a fully on-device AI assistant. You run entirely on this machine — nothing the user shares ever leaves it. ' +
+    'You are Axiom, a fully on-device AI assistant. You run entirely on this machine — nothing the user shares ever leaves it. ' +
     'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
     'Be direct, concise, and concrete.';
   const system = [PERSONA, instructions ? `Project instructions: ${instructions}` : '']

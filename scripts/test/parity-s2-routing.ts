@@ -26,7 +26,7 @@ const CASES: Array<[string, Expect]> = [
   ['generate an invoice PDF for 3 consulting line items', { intent: 'create_doc', skill: ['pdf'] }],
   ['make a flowchart of our deployment pipeline', { intent: 'create_doc', skill: ['mermaid'] }],
   ['create an architecture diagram for the AWS setup', { intent: 'create_doc', skill: ['mermaid'] }],
-  ['design a logo icon for the Atlas project', { intent: 'create_doc', skill: ['svg'] }],
+  ['design a logo icon for the Axiom project', { intent: 'create_doc', skill: ['svg'] }],
   ['build me an interactive mortgage calculator widget', { intent: 'create_doc', skill: ['react'] }],
   ['create a landing page for our beta signup', { intent: 'create_doc', skill: ['site', 'react'] }],
   ['turn these notes into slides', { intent: 'create_doc', skill: ['pptx'] }],

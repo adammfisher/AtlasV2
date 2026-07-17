@@ -1,10 +1,10 @@
 {
-  "name": "atlas-local-v2",
+  "name": "axiom-local-v2",
   "version": "2.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n server,client -c yellow,cyan \"pnpm --filter @atlas/server dev\" \"pnpm --filter @atlas/client dev\"",
+    "dev": "concurrently -n server,client -c yellow,cyan \"pnpm --filter @axiom/server dev\" \"pnpm --filter @axiom/client dev\"",
     "build": "pnpm -r build",
     "lint": "eslint client/src server/src scripts --ext .ts,.tsx",
     "typecheck": "pnpm -r typecheck",
@@ -26,7 +26,7 @@
     "test:live": "playwright test --project=live-smoke",
     "test:parity": "playwright test --project=parity-legacy",
     "test:evals": "tsx tests/evals/run-all.ts",
-    "test:ceiling": "ATLAS_CEILING=1 tsx tests/evals/run-all.ts --ceiling",
+    "test:ceiling": "AXIOM_CEILING=1 tsx tests/evals/run-all.ts --ceiling",
     "test:validators": "runtimes/python/venv/bin/python tests/validators/selftest.py",
     "test:all": "pnpm test:unit && pnpm test:validators && pnpm test:ui && pnpm test:live && pnpm test:parity && pnpm test:evals",
     "test:report": "playwright show-report"

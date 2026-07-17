@@ -21,7 +21,7 @@ import { SKILL_REGISTRY } from '../skills/registry.js';
 //   v3 — + <memory_etiquette> (polish layer, Deliverable C)
 //   v4 — + <citation_rules>, opt-in per conversation (polish layer, Deliverable D)
 //   v5 — + <tool_use> response hygiene (polish layer, Deliverable F)
-export const ATLAS_BEHAVIOR_VERSION = 5;
+export const AXIOM_BEHAVIOR_VERSION = 5;
 export type BehaviorTier = 'small' | 'mid' | 'frontier';
 
 export function tierForModel(modelKey: string): BehaviorTier {
@@ -191,7 +191,7 @@ export function buildBehaviorBlock(
   const lean = tier === 'frontier';
   const base = lean ? RULES_LEAN : tier === 'small' ? `${RULES_FULL}\n${RULES_EXAMPLES}` : RULES_FULL;
   const cites = opts.citations ? `\n${lean ? CITATION_RULES_LEAN : CITATION_RULES}` : '';
-  return `<atlas_behavior version="${ATLAS_BEHAVIOR_VERSION}" tier="${tier}">\n${base}${cites}\n</atlas_behavior>`;
+  return `<axiom_behavior version="${AXIOM_BEHAVIOR_VERSION}" tier="${tier}">\n${base}${cites}\n</axiom_behavior>`;
 }
 
 /* ─── DELIVERABLE E — cache-optimal prompt assembly ─────────────────────────── */

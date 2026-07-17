@@ -1,5 +1,5 @@
 # ============================================================================
-# AtlasV2 Memory — Documentation/MEMORY_DESIGN.md §4
+# AxiomV2 Memory — Documentation/MEMORY_DESIGN.md §4
 #
 # Single-table DynamoDB design (on-demand → scale-to-zero):
 #   Profile fact   PK=S#u#<user>|S#p#<project>   SK=KV#<category>.<key>

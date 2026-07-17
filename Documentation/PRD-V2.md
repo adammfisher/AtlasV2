@@ -1,4 +1,4 @@
-# Atlas V2 — Product Requirements Document (v2, current state)
+# Axiom V2 — Product Requirements Document (v2, current state)
 
 **Status:** Authoritative. Supersedes `PRD.md` (the original on-device build contract) and
 `PRD-AMENDMENT-1.md` where they conflict. Doubles as the Business Requirements Document:
@@ -11,11 +11,11 @@ its verification status.
 
 ## 0. Product definition
 
-Atlas is a Claude.ai-class AI workspace. The client (Vite/React) and API server
+Axiom is a Claude.ai-class AI workspace. The client (Vite/React) and API server
 (Express/TypeScript) currently run on the user's machine; **all inference and all durable
 memory/file storage run in AWS** (Amazon Bedrock, DynamoDB, S3, S3 Vectors) with a
 scale-to-zero cost profile — $0 when idle, pay-per-use under load. The declared direction
-(§12) is full serverless deployment modeled on Atlas v1's Lambda architecture.
+(§12) is full serverless deployment modeled on Axiom v1's Lambda architecture.
 
 Five surfaces off a persistent sidebar: **Chat**, **Projects**, **Plugins (MCP)**,
 **Skills**, plus per-chat **Artifacts** panels. Feature target: parity with claude.ai web,
@@ -57,7 +57,7 @@ verified by Playwright-driven end-to-end tests (`PARITY_REPORT.md`).
 |---|---|---|---|
 | FR-3.1 | Memory tools | `remember {fact, scope:user\|project}` (stores a note in the chosen scope; model picks scope — verified choosing `user` for personal prefs) and `forget {query}` (deletes **all** ≥0.5-similarity matches across KV+notes — extractor siblings included). System prompt instructs tool use over mere acknowledgement. | ✅ |
 | FR-3.2 | Web tools | `web_search` (DuckDuckGo HTML endpoint, no API key; top-5 title/URL/snippet) and `web_fetch` (http(s) page → tag-stripped readable text, 8k cap, 12s timeout). Verified: model chains search→fetch and cites. | ✅ |
-| FR-3.3 | MCP connector tools | Retired SQLite peers (atlas-memory, sqlite) are excluded from the tool loop so they can't shadow native memory. Every OTHER connector enabled for the project surfaces its tools (name mangled `connector__tool`, ≤64 chars) with the connector name in the description; execution via the MCP manager (`callTool`, 30s timeout). Verified live: `fs_list · Filesystem`. | ✅ |
+| FR-3.3 | MCP connector tools | Retired SQLite peers (axiom-memory, sqlite) are excluded from the tool loop so they can't shadow native memory. Every OTHER connector enabled for the project surfaces its tools (name mangled `connector__tool`, ≤64 chars) with the connector name in the description; execution via the MCP manager (`callTool`, 30s timeout). Verified live: `fs_list · Filesystem`. | ✅ |
 | FR-3.4 | Tool chips | Each execution emits an SSE `tool` event; the UI renders `tool · connector` chips on the live exchange and persists them with the message. | ✅ |
 
 ## 4. Memory (the differentiating subsystem — see MEMORY_DESIGN.md)
@@ -76,7 +76,7 @@ never block chat.
 | FR-4.5 | Contradiction supersede | `contradicts` verdict → newest value wins + `TOMB#` audit item (old value, new value, timestamp). Adjudication always runs when a neighbor exists because contradictions embed at ≥0.9 similarity. | ✅ |
 | FR-4.6 | Reinforcement & decay | Merges bump `mention_count` and refresh wording. Notes carry a 90-day DynamoDB TTL extended on every recall hit (`bumpRecalled`); KV facts never decay. | ✅ |
 | FR-4.7 | Recall composition | Per message: synthesized profile summary (+ only KV facts newer than it) for both scopes → top-4 semantic hits ranked by composite score (0.6·similarity + 0.25·recency e^(−age/90d) + 0.15·log-mentions, floor 0.35) → 1-hop graph expansion for entities named in the message (both directions). Enforced budgets: KV 1800 / semantic 1500 / graph 600 chars. | ✅ |
-| FR-4.8 | Consolidation | `consolidate(scope)` synthesizes a ≤120-word profile ("What Atlas knows about you" / project summary), stored as `PROFILE#current`; refreshed when >24h stale (boot + 6h sweep) or on demand (modal Refresh). | ✅ |
+| FR-4.8 | Consolidation | `consolidate(scope)` synthesizes a ≤120-word profile ("What Axiom knows about you" / project summary), stored as `PROFILE#current`; refreshed when >24h stale (boot + 6h sweep) or on demand (modal Refresh). | ✅ |
 | FR-4.9 | User controls | Memory modal with **This project / You** tabs: profile card, KV facts (add/edit/delete), notes, graph facts — all deletable; per-chat remember toggle (brain icon → `memoff:<conv>`). | ✅ |
 | FR-4.10 | Ops & observability | `recall-preview` (exact injected block + per-hit similarity/rank/scope + matched entities), `export` (snapshot incl. tombstones), `wipe` (items + vector index + queued extractions), `extract-now`. | ✅ |
 | FR-4.11 | Eval harness | `pnpm test:memory-eval` — 14 asserts: store→paraphrase recall, dedup (no dup growth), contradiction→tombstone, remember/forget via real chat SSE, reverse-edge recall, queue durability, wipe teardown. Green twice consecutively required. | ✅ 14/14 |
@@ -140,7 +140,7 @@ never block chat.
 
 | ID | Requirement | Detail | Status |
 |---|---|---|---|
-| FR-9.1 | Connector directory | Bundled (filesystem, atlas-memory, sqlite) + directory + custom connectors; install/enable per project; stdio MCP processes managed by the server. | ✅ (pre-existing) |
+| FR-9.1 | Connector directory | Bundled (filesystem, axiom-memory, sqlite) + directory + custom connectors; install/enable per project; stdio MCP processes managed by the server. | ✅ (pre-existing) |
 | FR-9.2 | Tools reach chat | See FR-3.3 — enabled connectors' tools execute inside the Bedrock tool loop. | ✅ |
 | FR-9.3 | Knowledge Core slot | Reserved directory entry probing a local KC endpoint. | ✅ (pre-existing) |
 
@@ -172,7 +172,7 @@ on everything; no idle cost anywhere.
   marker; artifact/knowledge teardown included. Status: 21/21 green in a single pass.
 - **Memory eval**: `pnpm test:memory-eval` (needs running server) — 14 asserts, deep memory
   correctness. Legacy stage tests retained.
-- **Config**: `atlas.config.json` (dataDir, ports, retired llama block, bedrock region/profile).
+- **Config**: `axiom.config.json` (dataDir, ports, retired llama block, bedrock region/profile).
 - **Data root**: `~/Library/Application Support/AtlasLocal/` — `data/` (SQLite: conversations,
   messages, artifacts, plugins, settings, knowledge registry, pending extractions),
   `artifacts/`, `uploads/`, `knowledge/`, `logs/`.

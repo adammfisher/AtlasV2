@@ -336,7 +336,7 @@ export function ProjectWorkspace({
               </button>
             </div>
             <p className="text-xs leading-relaxed" style={{ color: memorySummary ? C.sub : C.mute, fontFamily: sans, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {memorySummary ?? 'Nothing remembered yet. As you chat in this project, Atlas records durable facts here.'}
+              {memorySummary ?? 'Nothing remembered yet. As you chat in this project, Axiom records durable facts here.'}
             </p>
             {memory?.profile?.generated_at ? (
               <div className="text-[11px] mt-1.5" style={{ color: C.mute, fontFamily: sans }}>
@@ -365,7 +365,7 @@ export function ProjectWorkspace({
                   value={instrText}
                   onChange={(e) => setInstrText(e.target.value)}
                   autoFocus
-                  placeholder="Add instructions to tailor Atlas's responses in this project…"
+                  placeholder="Add instructions to tailor Axiom's responses in this project…"
                   className="w-full rounded-lg px-2.5 py-2 text-xs outline-none resize-none"
                   style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
                 />
@@ -376,7 +376,7 @@ export function ProjectWorkspace({
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: project.instructions ? C.sub : C.mute, fontFamily: sans }}>
-                {project.instructions || "Add instructions to tailor Atlas's responses."}
+                {project.instructions || "Add instructions to tailor Axiom's responses."}
               </p>
             )}
           </Card>
@@ -408,7 +408,7 @@ export function ProjectWorkspace({
               />
             </div>
             <p className="text-[11px] mb-2.5" style={{ color: C.mute, fontFamily: sans }}>
-              {knowledgeDrag ? 'Drop to add to project knowledge…' : 'Documents here inform every chat in this project — drag files here or use +. Atlas cites the relevant passages automatically.'}
+              {knowledgeDrag ? 'Drop to add to project knowledge…' : 'Documents here inform every chat in this project — drag files here or use +. Axiom cites the relevant passages automatically.'}
             </p>
             {files && files.length > 0 ? (
               <div className="flex flex-col gap-1.5">

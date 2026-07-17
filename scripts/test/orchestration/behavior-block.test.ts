@@ -1,6 +1,6 @@
 /** Unit test (Deliverable C): the assembled behavior block is versioned and
  * contains every required tag per tier; small gets few-shots, frontier is lean. */
-import { buildBehaviorBlock, ATLAS_BEHAVIOR_VERSION, type BehaviorTier } from '../../../server/src/pipeline/context.js';
+import { buildBehaviorBlock, AXIOM_BEHAVIOR_VERSION, type BehaviorTier } from '../../../server/src/pipeline/context.js';
 
 const REQUIRED = [
   'create_edit_describe', 'artifact_vs_inline', 'update_vs_rewrite', 'read_before_write',
@@ -13,7 +13,7 @@ const check = (cond: boolean, msg: string): void => { if (!cond) { console.log(`
 
 for (const tier of ['small', 'mid', 'frontier'] as BehaviorTier[]) {
   const block = buildBehaviorBlock(tier);
-  check(block.includes(`<atlas_behavior version="${ATLAS_BEHAVIOR_VERSION}" tier="${tier}"`), `${tier}: versioned root tag`);
+  check(block.includes(`<axiom_behavior version="${AXIOM_BEHAVIOR_VERSION}" tier="${tier}"`), `${tier}: versioned root tag`);
   for (const tag of REQUIRED) {
     check(block.includes(`<${tag}>`) && block.includes(`</${tag}>`), `${tier}: has <${tag}>`);
   }

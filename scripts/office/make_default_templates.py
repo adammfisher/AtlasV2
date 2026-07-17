@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the default Atlas office templates (PRD §5). Idempotent.
+"""Build the default Axiom office templates (PRD §5). Idempotent.
 
 Theme matches client/src/theme/tokens.ts: accent coral #d97757 on warm charcoal.
 The .potx/.dotx files are structurally pptx/docx packages (python-pptx/docx do
@@ -20,7 +20,7 @@ def make_potx(path: Path) -> None:
 
     prs = Presentation()  # default master has title/bullets/two-content/blank layouts
     # Stamp the theme accent into the master title placeholder + a footer bar so
-    # decks visibly carry the Atlas theme even before per-slide styling.
+    # decks visibly carry the Axiom theme even before per-slide styling.
     master = prs.slide_masters[0]
     for ph in master.placeholders:
         if ph.placeholder_format.idx == 0 and ph.has_text_frame:
@@ -32,7 +32,7 @@ def make_potx(path: Path) -> None:
 
     theme_part = master.part.part_related_by(RT.THEME)
     blob = theme_part.blob
-    # default Office theme accent1 is 4472C4; swap for Atlas coral
+    # default Office theme accent1 is 4472C4; swap for Axiom coral
     theme_part._blob = blob.replace(b'val="4472C4"', f'val="{ACCENT}"'.encode())
     prs.save(str(path))
 
@@ -67,21 +67,21 @@ def make_xlsx_theme(path: Path) -> None:
     header.font = Font(bold=True, color="FFFFFF", name="Helvetica Neue")
     header.fill = PatternFill("solid", fgColor=ACCENT)
     wb.add_named_style(header)
-    body = NamedStyle(name="atlas_body")
+    body = NamedStyle(name="axiom_body")
     body.font = Font(color=TEXT_DARK, name="Helvetica Neue")
     wb.add_named_style(body)
     ws = wb.active
     ws.title = "Theme"
-    ws["A1"] = "Atlas default theme"
+    ws["A1"] = "Axiom default theme"
     ws["A1"].style = "atlas_header"
     wb.save(str(path))
 
 
 def main() -> None:
     targets = {
-        REPO / "skills/pptx/templates/atlas_default.potx": make_potx,
-        REPO / "skills/docx/templates/atlas_default.dotx": make_dotx,
-        REPO / "skills/xlsx/templates/atlas_default.xlsx": make_xlsx_theme,
+        REPO / "skills/pptx/templates/axiom_default.potx": make_potx,
+        REPO / "skills/docx/templates/axiom_default.dotx": make_dotx,
+        REPO / "skills/xlsx/templates/axiom_default.xlsx": make_xlsx_theme,
     }
     for path, builder in targets.items():
         path.parent.mkdir(parents=True, exist_ok=True)

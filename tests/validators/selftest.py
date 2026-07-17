@@ -71,7 +71,7 @@ def good_xlsx(out: Path) -> None:
 def good_pdf(out: Path) -> None:
     from weasyprint import HTML
 
-    HTML(string="<h1>Onboarding Checklist</h1><p>Welcome to the Atlas pilot program.</p>").write_pdf(str(out))
+    HTML(string="<h1>Onboarding Checklist</h1><p>Welcome to the Axiom pilot program.</p>").write_pdf(str(out))
 
 
 def good_md(out: Path) -> None:

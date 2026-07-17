@@ -353,7 +353,7 @@ function routeSchema(candidates: WorkflowId[]): Record<string, unknown> {
 function classifierSystem(candidates: WorkflowId[], tier: ModelTier): string {
   const lines = candidates.map((id) => `- ${id}: ${wf(id).intent}`);
   const base = [
-    'You are the routing classifier inside Atlas. Choose the SINGLE workflow id that best fits the',
+    'You are the routing classifier inside Axiom. Choose the SINGLE workflow id that best fits the',
     "user's latest message, given the conversation and the context signals. Output only the schema.",
     '',
     'Candidates:',
@@ -593,7 +593,7 @@ export function toLegacyRoute(decision: RoutingDecision, signals: RouterSignals,
 }
 
 /**
- * Atlas's `product` skill is a concept-definition master that predates — and is
+ * Axiom's `product` skill is a concept-definition master that predates — and is
  * outside — the 35 canonical workflows. This conservative pre-check preserves it
  * without inflating the brain: it fires ONLY on an explicit creation/evolve verb
  * aimed at a product/concept (statements and updates stay chat, per the router's

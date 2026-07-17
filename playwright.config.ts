@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 /**
- * Atlas E2E suites. Three projects (TESTPLAN.md §4):
+ * Axiom E2E suites. Three projects (TESTPLAN.md §4):
  *
  *   ui-mocked     — frontend against RECORDED SSE fixtures (tests/fixtures/sse).
  *                   Fast, deterministic, no backend model calls. Needs the dev
@@ -27,7 +27,7 @@ export default defineConfig({
   retries: 0,
   reporter: [['list'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]],
   use: {
-    baseURL: process.env.ATLAS_BASE ?? 'http://127.0.0.1:5173',
+    baseURL: process.env.AXIOM_BASE ?? 'http://127.0.0.1:5173',
     storageState: 'tests/e2e/.auth-state.json',
     viewport: { width: 1600, height: 1000 },
     screenshot: 'only-on-failure',

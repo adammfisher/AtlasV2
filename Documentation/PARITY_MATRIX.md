@@ -1,4 +1,4 @@
-# AtlasV2 ↔ claude.ai Parity Matrix
+# AxiomV2 ↔ claude.ai Parity Matrix
 
 **Source of truth for the parity mission.** One row per spec item. A row is
 GREEN only with a linked passing test (Playwright under `tests/e2e/parity/`,

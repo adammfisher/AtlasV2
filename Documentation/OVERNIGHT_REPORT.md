@@ -1,4 +1,4 @@
-# Atlas V2 — Overnight Autonomous Hardening Report
+# Axiom V2 — Overnight Autonomous Hardening Report
 
 **Run:** 2026-07-07 night → 07-08 early AM · Autonomous (Adam asleep)
 **Mandate:** finish the cloud optimally (scale-to-zero, no containers), then hammer the app as a master user-tester and fix everything toward enterprise-ready, zero bugs. Deploy everything to AWS incl. the UI on CloudFront.
@@ -29,7 +29,7 @@ Verified live through CloudFront → app Lambda → office Lambda → S3: **pptx
 
 | # | Severity | Bug | Fix |
 |---|---|---|---|
-| 1 | **High** | **Dormant SQLite MCP memory shadowed real memory.** The retired `atlas-memory` MCP connector still exposed `memory_upsert` as a chat tool; Haiku non-deterministically called it instead of the native `remember` tool, writing facts to a **dead SQLite DB** instead of DynamoDB — so they silently vanished from recall. This was the root of all "memory is flaky" symptoms. | Excluded the retired SQLite peers (`atlas-memory`, `sqlite`) from the chat tool loop. Native remember/forget + DynamoDB recall are now the only memory path. Verified deterministic. |
+| 1 | **High** | **Dormant SQLite MCP memory shadowed real memory.** The retired `axiom-memory` MCP connector still exposed `memory_upsert` as a chat tool; Haiku non-deterministically called it instead of the native `remember` tool, writing facts to a **dead SQLite DB** instead of DynamoDB — so they silently vanished from recall. This was the root of all "memory is flaky" symptoms. | Excluded the retired SQLite peers (`axiom-memory`, `sqlite`) from the chat tool loop. Native remember/forget + DynamoDB recall are now the only memory path. Verified deterministic. |
 | 2 | **High** | **Complex artifacts failed or timed out.** The product skill's 3.8KB schema blew Bedrock's json_schema grammar compiler ("Grammar compilation timed out") and even forced tool-use ("Schema is too complex") — generation failed, or wasted ~60s and timed out. | 3-tier cascade: json_schema → tool-use → plain free-form JSON (+ the existing ajv repair loop). Plus a size heuristic that skips json_schema for schemas >2.2KB. Product generation: 200s+ timeout → **8–15s**. |
 | 3 | **High** | **Office generation blocked on LibreOffice.** A soffice thumbnail/convert check hard-**failed** documents when LibreOffice was absent (cloud) or broken (the recurring local symlink rot), even though round-trip + openxml-audit already proved validity. | soffice + openxml-audit checks now degrade to non-blocking amber skips; only genuine structural failures block. All office kinds generate regardless. |
 | 4 | **Med** | **`forget` missed user-scope facts.** "Forget about my X" issued inside a project searched only project scope; the model's scope guess was unreliable, leaving user facts behind. | forget now searches project **and** user scope. Verified: stored then fully removed. |

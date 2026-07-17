@@ -8,7 +8,7 @@
 
 ## A1. Concept (new §0.3 in the PRD)
 
-Atlas Local is also the authoring surface for **product masters**: a product definition is a versioned, schema-constrained JSON object (artifact kind `product`) registered to the Business Architecture spine. Every downstream artifact of the product lifecycle — concept page, BRD, gate deck, system-context diagram, clickable prototype, Claude Code context bundle, Confluence page, Jira epics — is a **projection**: a deterministic transform of the master payload into an existing skill's schema, compiled by the existing helpers. Nothing about a product is hand-authored twice.
+Axiom Local is also the authoring surface for **product masters**: a product definition is a versioned, schema-constrained JSON object (artifact kind `product`) registered to the Business Architecture spine. Every downstream artifact of the product lifecycle — concept page, BRD, gate deck, system-context diagram, clickable prototype, Claude Code context bundle, Confluence page, Jira epics — is a **projection**: a deterministic transform of the master payload into an existing skill's schema, compiled by the existing helpers. Nothing about a product is hand-authored twice.
 
 Three rules govern everything in this amendment:
 
@@ -178,10 +178,10 @@ Deterministic zip, exportable from state `specified` onward:
 ├── context/dependencies.md
 ├── context/decisions.md
 └── .mcp.json                  # knowledge-core server entry iff KC is connected, with
-                               # env ATLAS_CAPABILITY=<capability_code>; omitted otherwise
+                               # env AXIOM_CAPABILITY=<capability_code>; omitted otherwise
 ```
 
-The bundle is how a definition becomes a Claude Code project's starting context. EPCC appears in generated text as a named concept only; nothing in Atlas implements or depends on agent workflow internals. Bundle export writes a `projections` row (`kind='bundle'`) — which is what the `→ built` rule checks.
+The bundle is how a definition becomes a Claude Code project's starting context. EPCC appears in generated text as a named concept only; nothing in Axiom implements or depends on agent workflow internals. Bundle export writes a `projections` row (`kind='bundle'`) — which is what the `→ built` rule checks.
 
 ---
 
@@ -189,7 +189,7 @@ The bundle is how a definition becomes a Claude Code project's starting context.
 
 Writeback is chat-driven: "log a decision on {product}: we went client-side calc, rate API for personalization" routes as `edit_doc` → field router resolves to `decisions` → append-mode field edit. Same for `as_built`. That is the whole v1 mechanism — no listeners, no automation.
 
-**Stage 5 stretch (build only if green with time remaining, decision recorded in the handoff):** `servers/product/index.ts`, a fourth built-in MCP server exposing `product_get` and `product_append_fact` (append-only, `decisions`/`as_built` fields only, project-scoped via `ATLAS_PROJECT_ID`), so an external Claude Code session can write back through the bundle's `.mcp.json`. If skipped, the bundle's CLAUDE.md tells the agent to report outcomes for manual logging.
+**Stage 5 stretch (build only if green with time remaining, decision recorded in the handoff):** `servers/product/index.ts`, a fourth built-in MCP server exposing `product_get` and `product_append_fact` (append-only, `decisions`/`as_built` fields only, project-scoped via `AXIOM_PROJECT_ID`), so an external Claude Code session can write back through the bundle's `.mcp.json`. If skipped, the bundle's CLAUDE.md tells the agent to report outcomes for manual logging.
 
 ---
 
@@ -226,6 +226,6 @@ Writeback is chat-driven: "log a decision on {product}: we went client-side calc
 
 ## A11. Risks (additions to §11)
 
-The product schema is the largest grammar Atlas compiles — E4B constrained-decoding quality is now load-bearing for two skills, and the Stage 3 90% gate covers both; do not soften it, and the recorded fallback order is: trim `maxItems` → split concept/spec into two schemas → escalate tier per §8. Context pressure on mature definitions is mitigated by field-scoping; if a single field's value plus instruction exceeds budget, raise `ctx` to 16384 and record the RAM tradeoff in the handoff. Projections must never be hand-edited renders — the UI offers Regenerate only; any "let me just fix the docx" path violates the model and is out. Writeback fields are append-only and never model-fabricated. And the standing rule applies with extra force here: a stamped gate transition is a governance record — no fake stamps, no auto-promotion, ambers carried into the stamp note verbatim.
+The product schema is the largest grammar Axiom compiles — E4B constrained-decoding quality is now load-bearing for two skills, and the Stage 3 90% gate covers both; do not soften it, and the recorded fallback order is: trim `maxItems` → split concept/spec into two schemas → escalate tier per §8. Context pressure on mature definitions is mitigated by field-scoping; if a single field's value plus instruction exceeds budget, raise `ctx` to 16384 and record the RAM tradeoff in the handoff. Projections must never be hand-edited renders — the UI offers Regenerate only; any "let me just fix the docx" path violates the model and is out. Writeback fields are append-only and never model-fabricated. And the standing rule applies with extra force here: a stamped gate transition is a governance record — no fake stamps, no auto-promotion, ambers carried into the stamp note verbatim.
 
 — End of Amendment 1 —

@@ -109,7 +109,7 @@ function zipColumns(a: string[], b: string[]): string[][] {
 
 export function toConceptDocx(p: Payload): Payload {
   return {
-    metadata: { title: `${str(p, 'name')} — Concept`, author: 'Atlas projection engine' },
+    metadata: { title: `${str(p, 'name')} — Concept`, author: 'Axiom projection engine' },
     sections: conceptSections(p),
   };
 }
@@ -174,7 +174,7 @@ export function toBrdDocx(p: Payload): Payload {
     });
   }
   return {
-    metadata: { title: `${str(p, 'name')} — BRD`, author: 'Atlas projection engine' },
+    metadata: { title: `${str(p, 'name')} — BRD`, author: 'Axiom projection engine' },
     sections,
   };
 }
@@ -260,7 +260,7 @@ async function runHelperFor(kind: 'docx' | 'pptx', payload: unknown, outFile: st
   writeFileSync(tmpFile, JSON.stringify(payload));
   const { templatePath } = await import('./skills.js');
   const template = templatePath(kind) ?? path.join(repoRoot,
-    kind === 'docx' ? 'skills/docx/templates/atlas_default.dotx' : 'skills/pptx/templates/atlas_default.potx');
+    kind === 'docx' ? 'skills/docx/templates/axiom_default.dotx' : 'skills/pptx/templates/axiom_default.potx');
   const { stdout } = await execFileAsync(
     path.join(repoRoot, 'runtimes/python/venv/bin/python'),
     [
@@ -567,9 +567,9 @@ async function buildBundle(
       '- `definition.json` — the full product master (source of truth, version ' + version + ')',
       '- `acceptance/criteria.md` + `criteria.json` — testable given/when/then',
       '- `context/dependencies.md` — systems this product touches',
-      '- `context/decisions.md` — the decision log; append outcomes here via Atlas writeback',
+      '- `context/decisions.md` — the decision log; append outcomes here via Axiom writeback',
       '',
-      'Report build decisions and as-built facts back to the product master in Atlas',
+      'Report build decisions and as-built facts back to the product master in Axiom',
       '(chat: "log a decision on ' + str(payload, 'name') + ': …").',
       '',
       'Consume via your agentic build workflow (EPCC or equivalent).',

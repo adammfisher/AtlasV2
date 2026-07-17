@@ -1,4 +1,4 @@
-/* Atlas PDF paged-media doctrine (WeasyPrint).
+/* Axiom PDF paged-media doctrine (WeasyPrint).
    Page geometry (@page size/margins) is generated per-document from the spec's
    meta block and prepended to this sheet — everything else lives here. */
 

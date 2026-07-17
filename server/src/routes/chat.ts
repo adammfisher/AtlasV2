@@ -246,7 +246,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
       uploadKinds: atts.filter((a) => a.kind === 'document').map((a) => a.name.split('.').pop() ?? ''),
       urlInMessage: /(https?:\/\/|www\.)\S+/i.test(text),
     };
-    // product master (Atlas concept skill) is handled outside the 35-workflow
+    // product master (Axiom concept skill) is handled outside the 35-workflow
     // brain by a conservative pre-check; everything else goes through the brain.
     const productR = productRoute(text.trim(), editable?.kind ?? null);
     let routed: RouteResult;
@@ -306,7 +306,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
       }
 
       const PERSONA =
-        `You are Atlas, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
+        `You are Axiom, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
         'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
         'Be direct, concise, and concrete.';
       // web search: per-chat override wins, else the global default (W4)
@@ -351,10 +351,10 @@ chatRouter.post('/:id/messages', async (req, res) => {
       // enabled for this project; chips surface each execution in the UI.
       const connectorTools: BedrockTool[] = [];
       const byMangled = new Map<string, ChatTool>();
-      // atlas-memory and sqlite are the retired SQLite MCP peers — their tools
+      // axiom-memory and sqlite are the retired SQLite MCP peers — their tools
       // (memory_upsert, graph_add_fact, …) write to a dead database and shadow
       // the native remember/forget + DynamoDB recall. Never expose them.
-      const SHADOW_CONNECTORS = new Set(['atlas-memory', 'memory', 'sqlite']);
+      const SHADOW_CONNECTORS = new Set(['axiom-memory', 'memory', 'sqlite']);
       // P4: per-conversation disabled connectors — never reach the model
       const chatOffRaw = getSetting(`mcpoff:${conv.id}`);
       const chatOff = new Set(chatOffRaw ? (JSON.parse(chatOffRaw) as string[]) : []);

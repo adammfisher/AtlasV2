@@ -29,7 +29,7 @@ const OFFICE_PROMPTS: Array<[SkillId, string]> = [
   ['pdf', 'A two-page onboarding checklist for new engineers'],
   ['pdf', 'A one-page invoice for consulting services: 3 line items, total, payment terms'],
   ['pdf', 'A security incident summary report with timeline table and findings'],
-  ['pdf', 'A certificate of completion for the Atlas pilot program'],
+  ['pdf', 'A certificate of completion for the Axiom pilot program'],
   ['pdf', 'A three-page product brief for the auto loan payment calculator'],
 ];
 

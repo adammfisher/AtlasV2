@@ -23,6 +23,6 @@ export function logTo(name: string, message: string): void {
 }
 
 export const log = (msg: string): void => {
-  console.log(`[atlas] ${msg}`);
+  console.log(`[axiom] ${msg}`);
   logTo('app', msg);
 };

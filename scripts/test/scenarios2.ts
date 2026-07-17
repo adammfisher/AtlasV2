@@ -2,7 +2,7 @@
  * Scenario harness — wave 2 (deeper real-user journeys). Self-contained.
  *   npx tsx scripts/test/scenarios2.ts [filter]
  */
-const BASE = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+const BASE = process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175';
 const API = `${BASE}/api`;
 const MARK = '[scn2]';
 interface R { suite: string; name: string; ok: boolean; detail: string }

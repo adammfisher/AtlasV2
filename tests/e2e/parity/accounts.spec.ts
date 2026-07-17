@@ -2,7 +2,7 @@
  * with per-account model limits. API-level assertions per account token. */
 import { test, expect } from '@playwright/test';
 
-const BASE = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+const BASE = process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175';
 
 async function login(username: string, password: string): Promise<string> {
   const res = await fetch(`${BASE}/api/auth/login`, {

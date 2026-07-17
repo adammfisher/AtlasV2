@@ -1,7 +1,7 @@
 # Appendix A parity audit — Stage 5 close
 
-Visual contract: `Documentation/reference/atlas-v2-ui.jsx` (per Adam's mid-Stage-1
-correction; the PRD header still names the older atlas-ui.jsx). Every row below
+Visual contract: `Documentation/reference/axiom-v2-ui.jsx` (per Adam's mid-Stage-1
+correction; the PRD header still names the older axiom-ui.jsx). Every row below
 was verified against the running app this session. ☑ = shipped and exercised.
 Three rows carry deviations explicitly flagged for Adam's waiver.
 

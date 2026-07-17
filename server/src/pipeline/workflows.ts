@@ -1,7 +1,7 @@
 /**
  * DELIVERABLE A — Canonical workflow registry.
  *
- * The single source of truth for what Atlas can be asked to do. Every routing
+ * The single source of truth for what Axiom can be asked to do. Every routing
  * decision resolves to exactly one `WorkflowId` (or an ordered chain of them for
  * mixed intent). The deterministic Stage-1 pre-router (router.ts) generates its
  * verb/object/predicate tables FROM this file — trigger lists are NOT duplicated

@@ -58,7 +58,7 @@ section{margin:2.5em 0}
 const NET_SHIM = `<script>
 (function(){
   let attempts = 0;
-  const report = () => parent.postMessage({ type: 'atlas-net-attempt', attempts }, '*');
+  const report = () => parent.postMessage({ type: 'axiom-net-attempt', attempts }, '*');
   window.fetch = function(){ attempts++; report(); return Promise.reject(new Error('network disabled in sandbox')); };
   window.XMLHttpRequest = function(){ attempts++; report(); throw new Error('network disabled in sandbox'); };
   window.WebSocket = function(){ attempts++; report(); throw new Error('network disabled in sandbox'); };
@@ -85,7 +85,7 @@ export async function buildReactSrcdoc(
   try {
     await warmEsbuild();
     const vfs: esbuild.Plugin = {
-      name: 'atlas-vfs',
+      name: 'axiom-vfs',
       setup(build) {
         build.onResolve({ filter: /.*/ }, (args) => {
           if (args.path === 'react' || args.path === 'react-dom' || args.path === 'react-dom/client') {
@@ -126,8 +126,8 @@ export async function buildReactSrcdoc(
       outdir: '/out',
       format: 'iife',
       // hand the entry's exports to the mount script — without globalName the
-      // IIFE returns nothing and AtlasEntry was always {} (blank frames since)
-      globalName: 'AtlasEntry',
+      // IIFE returns nothing and AxiomEntry was always {} (blank frames since)
+      globalName: 'AxiomEntry',
       jsx: 'transform',
       plugins: [vfs],
       logLevel: 'silent',
@@ -143,7 +143,7 @@ export async function buildReactSrcdoc(
       vendorText('react-dom.production.min.js'),
     ]);
     const mount = `const __root=document.getElementById('root');
-const __mod = typeof AtlasEntry !== 'undefined' ? AtlasEntry : null;
+const __mod = typeof AxiomEntry !== 'undefined' ? AxiomEntry : null;
 const __C = __mod && (__mod.default || __mod);
 if (typeof __C === 'function') { window.ReactDOM.createRoot(__root).render(window.React.createElement(__C)); }
 else if (!__root.hasChildNodes()) {
@@ -205,12 +205,12 @@ export async function buildMermaidSrcdoc(source: string): Promise<string> {
 const SRC = ${JSON.stringify(source)};
 mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
 mermaid.parse(SRC).then(async () => {
-  parent.postMessage({ type: 'atlas-mermaid-parse', ok: true }, '*');
-  const { svg } = await mermaid.render('atlas-diagram', SRC);
+  parent.postMessage({ type: 'axiom-mermaid-parse', ok: true }, '*');
+  const { svg } = await mermaid.render('axiom-diagram', SRC);
   document.getElementById('out').innerHTML = svg;
 }).catch((err) => {
-  parent.postMessage({ type: 'atlas-mermaid-parse', ok: false, error: String(err && err.message || err) }, '*');
-  document.getElementById('out').innerHTML = '<div class="err">Diagram failed to parse — ask Atlas to fix it (e.g. "fix the diagram — quote labels with parentheses").\\n\\n' + String(err && err.message || err).replace(/</g,'&lt;') + '</div>';
+  parent.postMessage({ type: 'axiom-mermaid-parse', ok: false, error: String(err && err.message || err) }, '*');
+  document.getElementById('out').innerHTML = '<div class="err">Diagram failed to parse — ask Axiom to fix it (e.g. "fix the diagram — quote labels with parentheses").\\n\\n' + String(err && err.message || err).replace(/</g,'&lt;') + '</div>';
 });
 </script>
 </body></html>`;

@@ -34,7 +34,7 @@ test.describe('shell + management @fast', () => {
 
   test('mobile drawer: hamburger opens the sidebar', async ({ browser }) => {
     const mp = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
-    await mp.goto((process.env.ATLAS_BASE ?? 'http://127.0.0.1:5173') + '/', { waitUntil: 'networkidle' });
+    await mp.goto((process.env.AXIOM_BASE ?? 'http://127.0.0.1:5173') + '/', { waitUntil: 'networkidle' });
     await expect(mp.locator('button[title="Menu"]')).toBeVisible();
     expect(await mp.getByText('RECENTS').isVisible().catch(() => false)).toBe(false);
     await mp.locator('button[title="Menu"]').click();

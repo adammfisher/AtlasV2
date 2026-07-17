@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test';
 import { createHmac } from 'node:crypto';
 
-const BASE = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+const BASE = process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175';
 
 async function login(username: string, password: string): Promise<string> {
   const res = await fetch(`${BASE}/api/auth/login`, {
@@ -18,7 +18,7 @@ test.describe('auth session', () => {
   test('logout endpoint clears the cookie', async () => {
     const res = await fetch(`${BASE}/api/auth/logout`, { method: 'POST' });
     expect(res.ok).toBe(true);
-    expect(res.headers.get('set-cookie') ?? '').toMatch(/atlas_token=;.*Max-Age=0/);
+    expect(res.headers.get('set-cookie') ?? '').toMatch(/axiom_token=;.*Max-Age=0/);
   });
 
   test('login reports a 12h TTL', async () => {

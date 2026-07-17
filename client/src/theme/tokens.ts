@@ -20,7 +20,7 @@ import { DEFAULT_THEME, isThemeName, type ThemeName } from './themes';
 
 export { THEMES, THEME_NAMES, DEFAULT_THEME, isThemeName, type ThemeName } from './themes';
 
-/* C maps Atlas's semantic names to the CSS custom properties declared in
+/* C maps Axiom's semantic names to the CSS custom properties declared in
  * themes.ts. The values are var() references, not colors: an inline
  * `style={{ background: C.panel }}` emits `background: var(--panel)` and the
  * cascade resolves it against whatever [data-theme] is on <html>. That is why
@@ -70,7 +70,7 @@ export const C = {
 export const wash = (token: string, pct: number): string =>
   `color-mix(in srgb, ${token} ${pct}%, transparent)`;
 
-const STORAGE_KEY = 'atlas-theme';
+const STORAGE_KEY = 'axiom-theme';
 
 /** Pre-token builds stored a light/dark mode under the same key. */
 const LEGACY: Record<string, ThemeName> = { dark: 'ember', light: 'daylight' };

@@ -12,8 +12,8 @@ const CASES: Array<{ prompt: string; expect: string }> = [
   { prompt: 'search the project files for anything mentioning roadmap', expect: 'fs_search' },
   { prompt: 'remember this: our launch codename is Bluebird', expect: 'memory_upsert' },
   { prompt: 'what do you remember about our launch codename?', expect: 'memory_search' },
-  { prompt: 'record the fact that Atlas depends on llama.cpp', expect: 'graph_add_fact' },
-  { prompt: 'what does Atlas depend on, according to the knowledge graph?', expect: 'graph_query' },
+  { prompt: 'record the fact that Axiom depends on llama.cpp', expect: 'graph_add_fact' },
+  { prompt: 'what does Axiom depend on, according to the knowledge graph?', expect: 'graph_query' },
   { prompt: 'what tables exist in the workspace database?', expect: 'sql_schema' },
   { prompt: 'run a sql query to count how many conversations are in the database', expect: 'sql_query' },
 ];

@@ -67,7 +67,7 @@ p_general now, 3.8s green). Old forget-layers spec diverges from the
 
 ### C5 rabbit hole status (still RED, five layers fixed)
 entry-name heal → payload heal → export-default append → honest in-frame
-error → esbuild globalName. AtlasEntry is STILL undefined in the live frame
+error → esbuild globalName. AxiomEntry is STILL undefined in the live frame
 with scripts running and zero console errors — next: dump esbuild-wasm
 outputFiles text in a browser harness. All layers committed; each is a real
 fix regardless.

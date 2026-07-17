@@ -26,11 +26,11 @@ function convFromUrl(): string | null {
 export default function App() {
   // simple accounts (users.config.json): a token gates the whole app; the
   // server 401s everything else, so the gate is honest, not cosmetic
-  const [signedIn, setSignedIn] = useState<boolean>(() => Boolean(localStorage.getItem('atlas_token')));
+  const [signedIn, setSignedIn] = useState<boolean>(() => Boolean(localStorage.getItem('axiom_token')));
   useEffect(() => {
     const onUnauth = () => setSignedIn(false);
-    window.addEventListener('atlas-unauth', onUnauth);
-    return () => window.removeEventListener('atlas-unauth', onUnauth);
+    window.addEventListener('axiom-unauth', onUnauth);
+    return () => window.removeEventListener('axiom-unauth', onUnauth);
   }, []);
   const [view, setView] = useState<View>('chat');
   const [activeConv, setActiveConv] = useState<string | null>(convFromUrl());

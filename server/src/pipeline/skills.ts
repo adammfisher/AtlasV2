@@ -62,10 +62,10 @@ export async function skillEnabled(id: SkillId): Promise<boolean> {
 
 export function templatePath(id: SkillId): string | null {
   // branded templates (e.g. the stripped DFS library) take precedence over the
-  // generated Atlas defaults
+  // generated Axiom defaults
   const candidates: Record<string, string[]> = {
-    pptx: ['skills/pptx/templates/dfs_default.potx', 'skills/pptx/templates/atlas_default.potx'],
-    docx: ['skills/docx/templates/atlas_default.dotx'],
+    pptx: ['skills/pptx/templates/dfs_default.potx', 'skills/pptx/templates/axiom_default.potx'],
+    docx: ['skills/docx/templates/axiom_default.dotx'],
   };
   for (const rel of candidates[id] ?? []) {
     const full = path.join(repoRoot, rel);

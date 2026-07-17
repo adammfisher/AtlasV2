@@ -18,7 +18,7 @@ sys.path.insert(0, str(HERE))
 
 SKILLS = {"pptx", "docx", "xlsx", "pdf"}
 # template filename per skill (bundled beside the handler under templates/)
-TEMPLATES = {"pptx": "dfs_default.potx", "docx": "atlas_default.dotx"}
+TEMPLATES = {"pptx": "dfs_default.potx", "docx": "axiom_default.dotx"}
 
 
 def _theme_colors(prs):

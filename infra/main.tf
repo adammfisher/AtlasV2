@@ -1,4 +1,4 @@
-# AtlasV2 infrastructure — Phase 1: memory (DynamoDB + S3 Vectors), scale-to-zero.
+# AxiomV2 infrastructure — Phase 1: memory (DynamoDB + S3 Vectors), scale-to-zero.
 # Everything is prefixed atlasv2- and tagged; later phases (API GW + Lambda) land here too.
 
 terraform {

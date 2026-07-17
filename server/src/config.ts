@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-export interface AtlasConfig {
+export interface AxiomConfig {
   userName: string;
   dataDir: string;
   models: { dir: string; manifestUrl: string | null };
@@ -18,12 +18,12 @@ export interface AtlasConfig {
   bedrock: { enabled: boolean; region: string; profile: string };
 }
 
-/** Walk up from this module until atlas.config.json appears — the same code
+/** Walk up from this module until axiom.config.json appears — the same code
  * runs from server/src (dev) and from the flatter portable bundle layout. */
 function findRoot(): string {
   let dir = path.dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 5; i++) {
-    if (existsSync(path.join(dir, 'atlas.config.json'))) return dir;
+    if (existsSync(path.join(dir, 'axiom.config.json'))) return dir;
     dir = path.dirname(dir);
   }
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -35,13 +35,13 @@ function resolveRel(p: string): string {
   return p.startsWith('./') || p.startsWith('../') ? path.resolve(repoRoot, p) : p;
 }
 
-export function loadConfig(): AtlasConfig {
-  const raw = readFileSync(path.join(repoRoot, 'atlas.config.json'), 'utf8');
-  const cfg = JSON.parse(raw) as AtlasConfig;
+export function loadConfig(): AxiomConfig {
+  const raw = readFileSync(path.join(repoRoot, 'axiom.config.json'), 'utf8');
+  const cfg = JSON.parse(raw) as AxiomConfig;
   // Lambda: /var/task is read-only — all scratch space lives in /tmp
   if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    cfg.dataDir = '/tmp/atlas';
-    cfg.models.dir = '/tmp/atlas/models';
+    cfg.dataDir = '/tmp/axiom';
+    cfg.models.dir = '/tmp/axiom/models';
     return cfg;
   }
   // portable folder: relative paths resolve against the folder; if the

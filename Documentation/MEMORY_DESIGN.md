@@ -1,6 +1,6 @@
-# Atlas V2 Memory — Evaluation & AWS Architecture
+# Axiom V2 Memory — Evaluation & AWS Architecture
 
-**Goal (Adam, 2026-07-07):** memory is the most robust part of Atlas. Remember things about the
+**Goal (Adam, 2026-07-07):** memory is the most robust part of Axiom. Remember things about the
 user, things about projects, cross-chat within a project ("heavily remember"). Runs in AWS,
 scale-to-zero. Semantic via S3 Vectors; graph via DynamoDB adjacency + GSIs if warranted.
 
@@ -31,7 +31,7 @@ category whitelist, KV-upsert dedupe, real per-project isolation, editable UI, o
 
 ## 2. What v1 (AWS) got right and wrong — measured, not assumed
 
-v1 runs S3 Vectors in this account today (`atlas-memory-vectors`, Titan v2, 1024-dim cosine,
+v1 runs S3 Vectors in this account today (`axiom-memory-vectors`, Titan v2, 1024-dim cosine,
 global + per-project indexes). Full mechanics audited from code (not the aspirational docs).
 
 **Adopt from v1:** two scopes (global/user + project); S3 Vectors + Titan embeddings;

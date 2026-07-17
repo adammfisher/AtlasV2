@@ -1,7 +1,7 @@
 # PPTX validator rubric — what the hard gate enforces
 
 Two layers: DETERMINISTIC checks (the gate — a failing deck is never returned
-as success) and an optional advisory vision critique (`ATLAS_VISION_CRITIQUE`,
+as success) and an optional advisory vision critique (`AXIOM_VISION_CRITIQUE`,
 default off). Bounded fix loop: validator findings feed a spec-revision prompt,
 max 2 retries, then an honest hard failure with findings attached.
 

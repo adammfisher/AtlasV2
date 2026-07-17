@@ -24,7 +24,7 @@ authRouter.post('/login', (req, res) => {
     const token = await issueToken(acct.username);
     // cookie lifespan matches the token TTL (12h) — the token expiry is the
     // real enforcement; the cookie Max-Age just avoids sending a dead one
-    res.setHeader('Set-Cookie', `atlas_token=${token}; Path=/; Max-Age=${Math.floor(TOKEN_TTL_MS / 1000)}; SameSite=Lax`);
+    res.setHeader('Set-Cookie', `axiom_token=${token}; Path=/; Max-Age=${Math.floor(TOKEN_TTL_MS / 1000)}; SameSite=Lax`);
     res.json({ ok: true, token, username: acct.username, models: acct.models, expiresInMs: TOKEN_TTL_MS });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
@@ -32,7 +32,7 @@ authRouter.post('/login', (req, res) => {
 /** Sign out: clear the cookie. The token is stateless, so the client also
  * drops its stored copy — there's no server session to invalidate. */
 authRouter.post('/logout', (_req, res) => {
-  res.setHeader('Set-Cookie', 'atlas_token=; Path=/; Max-Age=0; SameSite=Lax');
+  res.setHeader('Set-Cookie', 'axiom_token=; Path=/; Max-Age=0; SameSite=Lax');
   res.json({ ok: true });
 });
 

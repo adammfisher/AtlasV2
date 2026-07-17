@@ -207,7 +207,7 @@ artifactsRouter.post('/:id/versions/:v/share', (req, res) => {
       let target = version.file_path;
       let filename = path.basename(target);
       if (statSync(target).isDirectory()) {
-        const zipPath = path.join(os.tmpdir(), `atlas-share-${row.id}-v${req.params.v}.zip`);
+        const zipPath = path.join(os.tmpdir(), `axiom-share-${row.id}-v${req.params.v}.zip`);
         const { writeFileSync: wf } = await import('node:fs');
         wf(zipPath, await zipDir(target));
         target = zipPath;

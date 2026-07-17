@@ -9,7 +9,7 @@ body,
 }
 
 /* paints the correct palette on the first frame — the vars come from the
-   <style> the atlas-theme plugin injects ahead of this sheet */
+   <style> the axiom-theme plugin injects ahead of this sheet */
 html {
   background: var(--bg);
   color: var(--text-primary);

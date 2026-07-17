@@ -19,7 +19,7 @@ const KNOWN_REFS = new Set([
 function buildServer(): McpServer {
   const server = new McpServer({ name: 'mock-knowledge-core', version: '0.1.0' });
   server.tool('org_search', 'Search org knowledge.', { query: z.string() }, async ({ query }) => ({
-    content: [{ type: 'text', text: `mock results for "${query}": [Atlas QBR doc], [Payments runbook]` }],
+    content: [{ type: 'text', text: `mock results for "${query}": [Axiom QBR doc], [Payments runbook]` }],
   }));
   server.tool('org_ask', 'Ask the org graph a question.', { question: z.string() }, async ({ question }) => ({
     content: [{ type: 'text', text: `mock answer to "${question}"` }],

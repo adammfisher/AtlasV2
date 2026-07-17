@@ -5,18 +5,18 @@ Date: 2026-06-10
 llama.cpp version (PINNED — do not upgrade mid-build): `version: 8680 (15f786e65)`, binary `/opt/homebrew/bin/llama-server` (Homebrew)
 Model files present: `gemma-4-e4b-it-q4_k_m.gguf` (4.6 GB, classified e4b), plus `mmproj-F16.gguf` and `nomic-embed-text-v1.5-q4_k_m.gguf` (neither classifies — `nomic-embed` is NOT `embeddinggemma*`, so semantic memory will stay off in Stage 4 unless an EmbeddingGemma GGUF is added)
 
-**Mid-session change:** Adam replaced the visual contract — `reference/atlas-v2-ui.jsx` supersedes `reference/atlas-ui.jsx`. The client was built against the old reference first, then fully re-ported to v2. All gate evidence below is from the final v2 code. CLAUDE-CODE-PROMPT.md still names `atlas-ui.jsx` as the contract; Adam should update it (left untouched — it's his doc).
+**Mid-session change:** Adam replaced the visual contract — `reference/axiom-v2-ui.jsx` supersedes `reference/axiom-ui.jsx`. The client was built against the old reference first, then fully re-ported to v2. All gate evidence below is from the final v2 code. CLAUDE-CODE-PROMPT.md still names `axiom-ui.jsx` as the contract; Adam should update it (left untouched — it's his doc).
 
 ## What shipped
 
-- `atlas.config.json` — PRD §0.2 verbatim
+- `axiom.config.json` — PRD §0.2 verbatim
 - `package.json` + `pnpm-workspace.yaml` + `tsconfig.base.json` — pnpm workspace, TS strict, all deps exact-pinned; `pnpm dev` is the single dev entry (concurrently: server + client)
 - `server/src/config.ts, log.ts` — config loader; logger with 5 MB rotation into `dataDir/logs/`
-- `server/src/db/{schema.sql,db.ts,seed.ts}` — PRD §2 schema verbatim; first-boot fixtures matching atlas-v2-ui (3 projects, 7 conversations, Q3 deck conversation with 2 pipeline messages, artifact a1 v1+v2, 9 skill states, 3 plugin installs)
+- `server/src/db/{schema.sql,db.ts,seed.ts}` — PRD §2 schema verbatim; first-boot fixtures matching axiom-v2-ui (3 projects, 7 conversations, Q3 deck conversation with 2 pipeline messages, artifact a1 v1+v2, 9 skill states, 3 plugin installs)
 - `server/src/llama/{models.ts,spawn.ts,client.ts}` — GGUF discovery + filename classification; supervised spawn (`--jinja -c 8192 -np 2`), health wait, chat-shaped warmup, crash→restart-once→error, SIGTERM teardown; streaming OpenAI-compat client (temp 1.0 / top_p 0.95 / top_k 64, max_tokens 1024, thinking disabled for chat)
 - `server/src/routes/` — health, projects (live stats), settings, conversations, chat (SSE + 42-char title rule + abort-on-disconnect), skills (registry ⨯ state), plugins (directory ⨯ installs ⨯ enablement; lifecycle endpoints 501 "Stage 4"), models (registry, auto, select, refresh; bedrock 501 "Stage 5"), artifacts (detail + versions; download/restore 501 "Stage 3")
 - `server/src/skills/registry.ts` — metadata tier per v2 mockup (8 display rows)
-- `directory/connectors.json` — the 8 v2-mockup connectors (knowledge-core featured, filesystem, atlas-memory, jira, confluence, github, slack, postgres)
+- `directory/connectors.json` — the 8 v2-mockup connectors (knowledge-core featured, filesystem, axiom-memory, jira, confluence, github, slack, postgres)
 - `client/` — Vite 8 + React 18.3.1 + Tailwind 3.4.19; `theme/tokens.ts` exact v2 palette/fonts; `lib/{api,sse,store}`; components per v2 reference boundaries: Badge, Toggle, NavItem, Sidebar (with live llama-server RAM panel), StepRow, ArtifactCard, ModelMenu (Auto/E2B/E4B/12B/Bedrock-locked), MiniSlide, ArtifactPanel, NewProjectModal; views Chat (streaming + PipelineCard + crash banner + empty state), Plugins (search/filters/cards/modal), Skills (accordion), Projects (cards + create modal)
 
 ## Gate results
@@ -35,13 +35,13 @@ Also verified by execution: skill toggle persists (PATCH /skills/mermaid → DB)
 2. **v2 mockup has no Artifacts nav view** — the in-chat ArtifactPanel replaces the old gallery. The artifacts API (list/detail/versions) is kept for the panel and Stage 3.
 3. **Skills view shows 8 rows** (react+site merged, per v2 mockup); `skills_state` still seeds all 9 PRD ids — 'site' remains routable for Stage 3.
 4. **Skill enable/disable** = clicking the Enabled/Disabled badge (v2 mockup has no toggle control; PRD requires persistent toggles — badge-as-toggle keeps both).
-5. **Plugin directory = the 8 v2-mockup connectors**, superseding PRD §6.1's nine (sqlite & sharepoint dropped, slack added, memory→atlas-memory). §6.1 should be considered amended by the new mockup; Stage 4 builds the built-ins that exist in the directory (filesystem, atlas-memory). If the sqlite built-in is still wanted, say so before Stage 4.
+5. **Plugin directory = the 8 v2-mockup connectors**, superseding PRD §6.1's nine (sqlite & sharepoint dropped, slack added, memory→axiom-memory). §6.1 should be considered amended by the new mockup; Stage 4 builds the built-ins that exist in the directory (filesystem, axiom-memory). If the sqlite built-in is still wanted, say so before Stage 4.
 6. **Knowledge Core** ships as `available` + Featured (per v2 mockup) rather than `planned`/7979-probe (old mockup). The 7979 probe semantics move to Stage 4 install time.
 7. **Active project** shown with accent border + "Active" badge on project cards (v2 mockup defines no active state; activation semantics are PRD §7 and needed from Stage 2).
 8. **Project card stats**: chats live, templates = artifact count (template libraries are post-v1, per PRD A47), plugins = live count of installs enabled in that project.
 9. **Sidebar llama panel** shows real values: process RSS / total RAM (`ps -o rss`), bar only for the resident model; absent tiers render dimmed at 0%.
-10. **User initials derived from `userName`** ("Adam" → "A"; mockup hardcodes "AF"). Set `userName: "Adam Fisher"` in atlas.config.json if AF is wanted.
-11. Repo root is `/Users/adamfisher/DEVELOP/AtlasV2`, not the PRD's `…/AGENTS/ATLAS/atlas-local-v2`.
+10. **User initials derived from `userName`** ("Adam" → "A"; mockup hardcodes "AF"). Set `userName: "Adam Fisher"` in axiom.config.json if AF is wanted.
+11. Repo root is `/Users/adamfisher/DEVELOP/AtlasV2`, not the PRD's `…/AGENTS/AXIOM/axiom-local-v2`.
 
 ## Known issues / deferred items
 
@@ -57,4 +57,4 @@ Also verified by execution: skill toggle persists (PATCH /skills/mermaid → DB)
 
 - Branch: `main` (stage-1 merged + tagged `stage-1`).
 - Stage 2 first task: replace the always-`chat` router stub context wiring with full CRUD persistence semantics — new-chat flow already works; build `scripts/test/isolation.test.ts` (two projects, assert zero cross-reads across conversations/artifacts/mem tables/files dirs), verify instructions injection (already observably working — ask "what are your instructions?"), restart-loses-nothing check.
-- Open questions for Adam: (a) confirm decisions 1, 5, 6 above; (b) should CLAUDE-CODE-PROMPT.md/PRD be updated to name `atlas-v2-ui.jsx` as the visual contract? (c) `userName` → "Adam Fisher" for AF initials?
+- Open questions for Adam: (a) confirm decisions 1, 5, 6 above; (b) should CLAUDE-CODE-PROMPT.md/PRD be updated to name `axiom-v2-ui.jsx` as the visual contract? (c) `userName` → "Adam Fisher" for AF initials?

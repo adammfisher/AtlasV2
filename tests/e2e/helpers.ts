@@ -1,13 +1,13 @@
 import { type Page, expect } from '@playwright/test';
 
 // Local dev hits :5175 directly; cloud runs point both client + API at the
-// CloudFront origin via ATLAS_BASE (e.g. https://xxxx.cloudfront.net).
-const BASE_ORIGIN = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+// CloudFront origin via AXIOM_BASE (e.g. https://xxxx.cloudfront.net).
+const BASE_ORIGIN = process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175';
 export const API = `${BASE_ORIGIN}/api`;
 export const MARK = '[e2e]'; // title marker — teardown deletes marked conversations
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = process.env.ATLAS_TEST_TOKEN;
+  const token = process.env.AXIOM_TEST_TOKEN;
   const res = await fetch(`${API}${path}`, {
     ...init,
     headers: {

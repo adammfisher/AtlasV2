@@ -12,7 +12,7 @@ export async function seedIfNeeded(): Promise<void> {
   const t = now();
   await putProject({
     id: 'p1',
-    name: 'Lightspeed Atlas',
+    name: 'Lightspeed Axiom',
     instructions: 'Enterprise rollout workspace. Prefer Lightspeed deck template; cite Jira keys.',
     settings: '{}',
     created_at: t,
@@ -32,10 +32,10 @@ export async function seedIfNeeded(): Promise<void> {
     created_at: t,
   });
   await putInstall({ id: 'pi_filesystem', connector_id: 'filesystem', source: 'bundled', status: 'installed', enabled_projects: JSON.stringify(['p1', 'p2', 'p3']), created_at: t });
-  await putInstall({ id: 'pi_atlas-memory', connector_id: 'atlas-memory', source: 'bundled', status: 'installed', enabled_projects: JSON.stringify(['p1', 'p2', 'p3']), created_at: t });
+  await putInstall({ id: 'pi_axiom-memory', connector_id: 'axiom-memory', source: 'bundled', status: 'installed', enabled_projects: JSON.stringify(['p1', 'p2', 'p3']), created_at: t });
   setSetting('activeProjectId', 'p1');
   setSetting('selectedModel', 'haiku');
-  // userName is deliberately NOT seeded. atlas.config.json holds a single global
+  // userName is deliberately NOT seeded. axiom.config.json holds a single global
   // name, but settings are per-account — seeding it stamped the primary
   // account's owner onto every workspace that first-booted. Left unset, the UI
   // greets generically until this account's own name is known.

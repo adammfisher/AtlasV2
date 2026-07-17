@@ -58,7 +58,7 @@ const SUGGESTIONS = [
   'Redline section 4.2 of the MSA',
   'Forecast model for next quarter’s pipeline',
   'Diagram the org-intel ingest flow',
-  'Landing page prototype for Atlas',
+  'Landing page prototype for Axiom',
   'Define a product — auto loan payment calculator',
 ];
 
@@ -443,8 +443,8 @@ export function ChatView({
       const detail = (e as CustomEvent<string>).detail;
       if (detail) void send(detail);
     };
-    window.addEventListener('atlas-fix-artifact', onFix);
-    return () => window.removeEventListener('atlas-fix-artifact', onFix);
+    window.addEventListener('axiom-fix-artifact', onFix);
+    return () => window.removeEventListener('axiom-fix-artifact', onFix);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convId]);
 
@@ -709,7 +709,7 @@ export function ChatView({
               void queryClient.invalidateQueries({ queryKey: ['remember', convId] });
             });
           }}
-          title={remember ? 'Memory on — Atlas remembers this chat. Click to exclude it.' : 'Memory off for this chat'}
+          title={remember ? 'Memory on — Axiom remembers this chat. Click to exclude it.' : 'Memory off for this chat'}
           className="relative p-1.5 rounded-lg"
           style={{ color: remember ? C.accent : C.mute, opacity: convId === null ? 0.4 : 1 }}
         >
@@ -1021,7 +1021,7 @@ export function ChatView({
                 void send();
               }
             }}
-            placeholder="Message Atlas…"
+            placeholder="Message Axiom…"
             className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
             style={{ color: C.text, fontFamily: sans, minHeight: 52, maxHeight: 200, overflowY: 'auto' }}
           />
@@ -1117,7 +1117,7 @@ export function ChatView({
                     <button
                       onClick={() => {
                         setPlusMenu(false);
-                        window.dispatchEvent(new CustomEvent('atlas-error', { detail: 'GitLab connector — coming soon.' }));
+                        window.dispatchEvent(new CustomEvent('axiom-error', { detail: 'GitLab connector — coming soon.' }));
                       }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm"
                       style={{ color: C.text, fontFamily: sans }}
@@ -1134,7 +1134,7 @@ export function ChatView({
                       style={{ color: C.text, fontFamily: sans }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      title="When on, Atlas searches the web whenever a question needs current information"
+                      title="When on, Axiom searches the web whenever a question needs current information"
                     >
                       <Globe size={15} style={{ color: webSearch ? C.accent : C.mute }} /> Web search
                       {webSearch ? <Check size={15} style={{ color: C.accent, marginLeft: 'auto' }} /> : <span className="ml-auto text-xs" style={{ color: C.mute }}>Off</span>}

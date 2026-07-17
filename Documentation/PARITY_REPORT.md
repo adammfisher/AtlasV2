@@ -1,4 +1,4 @@
-# AtlasV2 ↔ claude.ai Parity Report — 2026-07-07
+# AxiomV2 ↔ claude.ai Parity Report — 2026-07-07
 
 Full-system sweep, Playwright-driven against the live app. Every ✅ below was
 exercised end-to-end this session; every fix was re-verified after landing.
@@ -39,7 +39,7 @@ Items 1–7 from the first pass are **built and browser-verified** (knowledge fi
 tools in chat, copy/regenerate/edit, rename/search, web search+fetch, extended thinking,
 artifact share links). What genuinely remains:
 
-1. **Long-conversation context management** — Atlas sends the last 12 text messages;
+1. **Long-conversation context management** — Axiom sends the last 12 text messages;
    claude.ai manages the full window (compaction/summarization). The most substantive
    functional gap for long sessions.
 2. **Chat share links** — artifacts share via presigned URL; whole conversations don't.

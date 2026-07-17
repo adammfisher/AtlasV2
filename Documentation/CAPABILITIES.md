@@ -1,4 +1,4 @@
-# Atlas — Current Operational Capabilities
+# Axiom — Current Operational Capabilities
 
 Every capability below is **test-verified** (Playwright spec or live-API eval;
 evidence links in `PARITY_MATRIX.md`) and **deployed** to the CloudFront app

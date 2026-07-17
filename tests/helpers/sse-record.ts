@@ -11,7 +11,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createConv, streamMessage, MARK } from './atlas-api.js';
+import { createConv, streamMessage, MARK } from './axiom-api.js';
 
 const outDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/sse');
 

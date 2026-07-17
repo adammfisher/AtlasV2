@@ -1,5 +1,5 @@
 /**
- * Atlas built-in sqlite MCP server (PRD §6.2).
+ * Axiom built-in sqlite MCP server (PRD §6.2).
  * Read-only (PRAGMA query_only); target file must resolve inside dataDir.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -8,28 +8,28 @@ import { z } from 'zod';
 import Database from 'better-sqlite3';
 import path from 'node:path';
 
-const dataDir = process.env.ATLAS_DATA_DIR ?? '';
-const defaultDb = process.env.ATLAS_DB_PATH ?? '';
+const dataDir = process.env.AXIOM_DATA_DIR ?? '';
+const defaultDb = process.env.AXIOM_DB_PATH ?? '';
 if (!dataDir || !defaultDb) {
-  console.error('ATLAS_DATA_DIR and ATLAS_DB_PATH are required');
+  console.error('AXIOM_DATA_DIR and AXIOM_DB_PATH are required');
   process.exit(1);
 }
 
 function openReadOnly(file?: string): Database.Database {
   const target = file ? path.resolve(dataDir, file) : defaultDb;
   if (target !== defaultDb && !target.startsWith(dataDir + path.sep)) {
-    throw new Error(`database path must resolve inside the Atlas data dir: ${file}`);
+    throw new Error(`database path must resolve inside the Axiom data dir: ${file}`);
   }
   const db = new Database(target, { readonly: true, fileMustExist: true });
   db.pragma('query_only = ON');
   return db;
 }
 
-const server = new McpServer({ name: 'atlas-sqlite', version: '1.0.0' });
+const server = new McpServer({ name: 'axiom-sqlite', version: '1.0.0' });
 
 server.tool(
   'sql_schema',
-  'List tables and their columns in the Atlas database (or another sqlite file inside the data dir).',
+  'List tables and their columns in the Axiom database (or another sqlite file inside the data dir).',
   { file: z.string().optional() },
   async ({ file }) => {
     const db = openReadOnly(file);
@@ -50,7 +50,7 @@ server.tool(
 
 server.tool(
   'sql_query',
-  'Run a read-only SELECT against the Atlas database. Mutations are rejected.',
+  'Run a read-only SELECT against the Axiom database. Mutations are rejected.',
   { sql: z.string(), file: z.string().optional() },
   async ({ sql, file }) => {
     if (!/^\s*(select|with)\b/i.test(sql)) {

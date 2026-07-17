@@ -9,7 +9,7 @@
  */
 import { test as base, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { createConv, cleanupE2E, type Conv } from './atlas-api.js';
+import { createConv, cleanupE2E, type Conv } from './axiom-api.js';
 
 /** console.error allowlist — EMPTY. Add entries only with a TESTPLAN.md §4 justification. */
 const CONSOLE_ERROR_ALLOWLIST: RegExp[] = [];
@@ -19,7 +19,7 @@ export interface Sentinel {
   assertClean: () => void;
 }
 
-export const atlasTest = base.extend<{ sentinel: Sentinel; freshConv: Conv }>({
+export const axiomTest = base.extend<{ sentinel: Sentinel; freshConv: Conv }>({
   storageState: 'tests/e2e/.auth-state-e2e.json',
 
   sentinel: [

@@ -3,7 +3,7 @@
     {
       "id": "knowledge-core",
       "name": "Knowledge Core",
-      "vendor": "atlas-org-intel",
+      "vendor": "axiom-org-intel",
       "featured": true,
       "icon": "network",
       "colorToken": "accent",
@@ -27,7 +27,7 @@
       ],
       "runtime": "Standalone Node service (peer MCP server)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
+      "minAxiomVersion": "0.1.0",
       "url": "http://127.0.0.1:7979/mcp",
       "warning": "Requires the AOI parser service \u2014 reserved until the Knowledge Core responds on port 7979.",
       "availability": "local-only"
@@ -35,7 +35,7 @@
     {
       "id": "filesystem",
       "name": "Filesystem",
-      "vendor": "Atlas built-in",
+      "vendor": "Axiom built-in",
       "icon": "hard-drive",
       "colorToken": "green",
       "transport": "stdio",
@@ -51,13 +51,13 @@
       "creds": [],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
+      "minAxiomVersion": "0.1.0",
       "availability": "local-only"
     },
     {
       "id": "memory",
-      "name": "Atlas Memory",
-      "vendor": "Atlas built-in",
+      "name": "Axiom Memory",
+      "vendor": "Axiom built-in",
       "icon": "database",
       "colorToken": "purple",
       "transport": "stdio",
@@ -73,19 +73,19 @@
       "creds": [],
       "runtime": "runtimes/python (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
+      "minAxiomVersion": "0.1.0",
       "availability": "local-only"
     },
     {
       "id": "sqlite",
       "name": "SQLite",
-      "vendor": "Atlas built-in",
+      "vendor": "Axiom built-in",
       "icon": "database",
       "colorToken": "blue",
       "transport": "stdio",
       "endpoint": "bundled Node runtime",
       "status": "bundled",
-      "description": "Read-only SQL over the Atlas workspace database and sqlite files in the data dir. PRAGMA query_only enforced.",
+      "description": "Read-only SQL over the Axiom workspace database and sqlite files in the data dir. PRAGMA query_only enforced.",
       "tools": [
         "sql_query",
         "sql_schema"
@@ -93,7 +93,7 @@
       "creds": [],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
+      "minAxiomVersion": "0.1.0",
       "availability": "local-only"
     },
     {
@@ -130,7 +130,7 @@
       ],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
+      "minAxiomVersion": "0.1.0",
       "availability": "local-only"
     },
     {
@@ -157,16 +157,16 @@
       ],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAxiomVersion": "0.1.0"
     },
     {
       "id": "jira",
       "name": "Jira",
-      "vendor": "Atlassian",
+      "vendor": "Axiomsian",
       "icon": "box",
       "colorToken": "blue",
       "transport": "streamable-http",
-      "endpoint": "https://mcp.atlassian.com/v1/jira",
+      "endpoint": "https://mcp.axiomsian.com/v1/jira",
       "status": "available",
       "description": "Issues, sprints, and boards. Read and update tickets from chat with per-project scoping.",
       "tools": [
@@ -177,23 +177,23 @@
       ],
       "creds": [
         {
-          "key": "ATLASSIAN_TOKEN",
+          "key": "AXIOMSIAN_TOKEN",
           "label": "OAuth / API token"
         }
       ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
-      "url": "https://mcp.atlassian.com/v1/jira"
+      "minAxiomVersion": "0.1.0",
+      "url": "https://mcp.axiomsian.com/v1/jira"
     },
     {
       "id": "confluence",
       "name": "Confluence",
-      "vendor": "Atlassian",
+      "vendor": "Axiomsian",
       "icon": "book-open",
       "colorToken": "blue",
       "transport": "streamable-http",
-      "endpoint": "https://mcp.atlassian.com/v1/confluence",
+      "endpoint": "https://mcp.axiomsian.com/v1/confluence",
       "status": "available",
       "description": "Search and read spaces and pages; cite sources back into project knowledge.",
       "tools": [
@@ -203,14 +203,14 @@
       ],
       "creds": [
         {
-          "key": "ATLASSIAN_TOKEN",
+          "key": "AXIOMSIAN_TOKEN",
           "label": "OAuth / API token"
         }
       ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
-      "url": "https://mcp.atlassian.com/v1/confluence"
+      "minAxiomVersion": "0.1.0",
+      "url": "https://mcp.axiomsian.com/v1/confluence"
     },
     {
       "id": "sharepoint",
@@ -235,7 +235,7 @@
       ],
       "runtime": "Remote (SSRF allowlisted)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0",
+      "minAxiomVersion": "0.1.0",
       "url": null
     },
     {
@@ -261,7 +261,7 @@
       ],
       "runtime": "runtimes/node (portable folder)",
       "projectScopable": true,
-      "minAtlasVersion": "0.1.0"
+      "minAxiomVersion": "0.1.0"
     }
   ]
 }

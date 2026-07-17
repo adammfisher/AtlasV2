@@ -600,7 +600,7 @@ export function bumpRecalled(scope: Scope, noteIds: string[]): void {
   }
 }
 
-/* ---------- synthesized profile (claude.ai "what Atlas knows about you") ---------- */
+/* ---------- synthesized profile (claude.ai "what Axiom knows about you") ---------- */
 
 export interface Profile {
   text: string;

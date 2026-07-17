@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/* Atlas palette — modeled on Claude.ai's warm dark theme              */
+/* Axiom palette — modeled on Claude.ai's warm dark theme              */
 /* ------------------------------------------------------------------ */
 const C = {
   bg: "#262624",
@@ -40,7 +40,7 @@ const sans = 'ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-s
 /* Data                                                                */
 /* ------------------------------------------------------------------ */
 const PROJECTS = [
-  { id: "p1", name: "Lightspeed Atlas", chats: 14, templates: 3, plugins: 4, instructions: "Enterprise rollout workspace. Prefer Lightspeed deck template; cite Jira keys.", shared: false },
+  { id: "p1", name: "Lightspeed Axiom", chats: 14, templates: 3, plugins: 4, instructions: "Enterprise rollout workspace. Prefer Lightspeed deck template; cite Jira keys.", shared: false },
   { id: "p2", name: "Client Alpha — QBR", chats: 6, templates: 2, plugins: 2, instructions: "Confidential. Hard isolation; never reference other client work.", shared: false },
   { id: "p3", name: "Internal Ops", chats: 22, templates: 1, plugins: 3, instructions: "Ops runbooks and weekly reporting.", shared: true },
 ];
@@ -124,7 +124,7 @@ const SKILLS = [
 
 const PLUGIN_SEED = [
   {
-    id: "knowledge-core", name: "Knowledge Core", vendor: "atlas-org-intel", featured: true,
+    id: "knowledge-core", name: "Knowledge Core", vendor: "axiom-org-intel", featured: true,
     icon: Network, color: C.accent, dim: C.accentDim,
     transport: "streamable-http", endpoint: "http://127.0.0.1:7979/mcp",
     status: "available", desc: "Org-wide semantic + graph intelligence over Confluence and Jira. Ask who knows what, trace decisions, find experts.",
@@ -133,7 +133,7 @@ const PLUGIN_SEED = [
     runtime: "Standalone Node service (peer MCP server)",
   },
   {
-    id: "filesystem", name: "Filesystem", vendor: "Atlas built-in",
+    id: "filesystem", name: "Filesystem", vendor: "Axiom built-in",
     icon: HardDrive, color: C.green, dim: C.greenDim,
     transport: "stdio", endpoint: "bundled Node runtime",
     status: "bundled", enabled: true, desc: "Scoped read/write on project-bound folders with explicit permission gates and audit logging.",
@@ -141,7 +141,7 @@ const PLUGIN_SEED = [
     creds: [], runtime: "runtimes/node (portable folder)",
   },
   {
-    id: "atlas-memory", name: "Atlas Memory", vendor: "Atlas built-in",
+    id: "axiom-memory", name: "Axiom Memory", vendor: "Axiom built-in",
     icon: Database, color: C.purple, dim: C.purpleDim,
     transport: "stdio", endpoint: "bundled CPython runtime",
     status: "bundled", enabled: true, desc: "Four-layer memory: asserted facts, semantic recall (sqlite-vec), knowledge graph, project RAG — exposed as MCP tools.",
@@ -149,20 +149,20 @@ const PLUGIN_SEED = [
     creds: [], runtime: "runtimes/python (portable folder)",
   },
   {
-    id: "jira", name: "Jira", vendor: "Atlassian",
+    id: "jira", name: "Jira", vendor: "Axiomsian",
     icon: Box, color: C.blue, dim: C.blueDim,
-    transport: "streamable-http", endpoint: "https://mcp.atlassian.com/v1/jira",
+    transport: "streamable-http", endpoint: "https://mcp.axiomsian.com/v1/jira",
     status: "available", desc: "Issues, sprints, and boards. Read and update tickets from chat with per-project scoping.",
     tools: ["search_issues", "get_issue", "create_issue", "transition_issue"],
-    creds: [{ key: "ATLASSIAN_TOKEN", label: "OAuth / API token" }], runtime: "Remote (SSRF allowlisted)",
+    creds: [{ key: "AXIOMSIAN_TOKEN", label: "OAuth / API token" }], runtime: "Remote (SSRF allowlisted)",
   },
   {
-    id: "confluence", name: "Confluence", vendor: "Atlassian",
+    id: "confluence", name: "Confluence", vendor: "Axiomsian",
     icon: BookOpen, color: C.blue, dim: C.blueDim,
-    transport: "streamable-http", endpoint: "https://mcp.atlassian.com/v1/confluence",
+    transport: "streamable-http", endpoint: "https://mcp.axiomsian.com/v1/confluence",
     status: "available", desc: "Search and read spaces and pages; cite sources back into project knowledge.",
     tools: ["search_pages", "get_page", "list_spaces"],
-    creds: [{ key: "ATLASSIAN_TOKEN", label: "OAuth / API token" }], runtime: "Remote (SSRF allowlisted)",
+    creds: [{ key: "AXIOMSIAN_TOKEN", label: "OAuth / API token" }], runtime: "Remote (SSRF allowlisted)",
   },
   {
     id: "github", name: "GitHub", vendor: "GitHub",
@@ -243,7 +243,7 @@ function Sidebar({ view, setView }) {
   return (
     <div className="flex flex-col h-full" style={{ width: 264, background: C.sidebar, borderRight: `1px solid ${C.borderSoft}` }}>
       <div className="px-4 pt-4 pb-3 flex items-center gap-2">
-        <span style={{ fontFamily: serif, fontSize: 21, color: C.text, letterSpacing: "-0.01em" }}>Atlas</span>
+        <span style={{ fontFamily: serif, fontSize: 21, color: C.text, letterSpacing: "-0.01em" }}>Axiom</span>
         <Badge color={C.green} dim={C.greenDim} icon={Lock}>Local</Badge>
       </div>
 
@@ -417,7 +417,7 @@ function ChatView({ onOpenArtifact }) {
   return (
     <div className="flex flex-col h-full min-w-0">
       <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${C.borderSoft}` }}>
-        <span className="text-sm" style={{ color: C.mute, fontFamily: sans }}>Lightspeed Atlas</span>
+        <span className="text-sm" style={{ color: C.mute, fontFamily: sans }}>Lightspeed Axiom</span>
         <ChevronRight size={13} style={{ color: C.mute }} />
         <span className="text-sm font-medium truncate" style={{ color: C.text, fontFamily: sans }}>Q3 business review deck</span>
         <Badge color={C.purple} dim={C.purpleDim} icon={FolderKanban}>Project</Badge>
@@ -453,7 +453,7 @@ function ChatView({ onOpenArtifact }) {
 
       <div className="px-6 pb-5">
         <div className="max-w-2xl mx-auto relative rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
-          <textarea rows={2} placeholder="Message Atlas…" className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
+          <textarea rows={2} placeholder="Message Axiom…" className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
             style={{ color: C.text, fontFamily: sans }} />
           <div className="flex items-center gap-1.5 px-3 pb-2.5">
             <button className="p-1.5 rounded-lg" style={{ color: C.mute }}><Paperclip size={16} /></button>
@@ -474,7 +474,7 @@ function ChatView({ onOpenArtifact }) {
           </div>
         </div>
         <p className="text-center text-xs mt-2.5" style={{ color: C.mute, fontFamily: sans }}>
-          Atlas runs on this machine. Models: Gemma 4 E2B · E4B · 12B — Bedrock optional.
+          Axiom runs on this machine. Models: Gemma 4 E2B · E4B · 12B — Bedrock optional.
         </p>
       </div>
     </div>
@@ -704,7 +704,7 @@ function PluginsView({ plugins, onInstall, openId, setOpenId, projEnabled, toggl
       <div className="px-7 pt-6 pb-4">
         <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Plugins</h1>
         <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>
-          MCP connectors, curated for this workspace. Local servers launch from Atlas's bundled runtimes — nothing to install on the machine.
+          MCP connectors, curated for this workspace. Local servers launch from Axiom's bundled runtimes — nothing to install on the machine.
         </p>
       </div>
       <div className="px-7 flex items-center gap-2 pb-4">
@@ -866,7 +866,7 @@ function ProjectsView() {
 /* ------------------------------------------------------------------ */
 /* App                                                                 */
 /* ------------------------------------------------------------------ */
-export default function AtlasApp() {
+export default function AxiomApp() {
   const [view, setView] = useState("chat");
   const [artifact, setArtifact] = useState(true);
   const [plugins, setPlugins] = useState(PLUGIN_SEED);
@@ -874,7 +874,7 @@ export default function AtlasApp() {
   const [projEnabled, setProjEnabled] = useState({
     "knowledge-core": { p1: true },
     filesystem: { p1: true, p2: true, p3: true },
-    "atlas-memory": { p1: true, p2: true, p3: true },
+    "axiom-memory": { p1: true, p2: true, p3: true },
   });
 
   const install = (id) => {

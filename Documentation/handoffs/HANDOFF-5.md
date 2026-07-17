@@ -1,6 +1,6 @@
 # HANDOFF-5 — Stage 5: tiers, Bedrock, packaging, polish (final stage)
 
-Complete on branch `stage-5`, merged to `main`, tagged `stage-5`. Atlas Local v2
+Complete on branch `stage-5`, merged to `main`, tagged `stage-5`. Axiom Local v2
 is feature-complete per PRD + Amendment 1; PARITY.md carries the signed matrix
 (3 waivers pending Adam's ack).
 

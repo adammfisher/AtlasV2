@@ -47,7 +47,7 @@ def _named_styles(wb):
     add("atlas_formula", color=TEXT_DARK)
     add("atlas_link", color=LINK_GREEN)
     add("atlas_external", color=EXTERNAL_RED)
-    add("atlas_text", color=TEXT_DARK)
+    add("axiom_text", color=TEXT_DARK)
 
 
 def _cell_style(cell_spec, column_role) -> str:
@@ -60,7 +60,7 @@ def _cell_style(cell_spec, column_role) -> str:
         return "atlas_formula"
     if isinstance(cell_spec, dict) and "n" in cell_spec:
         return "atlas_input"
-    return "atlas_text"
+    return "axiom_text"
 
 
 def build(payload: dict, template: str | None, out: Path) -> dict:
@@ -107,7 +107,7 @@ def build(payload: dict, template: str | None, out: Path) -> dict:
 
         # a real Excel table carries banding + the spec's named style
         ref = f"A1:{get_column_letter(ncol)}{1 + len(rows)}"
-        table = Table(displayName=f"AtlasTable{sheet_index + 1}", ref=ref)
+        table = Table(displayName=f"AxiomTable{sheet_index + 1}", ref=ref)
         table.tableStyleInfo = TableStyleInfo(
             name=sheet_spec["table_style"], showFirstColumn=False,
             showLastColumn=False, showRowStripes=True, showColumnStripes=False)

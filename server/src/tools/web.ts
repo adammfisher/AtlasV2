@@ -6,7 +6,7 @@
  */
 import type { SourceRegistry } from './sources.js';
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Atlas/1.0';
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Axiom/1.0';
 
 function decodeEntities(s: string): string {
   return s

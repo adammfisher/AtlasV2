@@ -1,7 +1,7 @@
-/* Single source of truth for every color in Atlas.
+/* Single source of truth for every color in Axiom.
  *
  * Nothing here is imported by components. `vite.config.ts` reads this file and
- * compiles it into `virtual:atlas-theme.css`, which Vite emits as a blocking
+ * compiles it into `virtual:axiom-theme.css`, which Vite emits as a blocking
  * <link> in the document head — that is what makes the vars available on the
  * very first paint. `theme/tokens.ts` maps the same contract to var() strings
  * for the inline styles the components actually use. */

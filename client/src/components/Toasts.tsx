@@ -18,8 +18,8 @@ export function Toasts() {
       setToasts((t) => [...t.slice(-2), { id, message }]);
       setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 7000);
     };
-    window.addEventListener('atlas-error', handler);
-    return () => window.removeEventListener('atlas-error', handler);
+    window.addEventListener('axiom-error', handler);
+    return () => window.removeEventListener('axiom-error', handler);
   }, []);
 
   if (toasts.length === 0) return null;

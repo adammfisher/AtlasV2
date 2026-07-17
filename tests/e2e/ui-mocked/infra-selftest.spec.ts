@@ -9,7 +9,7 @@
  * its messages exist server-side, so this asserts replay mechanics without
  * depending on the (still unfixed at Phase 1) Priority-Zero completion bug.
  */
-import { atlasTest as test, expect } from '../../helpers/fixtures.js';
+import { axiomTest as test, expect } from '../../helpers/fixtures.js';
 import { installSseReplay, loadFixture } from '../../helpers/sse-replay.js';
 import { ChatPage } from '../../helpers/pom.js';
 import path from 'node:path';

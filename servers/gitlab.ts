@@ -1,5 +1,5 @@
 /**
- * Atlas GitLab MCP server (PRD §6.2).
+ * Axiom GitLab MCP server (PRD §6.2).
  * Talks the GitLab REST API v4 with a personal access token. GITLAB_PAT and
  * GITLAB_URL arrive in the env from the install's credential/config record —
  * the token is never logged and never echoed back in a tool result.
@@ -11,8 +11,8 @@ import { z } from 'zod';
 import { appendFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 
-const projectId = process.env.ATLAS_PROJECT_ID ?? 'p1';
-const dataDir = process.env.ATLAS_DATA_DIR ?? '';
+const projectId = process.env.AXIOM_PROJECT_ID ?? 'p1';
+const dataDir = process.env.AXIOM_DATA_DIR ?? '';
 const token = process.env.GITLAB_PAT ?? '';
 const host = (process.env.GITLAB_URL ?? 'https://gitlab.com').replace(/\/+$/, '');
 
@@ -55,7 +55,7 @@ function text(value: string) {
   return { content: [{ type: 'text' as const, text: value || '(no results)' }] };
 }
 
-const server = new McpServer({ name: 'atlas-gitlab', version: '1.0.0' });
+const server = new McpServer({ name: 'axiom-gitlab', version: '1.0.0' });
 
 interface Project {
   id: number;

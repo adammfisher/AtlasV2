@@ -100,7 +100,7 @@ function enforceDoctrine(payload: any): void {
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
-const DEFAULT_REQUEST = `Create a polished 15-slide board presentation titled "Atlas 2026 Strategy" for an AI document-generation company.
+const DEFAULT_REQUEST = `Create a polished 15-slide board presentation titled "Axiom 2026 Strategy" for an AI document-generation company.
 Use varied slide archetypes and concise, executive copy (no filler). Cover, roughly in order:
 1. Title slide
 2. Agenda

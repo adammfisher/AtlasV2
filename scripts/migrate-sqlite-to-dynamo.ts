@@ -11,7 +11,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { fromIni } from '@aws-sdk/credential-providers';
 
-const DB = process.env.ATLAS_DB ?? path.join(process.env.HOME!, 'Library/Application Support/AtlasLocal/data/atlas.db');
+const DB = process.env.AXIOM_DB ?? path.join(process.env.HOME!, 'Library/Application Support/AtlasLocal/data/atlas.db');
 const TABLE = 'atlasv2-app';
 const ddb = DynamoDBDocumentClient.from(
   new DynamoDBClient({ region: 'us-east-1', credentials: fromIni({ profile: 'default' }) }),

@@ -79,9 +79,9 @@ export function urlAllowed(url: string): boolean {
 /** Base env for any stdio child: the scrub list, plus nothing from this process. */
 function baseEnv(projectId: string): Record<string, string> {
   return {
-    ATLAS_PROJECT_ID: projectId,
-    ATLAS_DB_PATH: path.join(dataDir, 'data', 'atlas.db'),
-    ATLAS_DATA_DIR: dataDir,
+    AXIOM_PROJECT_ID: projectId,
+    AXIOM_DB_PATH: path.join(dataDir, 'data', 'atlas.db'),
+    AXIOM_DATA_DIR: dataDir,
     PATH: process.env.PATH ?? '',
   };
 }
@@ -164,14 +164,14 @@ async function connectClient(install: InstallRow, projectId: string): Promise<Cl
   const spec = specFor(install);
   if (!spec) throw new Error(`unknown connector ${install.connector_id}`);
 
-  const client = new Client({ name: 'atlas', version: '2.0.0' });
+  const client = new Client({ name: 'axiom', version: '2.0.0' });
   const extraEnv = serverEnv(install, spec);
   if (LOCAL_SERVERS.includes(install.connector_id) && install.source !== 'custom') {
     await client.connect(bundledTransport(install.connector_id, projectId, extraEnv));
   } else if (spec.transport === 'stdio' && spec.launch) {
     const command = path.resolve(repoRoot, spec.launch.command);
     if (!command.startsWith(repoRoot + path.sep)) {
-      throw new Error('stdio commands must resolve inside the Atlas repo/runtimes');
+      throw new Error('stdio commands must resolve inside the Axiom repo/runtimes');
     }
     await client.connect(
       new StdioClientTransport({
@@ -209,7 +209,7 @@ export async function installFor(connectorId: string): Promise<InstallRow | unde
 export async function ensureBundledInstalled(): Promise<void> {
   const rows = await installs();
   // legacy seed rows from Stage 1 fixtures used a different id and status
-  for (const legacy of rows.filter((r) => r.connector_id === 'atlas-memory')) {
+  for (const legacy of rows.filter((r) => r.connector_id === 'axiom-memory')) {
     await deleteInstall(legacy.id);
   }
   // holistic memory: on for every project by default (stores stay isolated per project)
@@ -356,7 +356,7 @@ export async function addCustom(
   if (config.transport === 'stdio') {
     const command = path.resolve(repoRoot, config.command ?? '');
     if (!command.startsWith(repoRoot + path.sep)) {
-      throw new Error('stdio commands must resolve inside the Atlas repo/runtimes');
+      throw new Error('stdio commands must resolve inside the Axiom repo/runtimes');
     }
   } else if (!config.url || !urlAllowed(config.url)) {
     throw new Error(`URL not allowed by policy: ${config.url}`);
@@ -394,7 +394,7 @@ export async function addCustom(
 /** KC probe (boot + directory fetch): 1s initialize on 7979. */
 export async function probeKnowledgeCore(): Promise<boolean> {
   try {
-    const client = new Client({ name: 'atlas-probe', version: '2.0.0' });
+    const client = new Client({ name: 'axiom-probe', version: '2.0.0' });
     await withTimeout(
       client.connect(new StreamableHTTPClientTransport(new URL(KC_URL))),
       1000,

@@ -13,7 +13,7 @@ import { config, repoRoot } from '../../server/src/config.js';
 export const QBR_V1 = {
   title: 'Q3 Business Review',
   slides: [
-    { layout: 'title', heading: 'Q3 Business Review', bullets: ['Lightspeed Atlas · enterprise rollout'] },
+    { layout: 'title', heading: 'Q3 Business Review', bullets: ['Lightspeed Axiom · enterprise rollout'] },
     { layout: 'bullets', heading: 'Executive summary', bullets: ['Revenue 4.2M vs 3.8M plan', 'Win rate up 9 points to 31%', 'Pipeline coverage 2.8x', '12 enterprise teams onboarded'] },
     {
       layout: 'chart', heading: 'Revenue vs plan',
@@ -35,7 +35,7 @@ export const QBR_V2 = {
 };
 
 function build(payload: unknown, outFile: string): void {
-  const tmp = mkdtempSync(path.join(os.tmpdir(), 'atlas-seed-'));
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'axiom-seed-'));
   const payloadFile = path.join(tmp, 'payload.json');
   writeFileSync(payloadFile, JSON.stringify(payload));
   mkdirSync(path.dirname(outFile), { recursive: true });
@@ -45,7 +45,7 @@ function build(payload: unknown, outFile: string): void {
       path.join(repoRoot, 'scripts/office/build_pptx.py'),
       '--payload', payloadFile,
       '--out', outFile,
-      '--template', path.join(repoRoot, 'skills/pptx/templates/atlas_default.potx'),
+      '--template', path.join(repoRoot, 'skills/pptx/templates/axiom_default.potx'),
     ],
     { cwd: repoRoot, encoding: 'utf8', timeout: 180_000 },
   );

@@ -5,15 +5,15 @@ watch the pipeline card fill in live. Automated equivalent: `pnpm test:stage3-e2
 
 | # | Skill | Prompt |
 |---|-------|--------|
-| 1 | pptx | Build a five-slide deck summarizing the Atlas pilot results: 12 teams onboarded, 87% weekly active, 3 blockers |
+| 1 | pptx | Build a five-slide deck summarizing the Axiom pilot results: 12 teams onboarded, 87% weekly active, 3 blockers |
 | 2 | docx | Write a one-page project kickoff memo for the data migration: goals, timeline, owners |
 | 3 | xlsx | Create a budget tracker spreadsheet: 5 expense categories, monthly plan vs actual with variance formulas |
 | 4 | pdf | Create a two-page onboarding checklist PDF for new analysts |
-| 5 | md | Write a README for the atlas-org-intel service: purpose, setup, API overview |
+| 5 | md | Write a README for the axiom-org-intel service: purpose, setup, API overview |
 | 6 | mermaid | Diagram the org-intel ingest flow: sources, embed, graph store, MCP tools |
 | 7 | svg | Create an icon of a compass, minimal line style |
 | 8 | react | Build a small counter widget with increment and reset buttons |
-| 9 | site | Landing page prototype for Atlas: hero, three feature blocks, footer |
+| 9 | site | Landing page prototype for Axiom: hero, three feature blocks, footer |
 
 Then exercise the lifecycle on the deck from #1:
 

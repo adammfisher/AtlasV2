@@ -1,7 +1,7 @@
 /**
- * Atlas built-in memory MCP server (PRD §6.2).
+ * Axiom built-in memory MCP server (PRD §6.2).
  * KV + graph + chunk recall over the mem_* tables, always filtered by
- * ATLAS_PROJECT_ID. memory_search uses FTS5; when an embeddinggemma*.gguf is
+ * AXIOM_PROJECT_ID. memory_search uses FTS5; when an embeddinggemma*.gguf is
  * present a second llama-server provides semantic vectors (Stage 4: FTS5 path;
  * the semantic merge activates automatically when the embed server runs).
  */
@@ -11,10 +11,10 @@ import { z } from 'zod';
 import Database from 'better-sqlite3';
 import { randomUUID } from 'node:crypto';
 
-const projectId = process.env.ATLAS_PROJECT_ID ?? 'p1';
-const dbPath = process.env.ATLAS_DB_PATH ?? '';
+const projectId = process.env.AXIOM_PROJECT_ID ?? 'p1';
+const dbPath = process.env.AXIOM_DB_PATH ?? '';
 if (!dbPath) {
-  console.error('ATLAS_DB_PATH is required');
+  console.error('AXIOM_DB_PATH is required');
   process.exit(1);
 }
 const db = new Database(dbPath);
@@ -26,7 +26,7 @@ db.exec(
   'CREATE VIRTUAL TABLE IF NOT EXISTS mem_chunks_fts USING fts5(content, id UNINDEXED, project_id UNINDEXED)',
 );
 
-const server = new McpServer({ name: 'atlas-memory', version: '1.0.0' });
+const server = new McpServer({ name: 'axiom-memory', version: '1.0.0' });
 
 server.tool(
   'memory_upsert',

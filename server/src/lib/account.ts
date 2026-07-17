@@ -78,7 +78,9 @@ async function signingSecret(): Promise<Buffer> {
   // DynamoDB-derived value stays the fallback for local/dev where there is one
   // process. (Rotating the env var invalidates existing tokens by design — users
   // re-login once.)
-  const env = process.env.ATLAS_AUTH_SECRET;
+  // The deployed Lambda still carries the secret under the pre-rebrand name
+  // (env vars are set out-of-band); accept both so a deploy doesn't 401 everyone.
+  const env = process.env.AXIOM_AUTH_SECRET ?? process.env.ATLAS_AUTH_SECRET;
   if (env && env.length >= 16) {
     secret = Buffer.from(env, 'utf8');
     return secret;

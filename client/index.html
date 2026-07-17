@@ -4,15 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Atlas</title>
+    <title>Axiom</title>
     <script>
       /* Applies the saved palette before first paint, so the page never flashes
          the default one. The palette <style> is injected into this head by the
-         atlas-theme Vite plugin; an unknown or absent value needs no handling
+         axiom-theme Vite plugin; an unknown or absent value needs no handling
          here because :root carries the default palette as its fallback. */
       (function () {
         try {
-          var t = localStorage.getItem('atlas-theme');
+          var t = localStorage.getItem('axiom-theme');
           if (t === 'dark') t = 'ember'; // migrate the pre-token light/dark toggle
           else if (t === 'light') t = 'daylight';
           if (t) document.documentElement.dataset.theme = t;

@@ -15,7 +15,7 @@ export async function postSse(
   signal?: AbortSignal,
 ): Promise<void> {
   let res: Response;
-  const token = localStorage.getItem('atlas_token');
+  const token = localStorage.getItem('axiom_token');
   try {
     res = await fetch(`/api${path}`, {
       method: 'POST',

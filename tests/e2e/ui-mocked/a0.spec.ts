@@ -8,7 +8,7 @@
  * (FX-5). These specs replay REAL recorded transcripts through the real SSE
  * consumer via the fetch-patch replayer — deterministic, no model calls.
  */
-import { atlasTest as test, expect } from '../../helpers/fixtures.js';
+import { axiomTest as test, expect } from '../../helpers/fixtures.js';
 import { installSseReplay } from '../../helpers/sse-replay.js';
 import { ChatPage } from '../../helpers/pom.js';
 import path from 'node:path';

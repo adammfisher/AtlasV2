@@ -3,7 +3,7 @@
     - generic [ref=e6]:
       - generic [ref=e7]: A
       - generic [ref=e8]:
-        - generic [ref=e9]: Atlas
+        - generic [ref=e9]: Axiom
         - generic [ref=e10]: Local · on-device
     - generic [ref=e11]:
       - button "New chat" [ref=e12] [cursor=pointer]:
@@ -48,10 +48,10 @@
         - button "Redline section 7 of the Meridian MSA" [ref=e60] [cursor=pointer]
         - button "Forecast model for next quarter’s pipeline" [ref=e61] [cursor=pointer]
         - button "Diagram the org-intel ingest flow" [ref=e62] [cursor=pointer]
-        - button "Landing page prototype for Atlas" [ref=e63] [cursor=pointer]
+        - button "Landing page prototype for Axiom" [ref=e63] [cursor=pointer]
     - generic [ref=e65]:
       - generic [ref=e66]:
-        - textbox "Message Atlas…" [ref=e67]
+        - textbox "Message Axiom…" [ref=e67]
         - generic [ref=e68]:
           - img [ref=e69] [cursor=pointer]
           - generic "File uploads post-v1" [ref=e70]:
@@ -62,4 +62,4 @@
             - img [ref=e77]
           - button [ref=e79] [cursor=pointer]:
             - img [ref=e80]
-      - generic [ref=e82]: Atlas runs entirely on this machine. Generated documents are validated before delivery.
+      - generic [ref=e82]: Axiom runs entirely on this machine. Generated documents are validated before delivery.

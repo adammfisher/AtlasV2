@@ -174,7 +174,7 @@ function SandboxFrame({
 }) {
   // blob URL rather than srcdoc: srcdoc documents inherit the parent's base URL,
   // so a generated page setting location.hash would navigate the sandbox to the
-  // Atlas app itself. A blob document keeps hash navigation inside the sandbox.
+  // Axiom app itself. A blob document keeps hash navigation inside the sandbox.
   const blobUrl = useMemo(
     () => URL.createObjectURL(new Blob([srcdoc], { type: 'text/html' })),
     [srcdoc],
@@ -276,8 +276,8 @@ export function ArtifactPreview({
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       const data = e.data as { type?: string; attempts?: number; ok?: boolean };
-      if (data?.type === 'atlas-net-attempt') setNetAttempts(data.attempts ?? 1);
-      if (data?.type === 'atlas-mermaid-parse') {
+      if (data?.type === 'axiom-net-attempt') setNetAttempts(data.attempts ?? 1);
+      if (data?.type === 'axiom-mermaid-parse') {
         setParseChip(data.ok ? { ok: true, label: 'Parse check' } : { ok: false, label: 'Parse failed' });
       }
     };
@@ -351,7 +351,7 @@ export function ArtifactPreview({
           <button
             onClick={() =>
               window.dispatchEvent(
-                new CustomEvent('atlas-fix-artifact', { detail: `Fix this build error in the artifact: ${fixError}` }),
+                new CustomEvent('axiom-fix-artifact', { detail: `Fix this build error in the artifact: ${fixError}` }),
               )
             }
             className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium"

@@ -48,7 +48,7 @@ export function KnowledgeModal({
 
         <div className="px-5 pb-5 overflow-y-auto flex-1">
           <p className="text-xs mt-3 mb-3" style={{ color: C.mute, fontFamily: sans }}>
-            Documents added here persist on the project and inform every chat in it — Atlas recalls the
+            Documents added here persist on the project and inform every chat in it — Axiom recalls the
             relevant passages automatically. PDFs, office files, text, and code are supported.
           </p>
 

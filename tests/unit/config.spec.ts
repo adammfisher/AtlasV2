@@ -37,10 +37,10 @@ describe('U-CONF-1 config validity', () => {
     }
   });
 
-  it('models.config.json default model exists and atlas.config.json parses', () => {
+  it('models.config.json default model exists and axiom.config.json parses', () => {
     const models = read('models.config.json') as { default: string; models: Array<{ key: string }> };
     expect(models.models.map((m) => m.key)).toContain(models.default);
-    const atlas = read('atlas.config.json') as { server?: { port?: number } };
-    expect(atlas.server?.port).toBe(5175);
+    const axiom = read('axiom.config.json') as { server?: { port?: number } };
+    expect(axiom.server?.port).toBe(5175);
   });
 });

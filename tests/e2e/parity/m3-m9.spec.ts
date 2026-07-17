@@ -117,7 +117,7 @@ test.describe('M3-M9 memory & projects', () => {
     expect(convId).toBeTruthy();
     await page.getByText('New chat', { exact: true }).first().click();
     await page.waitForTimeout(1500);
-    const res = await fetch(`${process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/${convId}`, { headers: { Authorization: `Bearer ${process.env.ATLAS_TEST_TOKEN}` } });
+    const res = await fetch(`${process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175'}/api/conversations/${convId}`, { headers: { Authorization: `Bearer ${process.env.AXIOM_TEST_TOKEN}` } });
     expect(res.status, 'incognito conversation must be gone after leaving').toBe(404);
   });
 });

@@ -77,7 +77,7 @@ export function PluginsView({
       <div className="px-7 pt-6 pb-4">
         <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Plugins</h1>
         <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>
-          MCP connectors, curated for this workspace. Local servers launch from Atlas's bundled runtimes —
+          MCP connectors, curated for this workspace. Local servers launch from Axiom's bundled runtimes —
           nothing to install on the machine.
         </p>
       </div>

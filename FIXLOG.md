@@ -13,4 +13,4 @@ Entries are appended chronologically; IDs are `FX-<n>`.
 - **Why it happened:** hand-edited config with no parse check at edit time, plus a catch-all fallback that hides the failure. (The fallback is correct behavior for resilience; the missing piece is any surfaced signal — noted as a Phase 6 test: broken config must surface a visible warning, and a unit test now locks config validity.)
 - **Fix:** removed the stray token. Also added the sanctioned `e2etest` account (isolated DynamoDB partition `A#e2etest|`) used by the new test harness — approved at the Phase 0 gate (open question 3/4).
 - **Files changed:** `users.config.json`.
-- **Regression lock:** `tests/unit/config.spec.ts` (U-CONF-1) parses `users.config.json` + `models.config.json` + `atlas.config.json` strictly and asserts every account's `models` keys resolve against `models.config.json`.
+- **Regression lock:** `tests/unit/config.spec.ts` (U-CONF-1) parses `users.config.json` + `models.config.json` + `axiom.config.json` strictly and asserts every account's `models` keys resolve against `models.config.json`.

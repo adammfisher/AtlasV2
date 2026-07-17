@@ -6,7 +6,7 @@
  *
  *   npx tsx scripts/test/scenarios.ts [suiteFilter]
  */
-const BASE = process.env.ATLAS_BASE ?? 'http://127.0.0.1:5175';
+const BASE = process.env.AXIOM_BASE ?? 'http://127.0.0.1:5175';
 const API = `${BASE}/api`;
 const MARK = '[scn]';
 
@@ -116,7 +116,7 @@ async function main(): Promise<void> {
     });
     await timed('new project auto-enables memory', async () => {
       const installs = await j<Array<{ connector_id: string; enabled_projects: string }>>('/plugins/installs').catch(() => [] as never);
-      const mem = installs.find((i) => i.connector_id === 'atlas-memory' || i.connector_id === 'memory');
+      const mem = installs.find((i) => i.connector_id === 'axiom-memory' || i.connector_id === 'memory');
       return { ok: !mem || (JSON.parse(mem.enabled_projects) as string[]).includes(pA), detail: 'memory not enabled for new project' };
     });
   }
@@ -306,7 +306,7 @@ Section 4: The on-call rotation is weekly, starting Mondays at 9am.`;
       await chat(conv, `${MARK} export me ${stamp}`, {}, 60_000);
       const res = await fetch(`${API}/conversations/${conv}/export`);
       const md = await res.text();
-      return { ok: res.headers.get('content-type')?.includes('markdown') === true && md.includes('Atlas'), detail: `ct=${res.headers.get('content-type')}` };
+      return { ok: res.headers.get('content-type')?.includes('markdown') === true && md.includes('Axiom'), detail: `ct=${res.headers.get('content-type')}` };
     });
     await timed('feedback persists', async () => {
       const conv = await newConv('p1');

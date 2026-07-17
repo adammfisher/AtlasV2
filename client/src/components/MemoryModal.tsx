@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono } from '../theme/tokens';
 import { api } from '../lib/api';
 
-/** Memory browser: everything Atlas remembers — viewable, editable, deletable.
+/** Memory browser: everything Axiom remembers — viewable, editable, deletable.
  * Two scopes: this project (hard-isolated) and the user (spans all projects). */
 export function MemoryModal({
   projectId,
@@ -81,7 +81,7 @@ export function MemoryModal({
           <p className="text-xs mt-3" style={{ color: C.mute, fontFamily: sans }}>
             {scope === 'user'
               ? 'Facts about you that persist across every project — preferences, role, working style. Recalled in all chats.'
-              : 'Captured automatically when conversations go idle, plus anything you ask Atlas to remember. Facts are recalled in every chat in this project — and only this project.'}
+              : 'Captured automatically when conversations go idle, plus anything you ask Axiom to remember. Facts are recalled in every chat in this project — and only this project.'}
           </p>
 
           {data?.profile ? (
@@ -91,7 +91,7 @@ export function MemoryModal({
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="text-xs font-medium uppercase tracking-wider" style={{ color: C.accent, fontFamily: sans }}>
-                  {scope === 'user' ? 'What Atlas knows about you' : 'Project summary'}
+                  {scope === 'user' ? 'What Axiom knows about you' : 'Project summary'}
                 </span>
                 <button
                   onClick={() => void api.consolidateMemory(scopeId).then(refresh)}

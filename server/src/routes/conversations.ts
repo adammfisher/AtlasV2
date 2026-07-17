@@ -102,7 +102,7 @@ conversationsRouter.get('/export.zip', (_req, res) => {
       for (const m of msgs) {
         if (m.kind !== 'text') continue;
         const payload = JSON.parse(m.payload) as { text?: string };
-        lines.push(`**${m.role === 'user' ? 'You' : 'Atlas'}:**`, '', payload.text ?? '', '');
+        lines.push(`**${m.role === 'user' ? 'You' : 'Axiom'}:**`, '', payload.text ?? '', '');
       }
       const slug = c.title.replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'chat';
       entries.push({ name: `${slug}-${c.id.slice(-6)}.md`, data: lines.join('\n') });
@@ -110,7 +110,7 @@ conversationsRouter.get('/export.zip', (_req, res) => {
     }
     entries.push({ name: 'manifest.json', data: JSON.stringify(manifest, null, 2) });
     res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', 'attachment; filename="atlas-conversations.zip"');
+    res.setHeader('Content-Disposition', 'attachment; filename="axiom-conversations.zip"');
     res.send(buildZip(entries));
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
@@ -173,10 +173,10 @@ conversationsRouter.get('/:id/export', (req, res) => {
       return;
     }
     const rows = await listMessages(conv.id);
-    const lines: string[] = [`# ${conv.title}`, '', `_Exported from Atlas · ${new Date().toISOString()}_`, ''];
+    const lines: string[] = [`# ${conv.title}`, '', `_Exported from Axiom · ${new Date().toISOString()}_`, ''];
     for (const m of rows) {
       const p = JSON.parse(m.payload) as { text?: string; artifact?: { name?: string; ver?: number } };
-      const who = m.role === 'user' ? '**Adam**' : '**Atlas**';
+      const who = m.role === 'user' ? '**Adam**' : '**Axiom**';
       if (m.kind === 'pipeline') {
         lines.push(`${who}: _generated artifact ${p.artifact?.name ?? ''} (v${p.artifact?.ver ?? 1})_`, '');
         if (p.text) lines.push(p.text, '');
@@ -239,7 +239,7 @@ conversationsRouter.post('/:id/share', (req, res) => {
       .filter((m) => m.kind === 'text')
       .map((m) => {
         const payload = JSON.parse(m.payload) as { text?: string };
-        const who = m.role === 'user' ? 'You' : 'Atlas';
+        const who = m.role === 'user' ? 'You' : 'Axiom';
         return `<div class="msg ${m.role}"><div class="who">${who}</div><div class="body">${esc(payload.text ?? '')}</div></div>`;
       })
       .join('\n');
@@ -250,7 +250,7 @@ body{font-family:-apple-system,Segoe UI,sans-serif;max-width:760px;margin:2rem a
 .msg.user{background:#eee9df}.msg.assistant{background:#fff;border:1px solid #e3dfd5}
 .who{font-size:.75rem;font-weight:600;color:#73716b;margin-bottom:.3rem}
 .foot{margin:2rem 0;font-size:.8rem;color:#73716b}</style></head>
-<body><h2>${esc(conv.title)}</h2>${rows}<div class="foot">Shared read-only from Atlas · snapshot at share time</div></body></html>`;
+<body><h2>${esc(conv.title)}</h2>${rows}<div class="foot">Shared read-only from Axiom · snapshot at share time</div></body></html>`;
     const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = await import('@aws-sdk/client-s3');
     const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
     const { fromIni } = await import('@aws-sdk/credential-providers');
