@@ -1,0 +1,183 @@
+{"meta":{"name":"docx","prompt":"Write a one-page memo announcing the new travel expense policy, effective August 1","convId":"c_mrp1ljm4a736oq","recordedAt":"2026-07-17T14:38:02.949Z","events":{"step":15,"pipeline":2,"gen":178,"artifact":1,"assistant_text":1,"done":1}}}
+{"t":387,"chunk":"event: step\ndata: {\"state\":\"pending\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"classifying the task\"}\n\n"}
+{"t":494,"chunk":"event: pipeline\ndata: {\"phase\":\"start\",\"skillBadge\":\"docx skill\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"intent: create_doc · skill: docx · 14 ms\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Skill loaded\",\"detail\":\"docx playbook · 0.4k tokens\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Template\",\"detail\":\"atlas_default.dotx\"}\n\nevent: step\ndata: {\"state\":\"pending\",\"label\":\"Claude Haiku 4.5 · sections JSON\",\"detail\":\"streaming json\"}\n\nevent: gen\ndata: {\"reset\":true,\"label\":\"docx\"}\n\n"}
+{"t":1585,"chunk":"event: gen\ndata: {\"delta\":\"```\"}\n\n"}
+{"t":1689,"chunk":"event: gen\ndata: {\"delta\":\"json\"}\n\n"}
+{"t":1689,"chunk":"event: gen\ndata: {\"delta\":\"\\n{\\n  \\\"metadata\\\": {\"}\n\n"}
+{"t":1694,"chunk":"event: gen\ndata: {\"delta\":\"\\n    \\\"title\\\": \\\"\"}\n\n"}
+{"t":1695,"chunk":"event: gen\ndata: {\"delta\":\"Announcement\"}\n\nevent: gen\ndata: {\"delta\":\": New Travel Expense Policy Effective\"}\n\n"}
+{"t":1715,"chunk":"event: gen\ndata: {\"delta\":\" August 1\\\"\"}\n\n"}
+{"t":1750,"chunk":"event: gen\ndata: {\"delta\":\"\\n  },\\n  \\\"blocks\"}\n\n"}
+{"t":1757,"chunk":"event: gen\ndata: {\"delta\":\"\\\": [\\n    {\\n      \\\"\"}\n\n"}
+{"t":1780,"chunk":"event: gen\ndata: {\"delta\":\"kin\"}\n\n"}
+{"t":1804,"chunk":"event: gen\ndata: {\"delta\":\"d\\\": \\\"heading\\\",\\n      \\\"level\"}\n\n"}
+{"t":1823,"chunk":"event: gen\ndata: {\"delta\":\"\\\": 1,\\n      \\\"text\"}\n\n"}
+{"t":1849,"chunk":"event: gen\ndata: {\"delta\":\"\\\": \\\"New\"}\n\n"}
+{"t":1872,"chunk":"event: gen\ndata: {\"delta\":\" Travel Expense Policy\\\"\"}\n\n"}
+{"t":1890,"chunk":"event: gen\ndata: {\"delta\":\"\\n    },\\n    {\\n      \"}\n\n"}
+{"t":1912,"chunk":"event: gen\ndata: {\"delta\":\"\\\"kind\\\": \\\"paragraph\\\",\\n      \"}\n\n"}
+{"t":1943,"chunk":"event: gen\ndata: {\"delta\":\"\\\"text\\\": \\\"\"}\n\n"}
+{"t":1963,"chunk":"event: gen\ndata: {\"delta\":\"Effective August 1, we\"}\n\n"}
+{"t":1989,"chunk":"event: gen\ndata: {\"delta\":\" are\"}\n\n"}
+{"t":2007,"chunk":"event: gen\ndata: {\"delta\":\" implementing a revise\"}\n\n"}
+{"t":2030,"chunk":"event: gen\ndata: {\"delta\":\"d travel expense policy to stream\"}\n\n"}
+{"t":2053,"chunk":"event: gen\ndata: {\"delta\":\"line re\"}\n\n"}
+{"t":2074,"chunk":"event: gen\ndata: {\"delta\":\"imbursement processes and ensure\"}\n\n"}
+{"t":2097,"chunk":"event: gen\ndata: {\"delta\":\" compliance\"}\n\n"}
+{"t":2119,"chunk":"event: gen\ndata: {\"delta\":\" with company\"}\n\n"}
+{"t":2214,"chunk":"event: gen\ndata: {\"delta\":\" standards\"}\n\n"}
+{"t":2215,"chunk":"event: gen\ndata: {\"delta\":\". This memo\"}\n\n"}
+{"t":2215,"chunk":"event: gen\ndata: {\"delta\":\" outlines key\"}\n\n"}
+{"t":2215,"chunk":"event: gen\ndata: {\"delta\":\" changes an\"}\n\n"}
+{"t":2233,"chunk":"event: gen\ndata: {\"delta\":\"d requirements for all employees\"}\n\n"}
+{"t":2256,"chunk":"event: gen\ndata: {\"delta\":\" who\"}\n\n"}
+{"t":2277,"chunk":"event: gen\ndata: {\"delta\":\" travel\"}\n\n"}
+{"t":2298,"chunk":"event: gen\ndata: {\"delta\":\" on\"}\n\n"}
+{"t":2352,"chunk":"event: gen\ndata: {\"delta\":\" company business.\\\"\"}\n\n"}
+{"t":2397,"chunk":"event: gen\ndata: {\"delta\":\"\\n    },\\n    {\\n      \"}\n\n"}
+{"t":2432,"chunk":"event: gen\ndata: {\"delta\":\"\\\"kind\\\": \\\"heading\\\",\\n      \"}\n\n"}
+{"t":2436,"chunk":"event: gen\ndata: {\"delta\":\"\\\"level\\\": 2,\\n      \"}\n\n"}
+{"t":2490,"chunk":"event: gen\ndata: {\"delta\":\"\\\"text\\\": \\\"Policy\"}\n\n"}
+{"t":2498,"chunk":"event: gen\ndata: {\"delta\":\" Highlights\"}\n\n"}
+{"t":2511,"chunk":"event: gen\ndata: {\"delta\":\"\\\"\\n    },\\n    {\"}\n\n"}
+{"t":2534,"chunk":"event: gen\ndata: {\"delta\":\"\\n      \\\"kind\\\": \\\"bull\"}\n\n"}
+{"t":2557,"chunk":"event: gen\ndata: {\"delta\":\"eted_list\\\",\\n      \\\"items\"}\n\n"}
+{"t":2576,"chunk":"event: gen\ndata: {\"delta\":\"\\\": [\\n        \\\"All\"}\n\n"}
+{"t":2598,"chunk":"event: gen\ndata: {\"delta\":\" travel\"}\n\n"}
+{"t":2620,"chunk":"event: gen\ndata: {\"delta\":\" must\"}\n\n"}
+{"t":2738,"chunk":"event: gen\ndata: {\"delta\":\" be pre\"}\n\n"}
+{"t":2738,"chunk":"event: gen\ndata: {\"delta\":\"-approved by your\"}\n\n"}
+{"t":2738,"chunk":"event: gen\ndata: {\"delta\":\" manager\"}\n\n"}
+{"t":2739,"chunk":"event: gen\ndata: {\"delta\":\" at\"}\n\n"}
+{"t":2750,"chunk":"event: gen\ndata: {\"delta\":\" least 10\"}\n\n"}
+{"t":2779,"chunk":"event: gen\ndata: {\"delta\":\" business\"}\n\n"}
+{"t":2793,"chunk":"event: gen\ndata: {\"delta\":\" days in\"}\n\n"}
+{"t":2818,"chunk":"event: gen\ndata: {\"delta\":\" advance\\\",\\n        \\\"Air\"}\n\n"}
+{"t":2838,"chunk":"event: gen\ndata: {\"delta\":\"fare book\"}\n\n"}
+{"t":2862,"chunk":"event: gen\ndata: {\"delta\":\"ings must\"}\n\n"}
+{"t":2883,"chunk":"event: gen\ndata: {\"delta\":\" be made through\"}\n\n"}
+{"t":2906,"chunk":"event: gen\ndata: {\"delta\":\" the\"}\n\n"}
+{"t":2926,"chunk":"event: gen\ndata: {\"delta\":\" designate\"}\n\n"}
+{"t":2949,"chunk":"event: gen\ndata: {\"delta\":\"d corporate\"}\n\n"}
+{"t":2970,"chunk":"event: gen\ndata: {\"delta\":\" travel portal to\"}\n\n"}
+{"t":2995,"chunk":"event: gen\ndata: {\"delta\":\" secure\"}\n\n"}
+{"t":3015,"chunk":"event: gen\ndata: {\"delta\":\" negoti\"}\n\n"}
+{"t":3034,"chunk":"event: gen\ndata: {\"delta\":\"ate\"}\n\n"}
+{"t":3058,"chunk":"event: gen\ndata: {\"delta\":\"d rates\\\",\\n        \\\"Hotel\"}\n\n"}
+{"t":3087,"chunk":"event: gen\ndata: {\"delta\":\" accommodations are limite\"}\n\n"}
+{"t":3104,"chunk":"event: gen\ndata: {\"delta\":\"d to properties\"}\n\n"}
+{"t":3131,"chunk":"event: gen\ndata: {\"delta\":\" on\"}\n\n"}
+{"t":3154,"chunk":"event: gen\ndata: {\"delta\":\" the\"}\n\n"}
+{"t":3264,"chunk":"event: gen\ndata: {\"delta\":\" approve\"}\n\n"}
+{"t":3264,"chunk":"event: gen\ndata: {\"delta\":\"d vendor\"}\n\n"}
+{"t":3264,"chunk":"event: gen\ndata: {\"delta\":\" list,\"}\n\n"}
+{"t":3264,"chunk":"event: gen\ndata: {\"delta\":\" with n\"}\n\n"}
+{"t":3355,"chunk":"event: gen\ndata: {\"delta\":\"ightly caps\"}\n\n"}
+{"t":3365,"chunk":"event: gen\ndata: {\"delta\":\" of $\"}\n\n"}
+{"t":3367,"chunk":"event: gen\ndata: {\"delta\":\"200\"}\n\n"}
+{"t":3372,"chunk":"event: gen\ndata: {\"delta\":\" (\"}\n\n"}
+{"t":3374,"chunk":"event: gen\ndata: {\"delta\":\"standar\"}\n\n"}
+{"t":3383,"chunk":"event: gen\ndata: {\"delta\":\"d cities\"}\n\n"}
+{"t":3426,"chunk":"event: gen\ndata: {\"delta\":\")\"}\n\n"}
+{"t":3430,"chunk":"event: gen\ndata: {\"delta\":\" an\"}\n\n"}
+{"t":3453,"chunk":"event: gen\ndata: {\"delta\":\"d $250\"}\n\n"}
+{"t":3474,"chunk":"event: gen\ndata: {\"delta\":\" (high\"}\n\n"}
+{"t":3496,"chunk":"event: gen\ndata: {\"delta\":\"-cost\"}\n\n"}
+{"t":3518,"chunk":"event: gen\ndata: {\"delta\":\" markets\"}\n\n"}
+{"t":3541,"chunk":"event: gen\ndata: {\"delta\":\")\\\",\\n        \\\"Meal\"}\n\n"}
+{"t":3562,"chunk":"event: gen\ndata: {\"delta\":\" expenses are re\"}\n\n"}
+{"t":3593,"chunk":"event: gen\ndata: {\"delta\":\"imbursed up\"}\n\n"}
+{"t":3614,"chunk":"event: gen\ndata: {\"delta\":\" to $60\"}\n\n"}
+{"t":3636,"chunk":"event: gen\ndata: {\"delta\":\" per day;\"}\n\n"}
+{"t":3663,"chunk":"event: gen\ndata: {\"delta\":\" alcohol\"}\n\n"}
+{"t":3789,"chunk":"event: gen\ndata: {\"delta\":\" is\"}\n\n"}
+{"t":3789,"chunk":"event: gen\ndata: {\"delta\":\" limite\"}\n\nevent: gen\ndata: {\"delta\":\"d to $15\"}\n\n"}
+{"t":3789,"chunk":"event: gen\ndata: {\"delta\":\" per meal\"}\n\n"}
+{"t":3790,"chunk":"event: gen\ndata: {\"delta\":\"\\\",\"}\n\n"}
+{"t":3816,"chunk":"event: gen\ndata: {\"delta\":\"\\n        \\\"Groun\"}\n\n"}
+{"t":3840,"chunk":"event: gen\ndata: {\"delta\":\"d transportation includes\"}\n\n"}
+{"t":3864,"chunk":"event: gen\ndata: {\"delta\":\" rental\"}\n\n"}
+{"t":3885,"chunk":"event: gen\ndata: {\"delta\":\" cars,\"}\n\n"}
+{"t":3906,"chunk":"event: gen\ndata: {\"delta\":\" ri\"}\n\n"}
+{"t":3928,"chunk":"event: gen\ndata: {\"delta\":\"deshare,\"}\n\n"}
+{"t":3950,"chunk":"event: gen\ndata: {\"delta\":\" and public transit;\"}\n\n"}
+{"t":3972,"chunk":"event: gen\ndata: {\"delta\":\" personal\"}\n\n"}
+{"t":3993,"chunk":"event: gen\ndata: {\"delta\":\" vehicle\"}\n\n"}
+{"t":4016,"chunk":"event: gen\ndata: {\"delta\":\" m\"}\n\n"}
+{"t":4038,"chunk":"event: gen\ndata: {\"delta\":\"ileage is re\"}\n\n"}
+{"t":4068,"chunk":"event: gen\ndata: {\"delta\":\"imbursed at the\"}\n\n"}
+{"t":4094,"chunk":"event: gen\ndata: {\"delta\":\" I\"}\n\n"}
+{"t":4111,"chunk":"event: gen\ndata: {\"delta\":\"RS standar\"}\n\n"}
+{"t":4134,"chunk":"event: gen\ndata: {\"delta\":\"d rate\\\",\"}\n\n"}
+{"t":4156,"chunk":"event: gen\ndata: {\"delta\":\"\\n        \\\"All\"}\n\n"}
+{"t":4177,"chunk":"event: gen\ndata: {\"delta\":\" receip\"}\n\n"}
+{"t":4201,"chunk":"event: gen\ndata: {\"delta\":\"ts must be submitte\"}\n\n"}
+{"t":4222,"chunk":"event: gen\ndata: {\"delta\":\"d within 30 days of trip\"}\n\n"}
+{"t":4310,"chunk":"event: gen\ndata: {\"delta\":\" completion via\"}\n\n"}
+{"t":4310,"chunk":"event: gen\ndata: {\"delta\":\" the\"}\n\n"}
+{"t":4310,"chunk":"event: gen\ndata: {\"delta\":\" expense\"}\n\n"}
+{"t":4319,"chunk":"event: gen\ndata: {\"delta\":\" management\"}\n\n"}
+{"t":4340,"chunk":"event: gen\ndata: {\"delta\":\" system\\\"\\n      ]\\n    },\"}\n\n"}
+{"t":4363,"chunk":"event: gen\ndata: {\"delta\":\"\\n    {\\n      \\\"kind\\\":\"}\n\n"}
+{"t":4386,"chunk":"event: gen\ndata: {\"delta\":\" \\\"heading\\\",\\n      \\\"level\\\":\"}\n\n"}
+{"t":4410,"chunk":"event: gen\ndata: {\"delta\":\" 2,\\n      \\\"text\\\":\"}\n\n"}
+{"t":4437,"chunk":"event: gen\ndata: {\"delta\":\" \\\"Submission\"}\n\n"}
+{"t":4471,"chunk":"event: gen\ndata: {\"delta\":\" Requirements\\\"\\n    },\\n    {\"}\n\n"}
+{"t":4492,"chunk":"event: gen\ndata: {\"delta\":\"\\n      \\\"kind\\\": \\\"paragraph\\\",\"}\n\n"}
+{"t":4514,"chunk":"event: gen\ndata: {\"delta\":\"\\n      \\\"text\\\": \\\"Expense\"}\n\n"}
+{"t":4534,"chunk":"event: gen\ndata: {\"delta\":\" reports must include item\"}\n\n"}
+{"t":4557,"chunk":"event: gen\ndata: {\"delta\":\"ized receipts, business\"}\n\n"}
+{"t":4579,"chunk":"event: gen\ndata: {\"delta\":\" purpose\"}\n\n"}
+{"t":4605,"chunk":"event: gen\ndata: {\"delta\":\" for\"}\n\n"}
+{"t":4627,"chunk":"event: gen\ndata: {\"delta\":\" each\"}\n\n"}
+{"t":4648,"chunk":"event: gen\ndata: {\"delta\":\" expense, and atten\"}\n\n"}
+{"t":4674,"chunk":"event: gen\ndata: {\"delta\":\"dee names\"}\n\n"}
+{"t":4692,"chunk":"event: gen\ndata: {\"delta\":\" for\"}\n\n"}
+{"t":4713,"chunk":"event: gen\ndata: {\"delta\":\" meals\"}\n\n"}
+{"t":4737,"chunk":"event: gen\ndata: {\"delta\":\" over\"}\n\n"}
+{"t":4837,"chunk":"event: gen\ndata: {\"delta\":\" $25\"}\n\n"}
+{"t":4837,"chunk":"event: gen\ndata: {\"delta\":\". Reports\"}\n\n"}
+{"t":4837,"chunk":"event: gen\ndata: {\"delta\":\" lacking\"}\n\n"}
+{"t":4837,"chunk":"event: gen\ndata: {\"delta\":\" documentation\"}\n\n"}
+{"t":4847,"chunk":"event: gen\ndata: {\"delta\":\" will be returne\"}\n\n"}
+{"t":4868,"chunk":"event: gen\ndata: {\"delta\":\"d for\"}\n\n"}
+{"t":4889,"chunk":"event: gen\ndata: {\"delta\":\" revision\"}\n\n"}
+{"t":4912,"chunk":"event: gen\ndata: {\"delta\":\" an\"}\n\n"}
+{"t":4935,"chunk":"event: gen\ndata: {\"delta\":\"d may\"}\n\n"}
+{"t":4964,"chunk":"event: gen\ndata: {\"delta\":\" delay\"}\n\n"}
+{"t":4988,"chunk":"event: gen\ndata: {\"delta\":\" re\"}\n\n"}
+{"t":5007,"chunk":"event: gen\ndata: {\"delta\":\"imbursement.\\\"\\n    },\"}\n\n"}
+{"t":5030,"chunk":"event: gen\ndata: {\"delta\":\"\\n    {\\n      \\\"kind\\\": \\\"\"}\n\n"}
+{"t":5061,"chunk":"event: gen\ndata: {\"delta\":\"heading\\\",\\n      \\\"level\\\": \"}\n\n"}
+{"t":5084,"chunk":"event: gen\ndata: {\"delta\":\"2,\\n      \\\"text\\\": \\\"\"}\n\n"}
+{"t":5107,"chunk":"event: gen\ndata: {\"delta\":\"Questions\"}\n\n"}
+{"t":5127,"chunk":"event: gen\ndata: {\"delta\":\" an\"}\n\n"}
+{"t":5149,"chunk":"event: gen\ndata: {\"delta\":\"d Support\"}\n\n"}
+{"t":5170,"chunk":"event: gen\ndata: {\"delta\":\"\\\"\\n    },\\n    {\"}\n\n"}
+{"t":5193,"chunk":"event: gen\ndata: {\"delta\":\"\\n      \\\"kind\\\": \\\"paragraph\\\",\"}\n\n"}
+{"t":5219,"chunk":"event: gen\ndata: {\"delta\":\"\\n      \\\"text\\\": \\\"The\"}\n\n"}
+{"t":5243,"chunk":"event: gen\ndata: {\"delta\":\" Finance\"}\n\n"}
+{"t":5261,"chunk":"event: gen\ndata: {\"delta\":\" team\"}\n\n"}
+{"t":5361,"chunk":"event: gen\ndata: {\"delta\":\" is\"}\n\n"}
+{"t":5361,"chunk":"event: gen\ndata: {\"delta\":\" available to\"}\n\n"}
+{"t":5361,"chunk":"event: gen\ndata: {\"delta\":\" answer policy\"}\n\n"}
+{"t":5361,"chunk":"event: gen\ndata: {\"delta\":\" questions and provide training\"}\n\n"}
+{"t":5384,"chunk":"event: gen\ndata: {\"delta\":\" on the\"}\n\n"}
+{"t":5404,"chunk":"event: gen\ndata: {\"delta\":\" new expense\"}\n\n"}
+{"t":5425,"chunk":"event: gen\ndata: {\"delta\":\" system\"}\n\n"}
+{"t":5449,"chunk":"event: gen\ndata: {\"delta\":\". Please\"}\n\n"}
+{"t":5469,"chunk":"event: gen\ndata: {\"delta\":\" contact finance\"}\n\n"}
+{"t":5493,"chunk":"event: gen\ndata: {\"delta\":\"@company.com or\"}\n\n"}
+{"t":5517,"chunk":"event: gen\ndata: {\"delta\":\" visit\"}\n\n"}
+{"t":5539,"chunk":"event: gen\ndata: {\"delta\":\" the in\"}\n\n"}
+{"t":5567,"chunk":"event: gen\ndata: {\"delta\":\"tranet portal for detaile\"}\n\n"}
+{"t":5582,"chunk":"event: gen\ndata: {\"delta\":\"d guidelines\"}\n\n"}
+{"t":5606,"chunk":"event: gen\ndata: {\"delta\":\" an\"}\n\n"}
+{"t":5626,"chunk":"event: gen\ndata: {\"delta\":\"d FA\"}\n\n"}
+{"t":5650,"chunk":"event: gen\ndata: {\"delta\":\"Qs.\\\"\\n    }\\n  \"}\n\n"}
+{"t":5673,"chunk":"event: gen\ndata: {\"delta\":\"]\\n}\\n```\"}\n\n"}
+{"t":5781,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Claude Haiku 4.5 · sections JSON\",\"detail\":\"streaming json · valid first pass\"}\n\n"}
+{"t":5891,"chunk":"event: step\ndata: {\"state\":\"pending\",\"label\":\"build_docx.py\",\"detail\":\"compiling\"}\n\n"}
+{"t":7899,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"openxml-audit\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"OOXML zip sanity\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Round-trip\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Placeholder grep\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Heading hierarchy (no level skips)\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Named-styles-only (no direct run formatting)\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"soffice open/convert\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"build_docx.py\",\"detail\":\"8 blocks · 199 words · 0 figures\"}\n\n"}
+{"t":10445,"chunk":"event: artifact\ndata: {\"artifactId\":\"a_mrp1lo4j9ctpyv\",\"name\":\"Announcement-New-Travel-Expense-Policy-Effective.docx\",\"kind\":\"docx\",\"meta\":\"8 blocks · 199 words · 0 figures\",\"ver\":1}\n\nevent: assistant_text\ndata: {\"text\":\"A one-page memo has been generated announcing the company's updated travel expense policy, effective August 1. The document outlines key changes to reimbursement procedures, approval workflows, and allowable expense categories. It includes implementation details, contact information for policy questions, and encourages employees to review the guidelines before the effective date.\"}\n\n"}
+{"t":10485,"chunk":"event: pipeline\ndata: {\"phase\":\"end\",\"duration\":\"10.0s\"}\n\nevent: done\ndata: {\"messageId\":\"m_mrp1lrq2j6cwip\"}\n\n"}

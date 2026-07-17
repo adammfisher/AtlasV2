@@ -796,10 +796,59 @@ export interface BedrockTool {
   schema: Record<string, unknown>;
 }
 
+/** Rewrite toolUse/toolResult blocks as narrated text, coalescing the result
+ * into one text block per message (images pass through untouched).
+ *
+ * Converse rejects any request carrying tool blocks unless toolConfig is also
+ * set, and its toolChoice union has no "none" member — so a round that offers
+ * no tools cannot legally replay a tool exchange verbatim. Flattening keeps the
+ * gathered material in context while letting the request drop toolConfig. */
+function flattenToolBlocks(convo: Message[]): Message[] {
+  // toolResult carries only the id, so the name has to come from its toolUse
+  const toolNames = new Map<string, string>();
+  for (const m of convo) {
+    for (const b of m.content ?? []) {
+      const tu = (b as { toolUse?: { toolUseId?: string; name?: string } }).toolUse;
+      if (tu?.toolUseId) toolNames.set(tu.toolUseId, tu.name ?? 'tool');
+    }
+  }
+
+  return convo.map((m) => {
+    const out: ContentBlock[] = [];
+    for (const b of m.content ?? []) {
+      const blk = b as {
+        toolUse?: { toolUseId?: string; name?: string; input?: unknown };
+        toolResult?: { toolUseId?: string; content?: { text?: string }[] };
+        text?: string;
+      };
+      let asText: string | undefined;
+      if (blk.toolUse) {
+        asText = `[called ${blk.toolUse.name ?? 'tool'} with ${JSON.stringify(blk.toolUse.input ?? {})}]`;
+      } else if (blk.toolResult) {
+        const name = toolNames.get(blk.toolResult.toolUseId ?? '') ?? 'tool';
+        const body = (blk.toolResult.content ?? []).map((c) => c.text ?? '').join('\n');
+        asText = `[${name} returned]\n${body}`;
+      } else if (blk.text !== undefined) {
+        asText = blk.text;
+      }
+      if (asText === undefined) {
+        out.push(b);
+        continue;
+      }
+      // merge into a trailing text block rather than emitting adjacent ones
+      const prev = out[out.length - 1] as { text?: string } | undefined;
+      if (prev?.text !== undefined) prev.text += `\n\n${asText}`;
+      else out.push({ text: asText });
+    }
+    return { role: m.role, content: out };
+  });
+}
+
 /** Streaming chat with a Converse tool loop (restores in-chat tool use post
  * llama retirement). Text deltas stream through as they arrive; on
  * stopReason=tool_use the tools are executed, results appended, and the
- * conversation continues — capped at 3 iterations. */
+ * conversation continues — capped at MAX_TOOL_ROUNDS rounds, after which a
+ * final tool-free round forces synthesis from what was gathered. */
 export async function* bedrockStreamWithTools(
   messages: ChatMessage[],
   tools: BedrockTool[],
@@ -837,12 +886,12 @@ export async function* bedrockStreamWithTools(
   // research task (fetch → search → fetch → …) never ends mid-process with no reply.
   const MAX_TOOL_ROUNDS = 6;
   for (let iteration = 0; iteration <= MAX_TOOL_ROUNDS; iteration++) {
-    const offerTools = iteration < MAX_TOOL_ROUNDS;
+    const offerTools = iteration < MAX_TOOL_ROUNDS && tools.length > 0;
     const out = await client.send(
       new ConverseStreamCommand({
         modelId,
         system,
-        messages: convo,
+        messages: offerTools ? convo : flattenToolBlocks(convo),
         ...(offerTools ? { toolConfig } : {}),
         // extended thinking requires temperature 1 and headroom over the budget
         inferenceConfig: think

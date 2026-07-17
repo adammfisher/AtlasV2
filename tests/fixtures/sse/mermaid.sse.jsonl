@@ -1,0 +1,54 @@
+{"meta":{"name":"mermaid","prompt":"Diagram the flow of a user login: browser, api, token check, session","convId":"c_mrp1mf5sus3mj6","recordedAt":"2026-07-17T14:38:38.195Z","events":{"step":6,"pipeline":2,"gen":51,"artifact":1,"assistant_text":1,"done":1}}}
+{"t":376,"chunk":"event: step\ndata: {\"state\":\"pending\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"classifying the task\"}\n\n"}
+{"t":474,"chunk":"event: pipeline\ndata: {\"phase\":\"start\",\"skillBadge\":\"mermaid skill\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"intent: create_doc · skill: mermaid · 2 ms\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Skill loaded\",\"detail\":\"mermaid playbook · 0.2k tokens\"}\n\nevent: step\ndata: {\"state\":\"pending\",\"label\":\"Claude Haiku 4.5 · items JSON\",\"detail\":\"direct emission\"}\n\nevent: gen\ndata: {\"reset\":true,\"label\":\"mermaid\"}\n\n"}
+{"t":1725,"chunk":"event: gen\ndata: {\"delta\":\"flow\"}\n\nevent: gen\ndata: {\"delta\":\"chart TD\\n    A[User\"}\n\nevent: gen\ndata: {\"delta\":\" enters\"}\n\n"}
+{"t":1744,"chunk":"event: gen\ndata: {\"delta\":\" credentials] -->\"}\n\n"}
+{"t":1773,"chunk":"event: gen\ndata: {\"delta\":\"|submit\"}\n\n"}
+{"t":1795,"chunk":"event: gen\ndata: {\"delta\":\"| B[Browser\"}\n\n"}
+{"t":1819,"chunk":"event: gen\ndata: {\"delta\":\" sends POST\"}\n\n"}
+{"t":1844,"chunk":"event: gen\ndata: {\"delta\":\"]\"}\n\n"}
+{"t":1862,"chunk":"event: gen\ndata: {\"delta\":\"\\n    B --> C[API receives\"}\n\n"}
+{"t":1883,"chunk":"event: gen\ndata: {\"delta\":\" request]\\n    C --> D{\"}\n\n"}
+{"t":1927,"chunk":"event: gen\ndata: {\"delta\":\"Credentials valid?}\\n    D -->\"}\n\n"}
+{"t":1950,"chunk":"event: gen\ndata: {\"delta\":\"|no\"}\n\n"}
+{"t":1972,"chunk":"event: gen\ndata: {\"delta\":\"| E[Return\"}\n\n"}
+{"t":1994,"chunk":"event: gen\ndata: {\"delta\":\" \"}\n\n"}
+{"t":2015,"chunk":"event: gen\ndata: {\"delta\":\"401 error\"}\n\n"}
+{"t":2042,"chunk":"event: gen\ndata: {\"delta\":\"]\\n    E\"}\n\n"}
+{"t":2058,"chunk":"event: gen\ndata: {\"delta\":\" --> F[Browser\"}\n\n"}
+{"t":2082,"chunk":"event: gen\ndata: {\"delta\":\" shows\"}\n\n"}
+{"t":2112,"chunk":"event: gen\ndata: {\"delta\":\" error]\"}\n\n"}
+{"t":2135,"chunk":"event: gen\ndata: {\"delta\":\"\\n    D\"}\n\n"}
+{"t":2156,"chunk":"event: gen\ndata: {\"delta\":\" -->|yes| G[Generate\"}\n\n"}
+{"t":2247,"chunk":"event: gen\ndata: {\"delta\":\" JWT\"}\n\n"}
+{"t":2247,"chunk":"event: gen\ndata: {\"delta\":\" token]\\n    G --> H[\"}\n\nevent: gen\ndata: {\"delta\":\"API\"}\n\n"}
+{"t":2248,"chunk":"event: gen\ndata: {\"delta\":\" returns token]\\n    H --> I\"}\n\n"}
+{"t":2265,"chunk":"event: gen\ndata: {\"delta\":\"[Browser\"}\n\n"}
+{"t":2288,"chunk":"event: gen\ndata: {\"delta\":\" stores token]\\n    I --> J\"}\n\n"}
+{"t":2309,"chunk":"event: gen\ndata: {\"delta\":\"[User\"}\n\n"}
+{"t":2333,"chunk":"event: gen\ndata: {\"delta\":\" logge\"}\n\n"}
+{"t":2354,"chunk":"event: gen\ndata: {\"delta\":\"d in]\\n    J --> K[\"}\n\n"}
+{"t":2375,"chunk":"event: gen\ndata: {\"delta\":\"Browser\"}\n\n"}
+{"t":2398,"chunk":"event: gen\ndata: {\"delta\":\" sends\"}\n\n"}
+{"t":2419,"chunk":"event: gen\ndata: {\"delta\":\" request\"}\n\n"}
+{"t":2443,"chunk":"event: gen\ndata: {\"delta\":\" with\"}\n\n"}
+{"t":2463,"chunk":"event: gen\ndata: {\"delta\":\" token]\\n    K --> L[\"}\n\n"}
+{"t":2485,"chunk":"event: gen\ndata: {\"delta\":\"API validates token]\\n    L -->\"}\n\n"}
+{"t":2508,"chunk":"event: gen\ndata: {\"delta\":\" M{\"}\n\n"}
+{"t":2529,"chunk":"event: gen\ndata: {\"delta\":\"Token valid?}\\n    M -->\"}\n\n"}
+{"t":2552,"chunk":"event: gen\ndata: {\"delta\":\"|no| N[Return 401\"}\n\n"}
+{"t":2575,"chunk":"event: gen\ndata: {\"delta\":\" error]\\n    M\"}\n\n"}
+{"t":2597,"chunk":"event: gen\ndata: {\"delta\":\" -->|yes| O[Create\"}\n\n"}
+{"t":2619,"chunk":"event: gen\ndata: {\"delta\":\" session]\\n    O --> P[\"}\n\n"}
+{"t":2642,"chunk":"event: gen\ndata: {\"delta\":\"Return\"}\n\n"}
+{"t":2665,"chunk":"event: gen\ndata: {\"delta\":\" protecte\"}\n\n"}
+{"t":2772,"chunk":"event: gen\ndata: {\"delta\":\"d resource\"}\n\n"}
+{"t":2772,"chunk":"event: gen\ndata: {\"delta\":\"]\\n    P --> Q[Browser\"}\n\n"}
+{"t":2772,"chunk":"event: gen\ndata: {\"delta\":\" displays\"}\n\n"}
+{"t":2772,"chunk":"event: gen\ndata: {\"delta\":\" content\"}\n\n"}
+{"t":2793,"chunk":"event: gen\ndata: {\"delta\":\"]\\n    N\"}\n\n"}
+{"t":2796,"chunk":"event: gen\ndata: {\"delta\":\" --> F\"}\n\n"}
+{"t":2926,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Claude Haiku 4.5 · items JSON\",\"detail\":\"emitted · validated\"}\n\n"}
+{"t":2974,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Syntax check\"}\n\n"}
+{"t":4759,"chunk":"event: artifact\ndata: {\"artifactId\":\"a_mrp1mhgac81f58\",\"name\":\"diagram.mmd\",\"kind\":\"mermaid\",\"meta\":\"flowchart\",\"ver\":1}\n\nevent: assistant_text\ndata: {\"text\":\"A flowchart diagram has been created showing the complete user login flow. It traces the sequence from browser submission through API authentication, token validation, and session establishment, with decision points for credential verification and error handling paths.\"}\n\n"}
+{"t":4869,"chunk":"event: pipeline\ndata: {\"phase\":\"end\",\"duration\":\"4.3s\"}\n\nevent: done\ndata: {\"messageId\":\"m_mrp1miv7sr1ffn\"}\n\n"}

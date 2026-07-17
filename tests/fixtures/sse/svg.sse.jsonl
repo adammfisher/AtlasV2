@@ -1,0 +1,32 @@
+{"meta":{"name":"svg","prompt":"Design an icon of a paper plane","convId":"c_mrp1mj7m6a4k56","recordedAt":"2026-07-17T14:38:42.651Z","events":{"step":6,"pipeline":2,"gen":27,"artifact":1,"assistant_text":1,"done":1}}}
+{"t":361,"chunk":"event: step\ndata: {\"state\":\"pending\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"classifying the task\"}\n\n"}
+{"t":448,"chunk":"event: pipeline\ndata: {\"phase\":\"start\",\"skillBadge\":\"svg skill\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"intent: create_doc · skill: svg · 1 ms\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Skill loaded\",\"detail\":\"svg playbook · 0.3k tokens\"}\n\nevent: step\ndata: {\"state\":\"pending\",\"label\":\"Claude Haiku 4.5 · items JSON\",\"detail\":\"direct emission\"}\n\nevent: gen\ndata: {\"reset\":true,\"label\":\"svg\"}\n\n"}
+{"t":1336,"chunk":"event: gen\ndata: {\"delta\":\"```\"}\n\n"}
+{"t":1365,"chunk":"event: gen\ndata: {\"delta\":\"svg\\n<svg xmlns=\\\"http://\"}\n\n"}
+{"t":1375,"chunk":"event: gen\ndata: {\"delta\":\"www.w3.org/2\"}\n\n"}
+{"t":1398,"chunk":"event: gen\ndata: {\"delta\":\"000/svg\\\" viewBox=\\\"0\"}\n\n"}
+{"t":1423,"chunk":"event: gen\ndata: {\"delta\":\" 0 24 24\\\">\"}\n\n"}
+{"t":1444,"chunk":"event: gen\ndata: {\"delta\":\"\\n  <path\"}\n\n"}
+{"t":1468,"chunk":"event: gen\ndata: {\"delta\":\" fill\"}\n\n"}
+{"t":1493,"chunk":"event: gen\ndata: {\"delta\":\"=\\\"currentColor\\\" d=\\\"M3\"}\n\n"}
+{"t":1515,"chunk":"event: gen\ndata: {\"delta\":\" 3\"}\n\n"}
+{"t":1541,"chunk":"event: gen\ndata: {\"delta\":\"l\"}\n\n"}
+{"t":1561,"chunk":"event: gen\ndata: {\"delta\":\"18\"}\n\n"}
+{"t":1584,"chunk":"event: gen\ndata: {\"delta\":\" 9\"}\n\n"}
+{"t":1609,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":1718,"chunk":"event: gen\ndata: {\"delta\":\"18\"}\n\n"}
+{"t":1720,"chunk":"event: gen\ndata: {\"delta\":\" 9v\"}\n\nevent: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":1720,"chunk":"event: gen\ndata: {\"delta\":\"7\"}\n\n"}
+{"t":1724,"chunk":"event: gen\ndata: {\"delta\":\"l\"}\n\n"}
+{"t":1748,"chunk":"event: gen\ndata: {\"delta\":\"12\"}\n\n"}
+{"t":1769,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":1793,"chunk":"event: gen\ndata: {\"delta\":\"2\"}\n\n"}
+{"t":1827,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":1836,"chunk":"event: gen\ndata: {\"delta\":\"12-\"}\n\n"}
+{"t":1859,"chunk":"event: gen\ndata: {\"delta\":\"2V\"}\n\n"}
+{"t":1901,"chunk":"event: gen\ndata: {\"delta\":\"3\"}\n\n"}
+{"t":1902,"chunk":"event: gen\ndata: {\"delta\":\"z\\\"/>\\n</svg>\\n```\"}\n\n"}
+{"t":2006,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Claude Haiku 4.5 · items JSON\",\"detail\":\"emitted · validated\"}\n\n"}
+{"t":2057,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"XML + viewBox\"}\n\n"}
+{"t":4027,"chunk":"event: artifact\ndata: {\"artifactId\":\"a_mrp1mkshktzcd3\",\"name\":\"graphic.svg\",\"kind\":\"svg\",\"meta\":\"validated SVG\",\"ver\":1}\n\nevent: assistant_text\ndata: {\"text\":\"A paper plane icon has been created as an SVG file. The design features a simple, geometric paper plane in profile view with clean lines and minimal details, suitable for use as an interface icon across various applications and screen sizes.\"}\n\n"}
+{"t":4077,"chunk":"event: pipeline\ndata: {\"phase\":\"end\",\"duration\":\"3.6s\"}\n\nevent: done\ndata: {\"messageId\":\"m_mrp1mmcl3hl8fx\"}\n\n"}

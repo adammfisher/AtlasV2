@@ -3,6 +3,7 @@ import { Menu } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, wash, applyTheme, currentTheme, type ThemeName } from './theme/tokens';
 import { api, type ArtifactRef } from './lib/api';
+import { isBusy } from './lib/stream';
 import type { View } from './lib/store';
 import { Sidebar } from './components/Sidebar';
 import { ArtifactPanel } from './components/ArtifactPanel';
@@ -84,7 +85,11 @@ export default function App() {
   }, [effectiveConv, view]);
   // the artifact/preview panel belongs to a chat — moving to another chat closes
   // it, UNLESS we're navigating specifically to open an artifact (gallery click)
+  // or the conversation we just switched TO is actively streaming (the FX-3
+  // promotion path: the empty-composer send adopts its new conversation
+  // mid-stream, and resetting here would kill the live writing panel)
   useEffect(() => {
+    if (isBusy(effectiveConv)) return;
     setLiveGen(null);
     if (pendingArtifact) {
       setRightPanel({ kind: 'detail', artifactId: pendingArtifact });
@@ -286,6 +291,12 @@ export default function App() {
             autoSend={autoSend}
             onAutoSendConsumed={() => setAutoSend(null)}
             onOpenProject={openProjectWorkspace}
+            onConvCreated={(id) => {
+              // a send from the empty composer created this conversation —
+              // adopt it so the URL/view follow the in-flight stream (FX-3)
+              void queryClient.invalidateQueries({ queryKey: ['conversations'] });
+              setActiveConv(id);
+            }}
           />
         ) : null}
         {view === 'plugins' ? (

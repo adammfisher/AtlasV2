@@ -59,13 +59,21 @@ app.use((req, res, next) => {
     req.path.startsWith('/api/internal/');
   const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   const cookie = /(?:^|;\s*)atlas_token=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
+  // next() runs the whole downstream chain INSIDE this promise, so a synchronous
+  // throw in any route rejects it too. Answering every rejection with 401 made
+  // unrelated bugs look like auth failures — and the client ends the session on
+  // any 401, so a transient route error silently signed the user out mid-work.
+  // This flag marks the point where the auth decision is already made: anything
+  // after it is a downstream fault and must NOT be reported as an auth problem.
+  let authSettled = false;
   void (async () => {
     const { verifyToken, runAsAccount } = await import('./lib/account.js');
     const user = bearer || cookie ? await verifyToken(bearer || cookie || '') : null;
     if (!user && !open) {
-      res.status(401).json({ error: 'not signed in' });
+      res.status(401).json({ error: 'not signed in', code: 'unauthenticated' });
       return;
     }
+    authSettled = true;
     const run = (): void => {
       if (user && !loadedAccounts.has(user)) {
         loadedAccounts.add(user);
@@ -75,7 +83,18 @@ app.use((req, res, next) => {
     };
     if (user) runAsAccount(user, run);
     else run();
-  })().catch(() => res.status(401).json({ error: 'auth failed' }));
+  })().catch((err: unknown) => {
+    const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    // headers are already gone once an SSE stream has started — the response is
+    // the stream's to finish; all we can still do is leave a trace
+    if (authSettled) {
+      log(`error in ${req.method} ${req.path}: ${detail}`);
+      if (!res.headersSent) res.status(500).json({ error: 'internal error' });
+      return;
+    }
+    log(`auth check failed for ${req.method} ${req.path}: ${detail}`);
+    if (!res.headersSent) res.status(401).json({ error: 'auth failed', code: 'unauthenticated' });
+  });
 });
 
 // uploads carry base64 files (own 40mb parser) — mount BEFORE the global 2mb

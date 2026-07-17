@@ -76,6 +76,7 @@ export function ArtifactDrawer({
 
   return (
     <div
+      data-testid="artifact-drawer"
       className="flex flex-col h-full flex-shrink-0"
       style={{ width: 380, background: C.panel, borderLeft: `1px solid ${C.borderSoft}` }}
     >

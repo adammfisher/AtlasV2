@@ -60,7 +60,12 @@ export async function* streamWithTools(
         max_tokens: opts.maxTokens ?? 4096,
         temperature: opts.temperature ?? 0.7,
         stream: true,
-        ...(offerTools ? { tools: aTools } : {}),
+        // the final round withholds tools to force synthesis, but msgs still
+        // carries this turn's tool_use/tool_result blocks — keep `tools` in the
+        // payload and forbid calls via tool_choice instead of dropping it
+        ...(aTools.length > 0
+          ? { tools: aTools, ...(offerTools ? {} : { tool_choice: { type: 'none' } }) }
+          : {}),
       },
       opts.signal,
     );

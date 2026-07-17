@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { marked } from 'marked';
 import {
   ChevronRight,
@@ -42,10 +42,9 @@ import {
   type Message,
   type ArtifactRef,
   type PipelineMessageData,
-  type PipelineStep,
   type Citation,
 } from '../../lib/api';
-import { postSse } from '../../lib/sse';
+import { subscribeStreams, getLive, isBusy, startStream, stopStream, clearStream } from '../../lib/stream';
 import { Badge } from '../../components/Badge';
 import { ModelMenu } from '../../components/ModelMenu';
 import { BedrockModal } from '../../components/BedrockModal';
@@ -319,34 +318,6 @@ function PipelineCard({ m }: { m: PipelineMessageData }) {
   );
 }
 
-interface LiveExchange {
-  toolChips: Array<{ tool: string; connector: string }>;
-  userAttachments?: Array<{ id: string; name: string; kind: string }>;
-  userText: string;
-  assistantText: string;
-  /** D: arrives once the stream ends and the server has validated every index */
-  citations?: Citation[];
-  thinkingText?: string;
-  started: boolean;
-  error: string | null;
-  /** live pipeline state — set when the router picks a document skill */
-  pipeline: boolean;
-  skillBadge?: string;
-  steps: PipelineStep[];
-  artifact?: ArtifactRef;
-  summary?: string;
-}
-
-function upsertStep(steps: PipelineStep[], step: PipelineStep): PipelineStep[] {
-  const i = steps.findIndex((s) => s.label === step.label);
-  if (i >= 0) {
-    const next = steps.slice();
-    next[i] = step;
-    return next;
-  }
-  return [...steps, step];
-}
-
 export function ChatView({
   convId,
   registry,
@@ -359,6 +330,7 @@ export function ChatView({
   autoSend,
   onAutoSendConsumed,
   onOpenProject,
+  onConvCreated,
 }: {
   convId: string | null;
   registry: ModelsRegistry | undefined;
@@ -371,11 +343,17 @@ export function ChatView({
   autoSend?: { convId: string; text: string; attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }> } | null;
   onAutoSendConsumed?: () => void;
   onOpenProject?: (projectId: string) => void;
+  /** a send from the empty state created this conversation — promote it to the
+   * active conversation so the view follows the stream (FX-3). */
+  onConvCreated?: (convId: string) => void;
 }) {
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
   const [plusMenu, setPlusMenu] = useState(false);
-  const [live, setLive] = useState<LiveExchange | null>(null);
+  // stream state lives OUTSIDE the component (lib/stream.ts): it survives
+  // unmounts/nav and is keyed by conversation (FX-2)
+  const live = useSyncExternalStore(subscribeStreams, () => getLive(convId));
+  const busy = isBusy(convId);
   /** the knowledge passage behind a clicked citation chip (D.4) */
   const [passage, setPassage] = useState<Citation | null>(null);
   const [bedrockModal, setBedrockModal] = useState(false);
@@ -535,8 +513,6 @@ export function ChatView({
         .catch(() => setAttachments((a) => a.filter((x) => x.id !== tempId)));
     }
   };
-  const genRef = useRef<{ text: string | null; label: string }>({ text: null, label: '' });
-  const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -575,9 +551,17 @@ export function ChatView({
 
   const messages: Message[] = conv?.messages ?? [];
 
+  // bottom-stickiness: follow the stream only while the user is already near
+  // the bottom, with instant (not smooth) scrolling during streaming — a
+  // smooth-scroll per delta batch kept the main thread animating continuously
+  // and fought the user's own scrollback (FX-5)
+  const threadRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, live?.assistantText]);
+    const thread = threadRef.current;
+    if (!thread) return;
+    const nearBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 160;
+    if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: busy ? 'auto' : 'smooth' });
+  }, [messages.length, live?.assistantText, busy]);
 
   // auto-send a message the project workspace composer started a chat with
   const autoSentRef = useRef<string | null>(null);
@@ -590,11 +574,8 @@ export function ChatView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSend, convId]);
 
-  const busy = live !== null;
-
   const stop = () => {
-    abortRef.current?.abort();
-    abortRef.current = null;
+    if (convId) stopStream(convId);
   };
 
   const send = async (
@@ -640,74 +621,13 @@ export function ChatView({
       setInput('');
       setAttachments([]);
     }
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setLive({ toolChips: [], userText: retry ? '' : text, userAttachments: sendAtts, assistantText: '', started: false, error: null, pipeline: false, steps: [] });
-    void postSse(`/conversations/${target}/messages`, { text, attachments: sendAtts, retry, thinking }, {
-      onEvent: (event, data) => {
-        if (event === 'token') {
-          const delta = typeof data.delta === 'string' ? data.delta : '';
-          setLive((l) => (l ? { ...l, started: true, assistantText: l.assistantText + delta } : l));
-        } else if (event === 'step') {
-          setLive((l) =>
-            l ? { ...l, pipeline: true, steps: upsertStep(l.steps, data as unknown as PipelineStep) } : l,
-          );
-        } else if (event === 'route') {
-          // plain chat: drop the transient router row, fall back to Thinking…
-          if ((data as { intent?: string }).intent === 'chat') {
-            setLive((l) => (l ? { ...l, pipeline: false, steps: [] } : l));
-          }
-        } else if (event === 'pipeline') {
-          const d = data as { phase?: string; skillBadge?: string };
-          if (d.phase === 'start') {
-            setLive((l) => (l ? { ...l, pipeline: true, skillBadge: d.skillBadge } : l));
-          }
-        } else if (event === 'artifact') {
-          const ref = data as unknown as ArtifactRef;
-          setLive((l) => (l ? { ...l, artifact: ref } : l));
-          genRef.current = { text: null, label: genRef.current.label };
-          onGenStream(null, genRef.current.label);
-          onArtifactReady(ref);
-        } else if (event === 'tool') {
-          const chip = data as { tool: string; connector: string };
-          setLive((l) => (l ? { ...l, toolChips: [...l.toolChips, chip] } : l));
-        } else if (event === 'gen') {
-          const d = data as { reset?: boolean; delta?: string; label?: string };
-          if (d.reset) {
-            genRef.current = { text: '', label: d.label ?? genRef.current.label };
-          } else if (d.delta && genRef.current.text !== null) {
-            genRef.current = { ...genRef.current, text: genRef.current.text + d.delta };
-          }
-          onGenStream(genRef.current.text, genRef.current.label);
-        } else if (event === 'thinking') {
-          const delta = typeof data.delta === 'string' ? data.delta : '';
-          setLive((l) => (l ? { ...l, thinkingText: (l.thinkingText ?? '') + delta } : l));
-        } else if (event === 'citations') {
-          // the raw stream showed <cite> markup; swap in the validated clean
-          // text and its chips in one paint
-          const d = data as { text?: string; citations?: Citation[] };
-          setLive((l) => (l ? { ...l, assistantText: d.text ?? l.assistantText, citations: d.citations ?? [] } : l));
-        } else if (event === 'assistant_text') {
-          setLive((l) => (l ? { ...l, summary: (data as { text?: string }).text ?? '' } : l));
-        } else if (event === 'error') {
-          const message = typeof data.message === 'string' ? data.message : 'Unknown error';
-          setLive((l) => (l ? { ...l, error: message } : l));
-        }
-      },
-      onClose: () => {
-        onGenStream(null, genRef.current.label);
-        void queryClient.invalidateQueries({ queryKey: ['conversation', target] }).then(() => {
-          void queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          // Always clear the live exchange: the server persists an honest error
-          // message, so retaining the error here duplicated it AND left `busy`
-          // stuck true — permanently dead composer after one failure.
-          setLive(null);
-        });
-      },
-      onError: (message) => {
-        setLive((l) => (l ? { ...l, error: message } : l));
-      },
-    }, controller.signal); // stop button aborts the SSE fetch → onClose cleans up
+    // the stream store owns the SSE lifecycle from here: completion is keyed
+    // on the `done` event, close-without-done surfaces as connection loss in
+    // place, and the exchange survives unmount/nav (FX-2)
+    startStream(target, { text, attachments: sendAtts, retry, thinking }, { onGenStream, onArtifactReady });
+    // a send from the empty composer created this conversation — make it the
+    // active one so the URL and view follow the stream (FX-3)
+    if (target !== convId) onConvCreated?.(target);
   };
 
   const rate = async (messageId: string, rating: 'up' | 'down' | null): Promise<void> => {
@@ -825,6 +745,7 @@ export function ChatView({
         </button>
         <button
           onClick={onOpenArtifactList}
+          data-testid="artifact-list-btn"
           title="Artifacts in this chat"
           className="relative flex items-center justify-center p-1.5 rounded-lg transition-colors"
           style={{ color: artifactCount > 0 ? C.text : C.mute }}
@@ -858,7 +779,7 @@ export function ChatView({
         </div>
       )}
 
-      <div data-testid="chat-thread" className="flex-1 overflow-y-auto px-6 py-6">
+      <div data-testid="chat-thread" ref={threadRef} className="flex-1 overflow-y-auto px-6 py-6">
         {empty ? (
           <div data-testid="chat-empty-state" className="h-full flex flex-col items-center justify-center">
             <div className="mb-1" style={{ color: C.text, fontFamily: serif, fontSize: 26 }}>
@@ -1032,7 +953,11 @@ export function ChatView({
                       <span className="flex-1">{live.error}</span>
                       <button
                         data-testid="stream-retry"
-                        onClick={() => void send(live.userText, true)}
+                        onClick={() => {
+                          const text = live.userText;
+                          if (convId) clearStream(convId);
+                          void send(text, true);
+                        }}
                         className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium flex-shrink-0"
                         style={{ background: wash(C.amber, 20), color: C.amber, border: `1px solid ${wash(C.amber, 40)}` }}
                         title="Retry this message"

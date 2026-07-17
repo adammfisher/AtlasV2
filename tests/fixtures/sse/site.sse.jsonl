@@ -1,0 +1,1356 @@
+{"meta":{"name":"site","prompt":"Landing page prototype for Atlas, a document automation tool","convId":"c_mrp1mxjihhil9n","recordedAt":"2026-07-17T14:39:37.665Z","events":{"step":7,"pipeline":2,"gen":1409,"artifact":1,"assistant_text":1,"done":1}}}
+{"t":324,"chunk":"event: step\ndata: {\"state\":\"pending\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"classifying the task\"}\n\n"}
+{"t":3721,"chunk":"event: pipeline\ndata: {\"phase\":\"start\",\"skillBadge\":\"site skill\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"intent: create_doc · skill: site · 3237 ms\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Skill loaded\",\"detail\":\"site playbook · 0.2k tokens\"}\n\nevent: step\ndata: {\"state\":\"pending\",\"label\":\"Claude Haiku 4.5 · files JSON\",\"detail\":\"streaming json\"}\n\nevent: gen\ndata: {\"reset\":true,\"label\":\"site\"}\n\n"}
+{"t":4818,"chunk":"event: gen\ndata: {\"delta\":\"```json\\n{\\n  \\\"files\"}\n\n"}
+{"t":4838,"chunk":"event: gen\ndata: {\"delta\":\"\\\": {\\n    \\\"/\"}\n\n"}
+{"t":4838,"chunk":"event: gen\ndata: {\"delta\":\"index.html\\\": \\\"\"}\n\n"}
+{"t":4851,"chunk":"event: gen\ndata: {\"delta\":\"<!DOCTYPE html>\\\\\"}\n\n"}
+{"t":4874,"chunk":"event: gen\ndata: {\"delta\":\"n<html lang=\\\\\\\"en\\\\\\\">\\\\\"}\n\n"}
+{"t":4894,"chunk":"event: gen\ndata: {\"delta\":\"n<head>\\\\n  \"}\n\n"}
+{"t":4914,"chunk":"event: gen\ndata: {\"delta\":\"<meta charset=\\\\\\\"UTF-8\\\\\\\"\"}\n\n"}
+{"t":4938,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n  <meta name=\\\\\\\"viewport\"}\n\n"}
+{"t":4959,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" content=\\\\\\\"width=device-width\"}\n\n"}
+{"t":5026,"chunk":"event: gen\ndata: {\"delta\":\", initial-scale=1.0\"}\n\n"}
+{"t":5029,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n  <title>Atlas\"}\n\n"}
+{"t":5038,"chunk":"event: gen\ndata: {\"delta\":\" –\"}\n\n"}
+{"t":5055,"chunk":"event: gen\ndata: {\"delta\":\" Document Automation Made\"}\n\n"}
+{"t":5153,"chunk":"event: gen\ndata: {\"delta\":\" Simple</title>\\\\n  <link\"}\n\n"}
+{"t":5153,"chunk":"event: gen\ndata: {\"delta\":\" rel=\\\\\\\"stylesheet\\\\\\\" href=\\\\\\\"styles.\"}\n\nevent: gen\ndata: {\"delta\":\"css\\\\\\\">\\\\n</head>\\\\n\"}\n\n"}
+{"t":5159,"chunk":"event: gen\ndata: {\"delta\":\"<body>\\\\n  <header class\"}\n\n"}
+{"t":5181,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"header\"}\n\n"}
+{"t":5203,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n    <div\"}\n\n"}
+{"t":5224,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"container\\\\\\\">\\\\n      \"}\n\n"}
+{"t":5249,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"header\"}\n\n"}
+{"t":5271,"chunk":"event: gen\ndata: {\"delta\":\"-content\\\\\\\">\\\\n        <div\"}\n\n"}
+{"t":5291,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"logo\\\\\"}\n\n"}
+{"t":5315,"chunk":"event: gen\ndata: {\"delta\":\"\\\">Atlas</div>\\\\n        \"}\n\n"}
+{"t":5353,"chunk":"event: gen\ndata: {\"delta\":\"<nav class=\\\\\\\"nav\\\\\\\">\\\\n          \"}\n\n"}
+{"t":5403,"chunk":"event: gen\ndata: {\"delta\":\"<a href=\\\\\\\"#features\"}\n\n"}
+{"t":5418,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Features</a>\\\\n          \"}\n\n"}
+{"t":5439,"chunk":"event: gen\ndata: {\"delta\":\"<a href=\\\\\\\"#how\"}\n\n"}
+{"t":5463,"chunk":"event: gen\ndata: {\"delta\":\"-it-works\\\\\\\">How It\"}\n\n"}
+{"t":5495,"chunk":"event: gen\ndata: {\"delta\":\" Works</a>\\\\n          \"}\n\n"}
+{"t":5515,"chunk":"event: gen\ndata: {\"delta\":\"<a href=\\\\\\\"#pricing\\\\\\\">Pricing\"}\n\n"}
+{"t":5539,"chunk":"event: gen\ndata: {\"delta\":\"</a>\\\\n          <a href\"}\n\n"}
+{"t":5559,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#contact\"}\n\n"}
+{"t":5582,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Contact</a>\\\\n        \"}\n\n"}
+{"t":5679,"chunk":"event: gen\ndata: {\"delta\":\"</nav>\\\\n        \"}\n\n"}
+{"t":5680,"chunk":"event: gen\ndata: {\"delta\":\"<button\"}\n\nevent: gen\ndata: {\"delta\":\" class=\\\\\\\"c\"}\n\n"}
+{"t":5680,"chunk":"event: gen\ndata: {\"delta\":\"ta-button\\\\\"}\n\n"}
+{"t":5688,"chunk":"event: gen\ndata: {\"delta\":\"\\\">Get Started</button>\\\\n      \"}\n\n"}
+{"t":5715,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n    </div>\\\\\"}\n\n"}
+{"t":5734,"chunk":"event: gen\ndata: {\"delta\":\"n  </header>\\\\n\\\\\"}\n\n"}
+{"t":5756,"chunk":"event: gen\ndata: {\"delta\":\"n  <section\"}\n\n"}
+{"t":5779,"chunk":"event: gen\ndata: {\"delta\":\" class\"}\n\n"}
+{"t":5802,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"hero\\\\\\\">\\\\n    <div\"}\n\n"}
+{"t":5823,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"container\\\\\\\">\\\\n      \"}\n\n"}
+{"t":5846,"chunk":"event: gen\ndata: {\"delta\":\"<div\"}\n\n"}
+{"t":5868,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"hero-content\\\\\\\">\\\\n\"}\n\n"}
+{"t":5893,"chunk":"event: gen\ndata: {\"delta\":\"        <h1>\"}\n\n"}
+{"t":5945,"chunk":"event: gen\ndata: {\"delta\":\"Automate Documents\"}\n\n"}
+{"t":5968,"chunk":"event: gen\ndata: {\"delta\":\" in\"}\n\n"}
+{"t":5989,"chunk":"event: gen\ndata: {\"delta\":\" Minutes\"}\n\n"}
+{"t":6018,"chunk":"event: gen\ndata: {\"delta\":\"</h1>\\\\n        <p\"}\n\n"}
+{"t":6040,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"sub\"}\n\n"}
+{"t":6064,"chunk":"event: gen\ndata: {\"delta\":\"line\\\\\\\">Generate\"}\n\n"}
+{"t":6085,"chunk":"event: gen\ndata: {\"delta\":\", manage\"}\n\n"}
+{"t":6108,"chunk":"event: gen\ndata: {\"delta\":\", and deliver\"}\n\n"}
+{"t":6202,"chunk":"event: gen\ndata: {\"delta\":\" documents at\"}\n\n"}
+{"t":6202,"chunk":"event: gen\ndata: {\"delta\":\" scale without\"}\n\nevent: gen\ndata: {\"delta\":\" manual work\"}\n\n"}
+{"t":6214,"chunk":"event: gen\ndata: {\"delta\":\".\"}\n\n"}
+{"t":6220,"chunk":"event: gen\ndata: {\"delta\":\"</p>\\\\n        <button class=\\\\\\\"\"}\n\n"}
+{"t":6240,"chunk":"event: gen\ndata: {\"delta\":\"cta-button c\"}\n\n"}
+{"t":6264,"chunk":"event: gen\ndata: {\"delta\":\"ta-primary\\\\\\\">Start Free Trial\"}\n\n"}
+{"t":6282,"chunk":"event: gen\ndata: {\"delta\":\"</button>\\\\n      </div>\\\\\"}\n\n"}
+{"t":6305,"chunk":"event: gen\ndata: {\"delta\":\"n      \"}\n\n"}
+{"t":6327,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"hero-visual\"}\n\n"}
+{"t":6348,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n        <svg view\"}\n\n"}
+{"t":6370,"chunk":"event: gen\ndata: {\"delta\":\"Box=\\\\\\\"0 0 400\"}\n\n"}
+{"t":6392,"chunk":"event: gen\ndata: {\"delta\":\" 300\"}\n\n"}
+{"t":6414,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" xmlns\"}\n\n"}
+{"t":6438,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"http://www.w3.\"}\n\n"}
+{"t":6456,"chunk":"event: gen\ndata: {\"delta\":\"org/2000/svg\\\\\\\">\\\\\"}\n\n"}
+{"t":6481,"chunk":"event: gen\ndata: {\"delta\":\"n          <\"}\n\n"}
+{"t":6501,"chunk":"event: gen\ndata: {\"delta\":\"defs>\\\\n            <linear\"}\n\n"}
+{"t":6522,"chunk":"event: gen\ndata: {\"delta\":\"Gradient id=\\\\\\\"gra\"}\n\n"}
+{"t":6545,"chunk":"event: gen\ndata: {\"delta\":\"d1\\\\\\\" x1=\\\\\\\"0%\\\\\\\"\"}\n\n"}
+{"t":6567,"chunk":"event: gen\ndata: {\"delta\":\" y1=\\\\\\\"0%\\\\\\\" x2\"}\n\n"}
+{"t":6595,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"100%\\\\\\\" y2=\\\\\\\"100\"}\n\n"}
+{"t":6618,"chunk":"event: gen\ndata: {\"delta\":\"%\\\\\\\">\\\\n              <stop offset\"}\n\n"}
+{"t":6727,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"0%\\\\\\\" style\"}\n\n"}
+{"t":6728,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"stop-color:#6\"}\n\nevent: gen\ndata: {\"delta\":\"366\"}\n\n"}
+{"t":6728,"chunk":"event: gen\ndata: {\"delta\":\"f1;stop-opacity:1\"}\n\n"}
+{"t":6733,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" />\\\\n              <stop offset\"}\n\n"}
+{"t":6757,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"100%\\\\\\\" style=\\\\\\\"stop-\"}\n\n"}
+{"t":6777,"chunk":"event: gen\ndata: {\"delta\":\"color:#8\"}\n\n"}
+{"t":6799,"chunk":"event: gen\ndata: {\"delta\":\"b5cf6;stop-opacity\"}\n\n"}
+{"t":6822,"chunk":"event: gen\ndata: {\"delta\":\":1\\\\\\\" />\\\\n            \"}\n\n"}
+{"t":6846,"chunk":"event: gen\ndata: {\"delta\":\"</linearGradient>\\\\n          \"}\n\n"}
+{"t":6868,"chunk":"event: gen\ndata: {\"delta\":\"</defs>\\\\n          <rect\"}\n\n"}
+{"t":6887,"chunk":"event: gen\ndata: {\"delta\":\" x\"}\n\n"}
+{"t":6907,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"50\"}\n\n"}
+{"t":6936,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" y=\\\\\\\"30\"}\n\n"}
+{"t":6954,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" width=\\\\\\\"300\\\\\\\" height=\\\\\\\"240\"}\n\n"}
+{"t":7056,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" rx\"}\n\n"}
+{"t":7065,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"12\"}\n\n"}
+{"t":7066,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"url(#grad1\"}\n\n"}
+{"t":7076,"chunk":"event: gen\ndata: {\"delta\":\")\\\\\\\" opacity\"}\n\n"}
+{"t":7142,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"0.1\"}\n\n"}
+{"t":7146,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"\"}\n\n"}
+{"t":7151,"chunk":"event: gen\ndata: {\"delta\":\" stroke\"}\n\n"}
+{"t":7252,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"url\"}\n\n"}
+{"t":7252,"chunk":"event: gen\ndata: {\"delta\":\"(#grad1)\\\\\\\" stroke-\"}\n\nevent: gen\ndata: {\"delta\":\"width=\\\\\\\"2\\\\\\\"/>\\\\n          \"}\n\n"}
+{"t":7252,"chunk":"event: gen\ndata: {\"delta\":\"<rect\"}\n\n"}
+{"t":7271,"chunk":"event: gen\ndata: {\"delta\":\" x=\\\\\\\"70\"}\n\n"}
+{"t":7295,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" y=\\\\\\\"50\\\\\\\" width=\\\\\\\"260\"}\n\n"}
+{"t":7316,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" height=\\\\\\\"30\"}\n\n"}
+{"t":7343,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" rx=\\\\\\\"4\"}\n\n"}
+{"t":7361,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"#\"}\n\n"}
+{"t":7416,"chunk":"event: gen\ndata: {\"delta\":\"6366f1\\\\\\\" opacity=\\\\\\\"0\"}\n\n"}
+{"t":7420,"chunk":"event: gen\ndata: {\"delta\":\".3\"}\n\n"}
+{"t":7422,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"/>\\\\n          <rect x\"}\n\n"}
+{"t":7445,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"70\"}\n\n"}
+{"t":7469,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" y=\\\\\\\"95\"}\n\n"}
+{"t":7493,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" width=\\\\\\\"260\\\\\\\" height=\\\\\\\"15\"}\n\n"}
+{"t":7514,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" rx=\\\\\\\"3\"}\n\n"}
+{"t":7533,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"#6366f1\"}\n\n"}
+{"t":7555,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" opacity=\\\\\\\"0.2\"}\n\n"}
+{"t":7577,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"/>\\\\n          <rect x\"}\n\n"}
+{"t":7598,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"70\\\\\\\" y=\\\\\\\"120\"}\n\n"}
+{"t":7620,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" width=\\\\\\\"180\"}\n\n"}
+{"t":7642,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" height=\\\\\\\"15\\\\\\\" rx=\\\\\\\"3\"}\n\n"}
+{"t":7664,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"#6366f1\"}\n\n"}
+{"t":7775,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" opacity=\\\\\\\"0.2\"}\n\n"}
+{"t":7775,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"/>\\\\n          <rect x\"}\n\nevent: gen\ndata: {\"delta\":\"=\\\\\\\"70\\\\\\\" y=\\\\\\\"150\"}\n\n"}
+{"t":7776,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" width=\\\\\\\"260\"}\n\nevent: gen\ndata: {\"delta\":\"\\\\\\\" height=\\\\\\\"60\"}\n\n"}
+{"t":7799,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" rx=\\\\\\\"4\"}\n\n"}
+{"t":7820,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"#8\"}\n\n"}
+{"t":7852,"chunk":"event: gen\ndata: {\"delta\":\"b5cf6\\\\\\\" opacity=\\\\\\\"0\"}\n\n"}
+{"t":7867,"chunk":"event: gen\ndata: {\"delta\":\".15\"}\n\n"}
+{"t":7884,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"/>\\\\n          <circle\"}\n\n"}
+{"t":7906,"chunk":"event: gen\ndata: {\"delta\":\" cx=\\\\\\\"320\"}\n\n"}
+{"t":7929,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" cy=\\\\\\\"80\"}\n\n"}
+{"t":7949,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" r=\\\\\\\"25\"}\n\n"}
+{"t":7971,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"#10\"}\n\n"}
+{"t":7992,"chunk":"event: gen\ndata: {\"delta\":\"b981\\\\\\\" opacity=\\\\\\\"0.8\"}\n\n"}
+{"t":8014,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"/>\\\\n          <path\"}\n\n"}
+{"t":8040,"chunk":"event: gen\ndata: {\"delta\":\" d=\\\\\\\"M 315\"}\n\n"}
+{"t":8058,"chunk":"event: gen\ndata: {\"delta\":\" 80 L\"}\n\n"}
+{"t":8080,"chunk":"event: gen\ndata: {\"delta\":\" 320\"}\n\n"}
+{"t":8104,"chunk":"event: gen\ndata: {\"delta\":\" 85 L 328\"}\n\n"}
+{"t":8124,"chunk":"event: gen\ndata: {\"delta\":\" 77\"}\n\n"}
+{"t":8146,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"\"}\n\n"}
+{"t":8171,"chunk":"event: gen\ndata: {\"delta\":\" stroke=\\\\\\\"white\"}\n\n"}
+{"t":8192,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" stroke-width=\\\\\\\"2\\\\\\\" fill\"}\n\n"}
+{"t":8301,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"none\\\\\\\"\"}\n\n"}
+{"t":8301,"chunk":"event: gen\ndata: {\"delta\":\" stroke\"}\n\nevent: gen\ndata: {\"delta\":\"-linecap=\\\\\\\"round\\\\\\\"\"}\n\nevent: gen\ndata: {\"delta\":\" stroke-linejoin=\\\\\\\"round\\\\\"}\n\n"}
+{"t":8304,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/>\\\\n        \"}\n\n"}
+{"t":8329,"chunk":"event: gen\ndata: {\"delta\":\"</svg>\\\\n      </div>\\\\\"}\n\n"}
+{"t":8359,"chunk":"event: gen\ndata: {\"delta\":\"n    </div>\\\\n  \"}\n\n"}
+{"t":8397,"chunk":"event: gen\ndata: {\"delta\":\"</section>\\\\n\\\\n  <section\"}\n\n"}
+{"t":8408,"chunk":"event: gen\ndata: {\"delta\":\" i\"}\n\n"}
+{"t":8482,"chunk":"event: gen\ndata: {\"delta\":\"d=\\\\\\\"features\\\\\\\" class=\\\\\\\"features\\\\\\\">\\\\\"}\n\n"}
+{"t":8482,"chunk":"event: gen\ndata: {\"delta\":\"n    <div class=\\\\\\\"container\\\\\\\"\"}\n\n"}
+{"t":8485,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n      <h2>Why\"}\n\n"}
+{"t":8498,"chunk":"event: gen\ndata: {\"delta\":\" Teams\"}\n\n"}
+{"t":8523,"chunk":"event: gen\ndata: {\"delta\":\" Choose\"}\n\n"}
+{"t":8543,"chunk":"event: gen\ndata: {\"delta\":\" Atlas</h2>\\\\n      \"}\n\n"}
+{"t":8566,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"features-grid\\\\\\\">\\\\\"}\n\n"}
+{"t":8588,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"feature-\"}\n\n"}
+{"t":8609,"chunk":"event: gen\ndata: {\"delta\":\"card\\\\\\\">\\\\n          <div class\"}\n\n"}
+{"t":8631,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"feature-icon\\\\\\\"\"}\n\n"}
+{"t":8653,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            <svg viewBox=\\\\\\\"\"}\n\n"}
+{"t":8681,"chunk":"event: gen\ndata: {\"delta\":\"0 0 64\"}\n\n"}
+{"t":8696,"chunk":"event: gen\ndata: {\"delta\":\" 64\\\\\\\" xmlns=\\\\\\\"http://www\"}\n\n"}
+{"t":8718,"chunk":"event: gen\ndata: {\"delta\":\".w3.org/2000\"}\n\n"}
+{"t":8825,"chunk":"event: gen\ndata: {\"delta\":\"/svg\\\\\\\">\\\\n              <circle\"}\n\n"}
+{"t":8825,"chunk":"event: gen\ndata: {\"delta\":\" cx=\\\\\\\"32\\\\\\\" cy=\\\\\\\"32\\\\\\\"\"}\n\nevent: gen\ndata: {\"delta\":\" r=\\\\\\\"28\"}\n\n"}
+{"t":8825,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"#e\"}\n\n"}
+{"t":8859,"chunk":"event: gen\ndata: {\"delta\":\"0\"}\n\n"}
+{"t":8860,"chunk":"event: gen\ndata: {\"delta\":\"e7\"}\n\n"}
+{"t":8881,"chunk":"event: gen\ndata: {\"delta\":\"ff\\\\\"}\n\n"}
+{"t":8902,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/>\\\\n              <path d=\\\\\\\"\"}\n\n"}
+{"t":8924,"chunk":"event: gen\ndata: {\"delta\":\"M \"}\n\n"}
+{"t":8945,"chunk":"event: gen\ndata: {\"delta\":\"20\"}\n\n"}
+{"t":8970,"chunk":"event: gen\ndata: {\"delta\":\" 32 L\"}\n\n"}
+{"t":8989,"chunk":"event: gen\ndata: {\"delta\":\" 28\"}\n\n"}
+{"t":9014,"chunk":"event: gen\ndata: {\"delta\":\" 40\"}\n\n"}
+{"t":9034,"chunk":"event: gen\ndata: {\"delta\":\" L 44\"}\n\n"}
+{"t":9056,"chunk":"event: gen\ndata: {\"delta\":\" 24\"}\n\n"}
+{"t":9077,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"\"}\n\n"}
+{"t":9100,"chunk":"event: gen\ndata: {\"delta\":\" stroke=\\\\\\\"#6366f1\\\\\\\"\"}\n\n"}
+{"t":9122,"chunk":"event: gen\ndata: {\"delta\":\" stroke-width=\\\\\\\"3\"}\n\n"}
+{"t":9145,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"none\\\\\\\"\"}\n\n"}
+{"t":9164,"chunk":"event: gen\ndata: {\"delta\":\" stroke-linecap=\\\\\\\"round\\\\\\\"\"}\n\n"}
+{"t":9200,"chunk":"event: gen\ndata: {\"delta\":\" stroke-linejoin=\\\\\\\"round\\\\\"}\n\n"}
+{"t":9209,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/>\\\\n            \"}\n\n"}
+{"t":9349,"chunk":"event: gen\ndata: {\"delta\":\"</svg>\\\\n          </div>\\\\\"}\n\n"}
+{"t":9349,"chunk":"event: gen\ndata: {\"delta\":\"n          <h3>Template\"}\n\nevent: gen\ndata: {\"delta\":\" Library\"}\n\n"}
+{"t":9349,"chunk":"event: gen\ndata: {\"delta\":\"</h3>\\\\n          <p\"}\n\n"}
+{"t":9349,"chunk":"event: gen\ndata: {\"delta\":\">Pre-built templates for contracts\"}\n\n"}
+{"t":9349,"chunk":"event: gen\ndata: {\"delta\":\", invoices, reports\"}\n\n"}
+{"t":9372,"chunk":"event: gen\ndata: {\"delta\":\", and more.\"}\n\n"}
+{"t":9409,"chunk":"event: gen\ndata: {\"delta\":\" Customize in\"}\n\n"}
+{"t":9419,"chunk":"event: gen\ndata: {\"delta\":\" seconds\"}\n\n"}
+{"t":9461,"chunk":"event: gen\ndata: {\"delta\":\".</p>\\\\n        </div>\\\\\"}\n\n"}
+{"t":9461,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"feature-\"}\n\n"}
+{"t":9480,"chunk":"event: gen\ndata: {\"delta\":\"card\\\\\\\">\\\\n          <div class\"}\n\n"}
+{"t":9518,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"feature-icon\\\\\\\">\\\\n            \"}\n\n"}
+{"t":9524,"chunk":"event: gen\ndata: {\"delta\":\"<svg viewBox=\\\\\\\"0 0\"}\n\n"}
+{"t":9546,"chunk":"event: gen\ndata: {\"delta\":\" 64 64\\\\\\\" xmlns=\\\\\\\"http\"}\n\n"}
+{"t":9566,"chunk":"event: gen\ndata: {\"delta\":\"://www.w3.org/\"}\n\n"}
+{"t":9589,"chunk":"event: gen\ndata: {\"delta\":\"2000/svg\\\\\\\">\\\\n              \"}\n\n"}
+{"t":9612,"chunk":"event: gen\ndata: {\"delta\":\"<circle cx=\\\\\\\"32\\\\\\\" cy=\\\\\\\"\"}\n\n"}
+{"t":9632,"chunk":"event: gen\ndata: {\"delta\":\"32\\\\\\\" r=\\\\\\\"28\\\\\\\" fill=\\\\\\\"\"}\n\n"}
+{"t":9654,"chunk":"event: gen\ndata: {\"delta\":\"#e0e7ff\\\\\\\"/\"}\n\n"}
+{"t":9676,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n              <rect\"}\n\n"}
+{"t":9698,"chunk":"event: gen\ndata: {\"delta\":\" x=\\\\\\\"18\"}\n\n"}
+{"t":9875,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" y=\\\\\\\"20\"}\n\n"}
+{"t":9875,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" width=\\\\\\\"28\"}\n\n"}
+{"t":9876,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" height=\\\\\\\"24\"}\n\nevent: gen\ndata: {\"delta\":\"\\\\\\\" rx=\\\\\\\"2\\\\\\\" fill=\\\\\\\"none\"}\n\n"}
+{"t":9876,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" stroke=\\\\\\\"#6366f1\"}\n\nevent: gen\ndata: {\"delta\":\"\\\\\\\" stroke-width=\\\\\\\"2\\\\\\\"/\"}\n\n"}
+{"t":9876,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n              <path d=\\\\\\\"M\"}\n\n"}
+{"t":9876,"chunk":"event: gen\ndata: {\"delta\":\" 22\"}\n\n"}
+{"t":9896,"chunk":"event: gen\ndata: {\"delta\":\" 28\"}\n\n"}
+{"t":9923,"chunk":"event: gen\ndata: {\"delta\":\" L 32\"}\n\n"}
+{"t":9943,"chunk":"event: gen\ndata: {\"delta\":\" 36\"}\n\n"}
+{"t":9963,"chunk":"event: gen\ndata: {\"delta\":\" L 42\"}\n\n"}
+{"t":9986,"chunk":"event: gen\ndata: {\"delta\":\" 28\\\\\\\" stroke=\\\\\\\"#6366\"}\n\n"}
+{"t":10008,"chunk":"event: gen\ndata: {\"delta\":\"f1\\\\\\\" stroke-width=\\\\\\\"2\"}\n\n"}
+{"t":10030,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" fill=\\\\\\\"none\\\\\\\" stroke-lin\"}\n\n"}
+{"t":10057,"chunk":"event: gen\ndata: {\"delta\":\"ecap=\\\\\\\"round\\\\\"}\n\n"}
+{"t":10075,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/>\\\\n            </svg>\\\\n\"}\n\n"}
+{"t":10099,"chunk":"event: gen\ndata: {\"delta\":\"          </div>\\\\n          <h\"}\n\n"}
+{"t":10120,"chunk":"event: gen\ndata: {\"delta\":\"3>Smart\"}\n\n"}
+{"t":10142,"chunk":"event: gen\ndata: {\"delta\":\" Data\"}\n\n"}
+{"t":10165,"chunk":"event: gen\ndata: {\"delta\":\" Mapping\"}\n\n"}
+{"t":10187,"chunk":"event: gen\ndata: {\"delta\":\"</h3>\\\\n          <p\"}\n\n"}
+{"t":10210,"chunk":"event: gen\ndata: {\"delta\":\">Connect\"}\n\n"}
+{"t":10398,"chunk":"event: gen\ndata: {\"delta\":\" your data sources.\"}\n\nevent: gen\ndata: {\"delta\":\" Atlas\"}\n\n"}
+{"t":10398,"chunk":"event: gen\ndata: {\"delta\":\" intellig\"}\n\nevent: gen\ndata: {\"delta\":\"ently pop\"}\n\n"}
+{"t":10398,"chunk":"event: gen\ndata: {\"delta\":\"ulates documents\"}\n\nevent: gen\ndata: {\"delta\":\" with\"}\n\n"}
+{"t":10398,"chunk":"event: gen\ndata: {\"delta\":\" live\"}\n\n"}
+{"t":10398,"chunk":"event: gen\ndata: {\"delta\":\" information\"}\n\n"}
+{"t":10407,"chunk":"event: gen\ndata: {\"delta\":\".</p>\\\\n        </div>\\\\\"}\n\n"}
+{"t":10429,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"feature-\"}\n\n"}
+{"t":10456,"chunk":"event: gen\ndata: {\"delta\":\"card\\\\\\\">\\\\n          <div class\"}\n\n"}
+{"t":10476,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"feature-icon\\\\\\\">\\\\n            \"}\n\n"}
+{"t":10501,"chunk":"event: gen\ndata: {\"delta\":\"<svg viewBox=\\\\\\\"0 0\"}\n\n"}
+{"t":10525,"chunk":"event: gen\ndata: {\"delta\":\" 64 64\\\\\\\" xmlns=\\\\\\\"http\"}\n\n"}
+{"t":10549,"chunk":"event: gen\ndata: {\"delta\":\"://www.w3.org/\"}\n\n"}
+{"t":10571,"chunk":"event: gen\ndata: {\"delta\":\"2000/svg\\\\\\\">\\\\n              \"}\n\n"}
+{"t":10592,"chunk":"event: gen\ndata: {\"delta\":\"<circle cx=\\\\\\\"32\\\\\\\" cy=\\\\\\\"\"}\n\n"}
+{"t":10613,"chunk":"event: gen\ndata: {\"delta\":\"32\\\\\\\" r=\\\\\\\"28\\\\\\\" fill=\\\\\\\"\"}\n\n"}
+{"t":10638,"chunk":"event: gen\ndata: {\"delta\":\"#e0e7ff\\\\\\\"/\"}\n\n"}
+{"t":10656,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n              <g\"}\n\n"}
+{"t":10707,"chunk":"event: gen\ndata: {\"delta\":\" stroke\"}\n\n"}
+{"t":10710,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#6366f1\\\\\\\" stroke\"}\n\n"}
+{"t":10721,"chunk":"event: gen\ndata: {\"delta\":\"-width=\\\\\\\"2\\\\\\\"\"}\n\n"}
+{"t":10751,"chunk":"event: gen\ndata: {\"delta\":\" fill=\\\\\\\"none\\\\\\\"\"}\n\n"}
+{"t":10776,"chunk":"event: gen\ndata: {\"delta\":\" stroke-linecap=\\\\\\\"round\\\\\\\"\"}\n\n"}
+{"t":10796,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n                <path d=\\\\\\\"M\"}\n\n"}
+{"t":10818,"chunk":"event: gen\ndata: {\"delta\":\" 32\"}\n\n"}
+{"t":10922,"chunk":"event: gen\ndata: {\"delta\":\" 18\"}\n\n"}
+{"t":10922,"chunk":"event: gen\ndata: {\"delta\":\" L 32\"}\n\nevent: gen\ndata: {\"delta\":\" 46\"}\n\nevent: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":10929,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/>\\\\n                <path d=\\\\\\\"\"}\n\n"}
+{"t":10951,"chunk":"event: gen\ndata: {\"delta\":\"M 20\"}\n\n"}
+{"t":10973,"chunk":"event: gen\ndata: {\"delta\":\" 30\"}\n\n"}
+{"t":10993,"chunk":"event: gen\ndata: {\"delta\":\" L 44\"}\n\n"}
+{"t":11014,"chunk":"event: gen\ndata: {\"delta\":\" 30\\\\\\\"/>\\\\n                \"}\n\n"}
+{"t":11037,"chunk":"event: gen\ndata: {\"delta\":\"<circle\"}\n\n"}
+{"t":11060,"chunk":"event: gen\ndata: {\"delta\":\" cx=\\\\\\\"32\\\\\\\" cy=\\\\\\\"32\"}\n\n"}
+{"t":11083,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" r=\\\\\\\"12\"}\n\n"}
+{"t":11104,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":11127,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/>\\\\n              \"}\n\n"}
+{"t":11148,"chunk":"event: gen\ndata: {\"delta\":\"</g>\\\\n            </svg>\\\\\"}\n\n"}
+{"t":11183,"chunk":"event: gen\ndata: {\"delta\":\"n          </div>\\\\n          \"}\n\n"}
+{"t":11198,"chunk":"event: gen\ndata: {\"delta\":\"<h3>Batch\"}\n\n"}
+{"t":11213,"chunk":"event: gen\ndata: {\"delta\":\" Processing</h3>\\\\n          \"}\n\n"}
+{"t":11247,"chunk":"event: gen\ndata: {\"delta\":\"<p>Generate\"}\n\n"}
+{"t":11269,"chunk":"event: gen\ndata: {\"delta\":\" hundreds\"}\n\n"}
+{"t":11290,"chunk":"event: gen\ndata: {\"delta\":\" of documents simultaneously\"}\n\n"}
+{"t":11313,"chunk":"event: gen\ndata: {\"delta\":\". Process\"}\n\n"}
+{"t":11333,"chunk":"event: gen\ndata: {\"delta\":\" in\"}\n\n"}
+{"t":11446,"chunk":"event: gen\ndata: {\"delta\":\" minutes\"}\n\n"}
+{"t":11446,"chunk":"event: gen\ndata: {\"delta\":\", not days\"}\n\n"}
+{"t":11446,"chunk":"event: gen\ndata: {\"delta\":\".</p>\\\\n        </div>\\\\\"}\n\nevent: gen\ndata: {\"delta\":\"n        \"}\n\n"}
+{"t":11447,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"feature-card\\\\\\\"\"}\n\n"}
+{"t":11465,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n          <div class=\\\\\\\"feature\"}\n\n"}
+{"t":11490,"chunk":"event: gen\ndata: {\"delta\":\"-icon\\\\\\\">\\\\n            <svg\"}\n\n"}
+{"t":11514,"chunk":"event: gen\ndata: {\"delta\":\" viewBox=\\\\\\\"0 0 64\"}\n\n"}
+{"t":11531,"chunk":"event: gen\ndata: {\"delta\":\" 64\\\\\\\" xmlns=\\\\\\\"http://www\"}\n\n"}
+{"t":11551,"chunk":"event: gen\ndata: {\"delta\":\".w3.org/2000\"}\n\n"}
+{"t":11577,"chunk":"event: gen\ndata: {\"delta\":\"/svg\\\\\\\">\\\\n              <circle\"}\n\n"}
+{"t":11597,"chunk":"event: gen\ndata: {\"delta\":\" cx=\\\\\\\"32\\\\\\\" cy=\\\\\\\"32\\\\\\\"\"}\n\n"}
+{"t":11631,"chunk":"event: gen\ndata: {\"delta\":\" r=\\\\\\\"28\\\\\\\" fill=\\\\\\\"#e\"}\n\n"}
+{"t":11650,"chunk":"event: gen\ndata: {\"delta\":\"0e7ff\\\\\\\"/>\\\\n\"}\n\n"}
+{"t":11702,"chunk":"event: gen\ndata: {\"delta\":\"              <path d=\\\\\\\"M 28\"}\n\n"}
+{"t":11731,"chunk":"event: gen\ndata: {\"delta\":\" 26\"}\n\n"}
+{"t":11753,"chunk":"event: gen\ndata: {\"delta\":\" Q\"}\n\n"}
+{"t":11805,"chunk":"event: gen\ndata: {\"delta\":\" 32 22\"}\n\n"}
+{"t":11807,"chunk":"event: gen\ndata: {\"delta\":\" 36 26 \"}\n\n"}
+{"t":11820,"chunk":"event: gen\ndata: {\"delta\":\"Q 40 30 36\"}\n\n"}
+{"t":11852,"chunk":"event: gen\ndata: {\"delta\":\" 34\"}\n\n"}
+{"t":11870,"chunk":"event: gen\ndata: {\"delta\":\" Q 32 38 28\"}\n\n"}
+{"t":11969,"chunk":"event: gen\ndata: {\"delta\":\" 34 Q 24 30\"}\n\n"}
+{"t":11969,"chunk":"event: gen\ndata: {\"delta\":\" 28 26\\\\\\\" fill\"}\n\n"}
+{"t":11996,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#\"}\n\n"}
+{"t":12002,"chunk":"event: gen\ndata: {\"delta\":\"6366f1\\\\\\\" opacity=\\\\\\\"0\"}\n\n"}
+{"t":12012,"chunk":"event: gen\ndata: {\"delta\":\".3\"}\n\n"}
+{"t":12013,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"/>\\\\n              <path \"}\n\n"}
+{"t":12023,"chunk":"event: gen\ndata: {\"delta\":\"d=\\\\\\\"M 32\"}\n\n"}
+{"t":12045,"chunk":"event: gen\ndata: {\"delta\":\" 28\"}\n\n"}
+{"t":12070,"chunk":"event: gen\ndata: {\"delta\":\" L 32 36\"}\n\n"}
+{"t":12087,"chunk":"event: gen\ndata: {\"delta\":\" M\"}\n\n"}
+{"t":12111,"chunk":"event: gen\ndata: {\"delta\":\" 28\"}\n\n"}
+{"t":12137,"chunk":"event: gen\ndata: {\"delta\":\" 32\"}\n\n"}
+{"t":12154,"chunk":"event: gen\ndata: {\"delta\":\" L 36 32\\\\\\\" stroke\"}\n\n"}
+{"t":12175,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#6366f1\\\\\\\" stroke\"}\n\n"}
+{"t":12199,"chunk":"event: gen\ndata: {\"delta\":\"-width=\\\\\\\"2\\\\\\\" stroke\"}\n\n"}
+{"t":12220,"chunk":"event: gen\ndata: {\"delta\":\"-linecap=\\\\\\\"round\\\\\\\"/\"}\n\n"}
+{"t":12242,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            </svg>\\\\n          \"}\n\n"}
+{"t":12263,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n          <h3\"}\n\n"}
+{"t":12285,"chunk":"event: gen\ndata: {\"delta\":\">API\"}\n\n"}
+{"t":12306,"chunk":"event: gen\ndata: {\"delta\":\" &\"}\n\n"}
+{"t":12332,"chunk":"event: gen\ndata: {\"delta\":\" Integrations</h3>\\\\n\"}\n\n"}
+{"t":12353,"chunk":"event: gen\ndata: {\"delta\":\"          <p>\"}\n\n"}
+{"t":12385,"chunk":"event: gen\ndata: {\"delta\":\"Seamless\"}\n\n"}
+{"t":12494,"chunk":"event: gen\ndata: {\"delta\":\" integration with your existing tools. REST\"}\n\n"}
+{"t":12495,"chunk":"event: gen\ndata: {\"delta\":\" API for\"}\n\nevent: gen\ndata: {\"delta\":\" custom workflows.</p>\\\\n        \"}\n\n"}
+{"t":12495,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n      </div>\\\\n\"}\n\n"}
+{"t":12507,"chunk":"event: gen\ndata: {\"delta\":\"    </div>\\\\n  </section\"}\n\n"}
+{"t":12528,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n\\\\n  <section i\"}\n\n"}
+{"t":12552,"chunk":"event: gen\ndata: {\"delta\":\"d=\\\\\\\"how-it-works\\\\\\\" class\"}\n\n"}
+{"t":12574,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"how-it-works\\\\\\\">\\\\\"}\n\n"}
+{"t":12600,"chunk":"event: gen\ndata: {\"delta\":\"n    <div class=\\\\\\\"container\\\\\\\"\"}\n\n"}
+{"t":12620,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n      <h2>How\"}\n\n"}
+{"t":12643,"chunk":"event: gen\ndata: {\"delta\":\" Atlas\"}\n\n"}
+{"t":12664,"chunk":"event: gen\ndata: {\"delta\":\" Works</h2>\\\\n      \"}\n\n"}
+{"t":12686,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"steps\"}\n\n"}
+{"t":12712,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n        <div class=\\\\\\\"\"}\n\n"}
+{"t":12809,"chunk":"event: gen\ndata: {\"delta\":\"step\\\\\\\">\\\\n          <div\"}\n\n"}
+{"t":12811,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"step-number\\\\\\\">1\"}\n\n"}
+{"t":12820,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n          <h\"}\n\n"}
+{"t":12823,"chunk":"event: gen\ndata: {\"delta\":\"3>Uploa\"}\n\n"}
+{"t":12892,"chunk":"event: gen\ndata: {\"delta\":\"d or\"}\n\n"}
+{"t":12902,"chunk":"event: gen\ndata: {\"delta\":\" Create\"}\n\n"}
+{"t":12909,"chunk":"event: gen\ndata: {\"delta\":\"</h3>\\\\n          <p\"}\n\n"}
+{"t":12909,"chunk":"event: gen\ndata: {\"delta\":\">Start with\"}\n\n"}
+{"t":12911,"chunk":"event: gen\ndata: {\"delta\":\" a template or upload your own document design\"}\n\n"}
+{"t":13020,"chunk":"event: gen\ndata: {\"delta\":\".</p>\\\\n        </div>\\\\\"}\n\n"}
+{"t":13020,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"step-\"}\n\n"}
+{"t":13020,"chunk":"event: gen\ndata: {\"delta\":\"arrow\"}\n\n"}
+{"t":13021,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":13021,"chunk":"event: gen\ndata: {\"delta\":\"\\\">\"}\n\n"}
+{"t":13049,"chunk":"event: gen\ndata: {\"delta\":\"→</div>\\\\n        <div\"}\n\n"}
+{"t":13074,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"step\\\\\\\">\\\\n          \"}\n\n"}
+{"t":13093,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"step-number\\\\\\\">\"}\n\n"}
+{"t":13116,"chunk":"event: gen\ndata: {\"delta\":\"2</div>\\\\n          <h\"}\n\n"}
+{"t":13144,"chunk":"event: gen\ndata: {\"delta\":\"3>Define\"}\n\n"}
+{"t":13234,"chunk":"event: gen\ndata: {\"delta\":\" Variables\"}\n\n"}
+{"t":13238,"chunk":"event: gen\ndata: {\"delta\":\"</h3>\\\\n          <p\"}\n\n"}
+{"t":13243,"chunk":"event: gen\ndata: {\"delta\":\">Mark\"}\n\n"}
+{"t":13243,"chunk":"event: gen\ndata: {\"delta\":\" fields\"}\n\n"}
+{"t":13262,"chunk":"event: gen\ndata: {\"delta\":\" that should be auto\"}\n\n"}
+{"t":13292,"chunk":"event: gen\ndata: {\"delta\":\"-filled from\"}\n\n"}
+{"t":13304,"chunk":"event: gen\ndata: {\"delta\":\" your data.\"}\n\n"}
+{"t":13323,"chunk":"event: gen\ndata: {\"delta\":\"</p>\\\\n        </div>\\\\n\"}\n\n"}
+{"t":13345,"chunk":"event: gen\ndata: {\"delta\":\"        <div class=\\\\\\\"step-arrow\"}\n\n"}
+{"t":13368,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">→</div>\\\\n        \"}\n\n"}
+{"t":13390,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"step\\\\\\\">\\\\n\"}\n\n"}
+{"t":13412,"chunk":"event: gen\ndata: {\"delta\":\"          <div class=\\\\\\\"step-number\"}\n\n"}
+{"t":13434,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">3</div>\\\\n          \"}\n\n"}
+{"t":13544,"chunk":"event: gen\ndata: {\"delta\":\"<h3>Connect\"}\n\n"}
+{"t":13545,"chunk":"event: gen\ndata: {\"delta\":\" Data\"}\n\nevent: gen\ndata: {\"delta\":\"</h3>\\\\n          <p>\"}\n\n"}
+{"t":13545,"chunk":"event: gen\ndata: {\"delta\":\"Link\"}\n\n"}
+{"t":13545,"chunk":"event: gen\ndata: {\"delta\":\" to\"}\n\n"}
+{"t":13565,"chunk":"event: gen\ndata: {\"delta\":\" CSV\"}\n\n"}
+{"t":13587,"chunk":"event: gen\ndata: {\"delta\":\", database\"}\n\n"}
+{"t":13612,"chunk":"event: gen\ndata: {\"delta\":\", or API.\"}\n\n"}
+{"t":13629,"chunk":"event: gen\ndata: {\"delta\":\" Map\"}\n\n"}
+{"t":13651,"chunk":"event: gen\ndata: {\"delta\":\" fields\"}\n\n"}
+{"t":13674,"chunk":"event: gen\ndata: {\"delta\":\" automatically\"}\n\n"}
+{"t":13696,"chunk":"event: gen\ndata: {\"delta\":\".</p>\\\\n        </div>\\\\\"}\n\n"}
+{"t":13718,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"step-\"}\n\n"}
+{"t":13740,"chunk":"event: gen\ndata: {\"delta\":\"arrow\\\\\\\">→</div>\\\\n\"}\n\n"}
+{"t":13763,"chunk":"event: gen\ndata: {\"delta\":\"        <div class=\\\\\\\"step\\\\\\\">\\\\\"}\n\n"}
+{"t":13783,"chunk":"event: gen\ndata: {\"delta\":\"n          <div class=\\\\\\\"step-\"}\n\n"}
+{"t":13818,"chunk":"event: gen\ndata: {\"delta\":\"number\\\\\\\">4</div>\\\\n\"}\n\n"}
+{"t":13830,"chunk":"event: gen\ndata: {\"delta\":\"          <h3>Generate &\"}\n\n"}
+{"t":13874,"chunk":"event: gen\ndata: {\"delta\":\" Deliver</h3>\\\\n          \"}\n\n"}
+{"t":13876,"chunk":"event: gen\ndata: {\"delta\":\"<p>Create\"}\n\n"}
+{"t":13894,"chunk":"event: gen\ndata: {\"delta\":\" documents instantly\"}\n\n"}
+{"t":13922,"chunk":"event: gen\ndata: {\"delta\":\". Downloa\"}\n\n"}
+{"t":13944,"chunk":"event: gen\ndata: {\"delta\":\"d,\"}\n\n"}
+{"t":13967,"chunk":"event: gen\ndata: {\"delta\":\" email\"}\n\n"}
+{"t":14067,"chunk":"event: gen\ndata: {\"delta\":\", or archive\"}\n\n"}
+{"t":14067,"chunk":"event: gen\ndata: {\"delta\":\".</p>\\\\n        </div>\\\\\"}\n\nevent: gen\ndata: {\"delta\":\"n      </div>\\\\n    \"}\n\n"}
+{"t":14088,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n  </section>\\\\n\"}\n\n"}
+{"t":14158,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  <section id=\\\\\\\"pricing\"}\n\n"}
+{"t":14162,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" class=\\\\\\\"pricing\\\\\\\">\\\\n    \"}\n\n"}
+{"t":14163,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"container\\\\\\\">\\\\n\"}\n\n"}
+{"t":14163,"chunk":"event: gen\ndata: {\"delta\":\"      <h2>Simple\"}\n\n"}
+{"t":14167,"chunk":"event: gen\ndata: {\"delta\":\",\"}\n\n"}
+{"t":14187,"chunk":"event: gen\ndata: {\"delta\":\" Transparent\"}\n\n"}
+{"t":14208,"chunk":"event: gen\ndata: {\"delta\":\" Pricing</h2>\\\\n      \"}\n\n"}
+{"t":14230,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"pricing-grid\\\\\\\"\"}\n\n"}
+{"t":14252,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n        <div class=\\\\\\\"pricing\"}\n\n"}
+{"t":14275,"chunk":"event: gen\ndata: {\"delta\":\"-card\\\\\\\">\\\\n          <h\"}\n\n"}
+{"t":14300,"chunk":"event: gen\ndata: {\"delta\":\"3>\"}\n\n"}
+{"t":14321,"chunk":"event: gen\ndata: {\"delta\":\"Starter</h3>\\\\n          \"}\n\n"}
+{"t":14341,"chunk":"event: gen\ndata: {\"delta\":\"<div\"}\n\n"}
+{"t":14363,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"price\"}\n\n"}
+{"t":14384,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":14408,"chunk":"event: gen\ndata: {\"delta\":\"\\\">$29\"}\n\n"}
+{"t":14460,"chunk":"event: gen\ndata: {\"delta\":\"<span>/mo\"}\n\n"}
+{"t":14482,"chunk":"event: gen\ndata: {\"delta\":\"</span></div>\\\\n          \"}\n\n"}
+{"t":14592,"chunk":"event: gen\ndata: {\"delta\":\"<ul class\"}\n\n"}
+{"t":14593,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"pricing\"}\n\n"}
+{"t":14593,"chunk":"event: gen\ndata: {\"delta\":\"-features\\\\\\\">\\\\n            <li\"}\n\nevent: gen\ndata: {\"delta\":\">Up\"}\n\n"}
+{"t":14593,"chunk":"event: gen\ndata: {\"delta\":\" to 1\"}\n\n"}
+{"t":14612,"chunk":"event: gen\ndata: {\"delta\":\",000 documents/\"}\n\n"}
+{"t":14638,"chunk":"event: gen\ndata: {\"delta\":\"month</li>\\\\n            <li\"}\n\n"}
+{"t":14656,"chunk":"event: gen\ndata: {\"delta\":\">5\"}\n\n"}
+{"t":14682,"chunk":"event: gen\ndata: {\"delta\":\" templates</li>\\\\n            \"}\n\n"}
+{"t":14701,"chunk":"event: gen\ndata: {\"delta\":\"<li>Email\"}\n\n"}
+{"t":14723,"chunk":"event: gen\ndata: {\"delta\":\" support</li>\\\\n            <li\"}\n\n"}
+{"t":14745,"chunk":"event: gen\ndata: {\"delta\":\">Basic integ\"}\n\n"}
+{"t":14774,"chunk":"event: gen\ndata: {\"delta\":\"rations</li>\\\\n          </ul\"}\n\n"}
+{"t":14791,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n          \"}\n\n"}
+{"t":14813,"chunk":"event: gen\ndata: {\"delta\":\"<button class=\\\\\\\"pricing\"}\n\n"}
+{"t":14834,"chunk":"event: gen\ndata: {\"delta\":\"-button\"}\n\n"}
+{"t":14857,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Get\"}\n\n"}
+{"t":14878,"chunk":"event: gen\ndata: {\"delta\":\" Started</button>\\\\n        </div\"}\n\n"}
+{"t":14909,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n        <div class=\\\\\\\"pricing\"}\n\n"}
+{"t":14939,"chunk":"event: gen\ndata: {\"delta\":\"-card feature\"}\n\n"}
+{"t":14962,"chunk":"event: gen\ndata: {\"delta\":\"d\\\\\\\">\\\\n          <div\"}\n\n"}
+{"t":14981,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"badge\"}\n\n"}
+{"t":15005,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Most\"}\n\n"}
+{"t":15050,"chunk":": keep-alive\n\n"}
+{"t":15116,"chunk":"event: gen\ndata: {\"delta\":\" Popular</div>\\\\n          <h\"}\n\n"}
+{"t":15117,"chunk":"event: gen\ndata: {\"delta\":\"3>Professional\"}\n\n"}
+{"t":15117,"chunk":"event: gen\ndata: {\"delta\":\"</h3>\\\\n          <div\"}\n\n"}
+{"t":15117,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"price\\\\\\\">$99\"}\n\n"}
+{"t":15118,"chunk":"event: gen\ndata: {\"delta\":\"<span>/mo</span></div>\\\\\"}\n\n"}
+{"t":15141,"chunk":"event: gen\ndata: {\"delta\":\"n          <ul class=\\\\\\\"pricing-\"}\n\n"}
+{"t":15244,"chunk":"event: gen\ndata: {\"delta\":\"features\\\\\\\">\\\\n            <li>\"}\n\n"}
+{"t":15250,"chunk":"event: gen\ndata: {\"delta\":\"Up to 50\"}\n\n"}
+{"t":15254,"chunk":"event: gen\ndata: {\"delta\":\",000 documents/month</li\"}\n\n"}
+{"t":15258,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            <li>Unlimite\"}\n\n"}
+{"t":15259,"chunk":"event: gen\ndata: {\"delta\":\"d templates</li>\\\\n            <li\"}\n\n"}
+{"t":15274,"chunk":"event: gen\ndata: {\"delta\":\">Priority support</li>\\\\n            \"}\n\n"}
+{"t":15297,"chunk":"event: gen\ndata: {\"delta\":\"<li>Advanced integrations</li\"}\n\n"}
+{"t":15323,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            \"}\n\n"}
+{"t":15346,"chunk":"event: gen\ndata: {\"delta\":\"<li>Custom br\"}\n\n"}
+{"t":15365,"chunk":"event: gen\ndata: {\"delta\":\"anding</li>\\\\n          </ul\"}\n\n"}
+{"t":15386,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n          <button class=\\\\\\\"pricing\"}\n\n"}
+{"t":15414,"chunk":"event: gen\ndata: {\"delta\":\"-button primary\"}\n\n"}
+{"t":15430,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Start\"}\n\n"}
+{"t":15453,"chunk":"event: gen\ndata: {\"delta\":\" Free Trial</button>\\\\n        \"}\n\n"}
+{"t":15475,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n        <div class=\\\\\\\"\"}\n\n"}
+{"t":15498,"chunk":"event: gen\ndata: {\"delta\":\"pricing-card\\\\\\\">\\\\n          \"}\n\n"}
+{"t":15546,"chunk":"event: gen\ndata: {\"delta\":\"<h3>Enterprise</h3>\\\\\"}\n\n"}
+{"t":15550,"chunk":"event: gen\ndata: {\"delta\":\"n          <div class=\\\\\\\"price\\\\\"}\n\n"}
+{"t":15639,"chunk":"event: gen\ndata: {\"delta\":\"\\\">Custom\"}\n\n"}
+{"t":15639,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n          <ul class\"}\n\n"}
+{"t":15639,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"pricing-features\\\\\\\">\\\\n            \"}\n\n"}
+{"t":15648,"chunk":"event: gen\ndata: {\"delta\":\"<li>Unlimited documents</li\"}\n\n"}
+{"t":15669,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            <li>Dedicate\"}\n\n"}
+{"t":15694,"chunk":"event: gen\ndata: {\"delta\":\"d account\"}\n\n"}
+{"t":15713,"chunk":"event: gen\ndata: {\"delta\":\" manager</li>\\\\n            <li\"}\n\n"}
+{"t":15738,"chunk":"event: gen\ndata: {\"delta\":\">24\"}\n\n"}
+{"t":15757,"chunk":"event: gen\ndata: {\"delta\":\"/7 phone\"}\n\n"}
+{"t":15780,"chunk":"event: gen\ndata: {\"delta\":\" support</li>\\\\n            <li\"}\n\n"}
+{"t":15810,"chunk":"event: gen\ndata: {\"delta\":\">Custom integrations</li>\\\\n\"}\n\n"}
+{"t":15834,"chunk":"event: gen\ndata: {\"delta\":\"            <li>S\"}\n\n"}
+{"t":15855,"chunk":"event: gen\ndata: {\"delta\":\"LA guarantee</li>\\\\n          \"}\n\n"}
+{"t":15889,"chunk":"event: gen\ndata: {\"delta\":\"</ul>\\\\n          <button class=\\\\\\\"\"}\n\n"}
+{"t":15896,"chunk":"event: gen\ndata: {\"delta\":\"pricing-button\\\\\\\">Contact Sales\"}\n\n"}
+{"t":15919,"chunk":"event: gen\ndata: {\"delta\":\"</button>\\\\n        </div>\\\\n\"}\n\n"}
+{"t":15940,"chunk":"event: gen\ndata: {\"delta\":\"      </div>\\\\n    </div\"}\n\n"}
+{"t":15963,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n  </section>\\\\n\\\\\"}\n\n"}
+{"t":15983,"chunk":"event: gen\ndata: {\"delta\":\"n  <section id=\\\\\\\"contact\"}\n\n"}
+{"t":16006,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\" class=\\\\\\\"c\"}\n\n"}
+{"t":16028,"chunk":"event: gen\ndata: {\"delta\":\"ta-section\\\\\\\">\\\\n    \"}\n\n"}
+{"t":16165,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"container\\\\\\\">\\\\n      \"}\n\n"}
+{"t":16165,"chunk":"event: gen\ndata: {\"delta\":\"<h2>Ready to\"}\n\nevent: gen\ndata: {\"delta\":\" Automate Your Documents\"}\n\nevent: gen\ndata: {\"delta\":\"?</h2>\\\\n      \"}\n\n"}
+{"t":16165,"chunk":"event: gen\ndata: {\"delta\":\"<p>Join\"}\n\n"}
+{"t":16169,"chunk":"event: gen\ndata: {\"delta\":\" hundreds\"}\n\n"}
+{"t":16196,"chunk":"event: gen\ndata: {\"delta\":\" of companies\"}\n\n"}
+{"t":16328,"chunk":"event: gen\ndata: {\"delta\":\" saving\"}\n\n"}
+{"t":16329,"chunk":"event: gen\ndata: {\"delta\":\" time and reducing\"}\n\n"}
+{"t":16329,"chunk":"event: gen\ndata: {\"delta\":\" errors with\"}\n\n"}
+{"t":16334,"chunk":"event: gen\ndata: {\"delta\":\" Atlas.</p>\\\\n      <button\"}\n\n"}
+{"t":16351,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"cta-button c\"}\n\n"}
+{"t":16372,"chunk":"event: gen\ndata: {\"delta\":\"ta-primary\"}\n\n"}
+{"t":16394,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Start Your\"}\n\n"}
+{"t":16417,"chunk":"event: gen\ndata: {\"delta\":\" Free Trial</button>\\\\n    \"}\n\n"}
+{"t":16437,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n  </section>\\\\\"}\n\n"}
+{"t":16476,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n  <footer class\"}\n\n"}
+{"t":16481,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"footer\\\\\\\">\\\\n    <div\"}\n\n"}
+{"t":16505,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"container\\\\\\\">\\\\n      \"}\n\n"}
+{"t":16526,"chunk":"event: gen\ndata: {\"delta\":\"<div class=\\\\\\\"footer-content\\\\\\\">\\\\\"}\n\n"}
+{"t":16559,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"footer-\"}\n\n"}
+{"t":16576,"chunk":"event: gen\ndata: {\"delta\":\"section\\\\\\\">\\\\n          <h4\"}\n\n"}
+{"t":16690,"chunk":"event: gen\ndata: {\"delta\":\">Atlas\"}\n\n"}
+{"t":16690,"chunk":"event: gen\ndata: {\"delta\":\"</h4>\\\\n          <p\"}\n\nevent: gen\ndata: {\"delta\":\">Document\"}\n\n"}
+{"t":16690,"chunk":"event: gen\ndata: {\"delta\":\" automation\"}\n\n"}
+{"t":16693,"chunk":"event: gen\ndata: {\"delta\":\" for\"}\n\n"}
+{"t":16707,"chunk":"event: gen\ndata: {\"delta\":\" modern\"}\n\n"}
+{"t":16803,"chunk":"event: gen\ndata: {\"delta\":\" teams\"}\n\n"}
+{"t":16809,"chunk":"event: gen\ndata: {\"delta\":\".\"}\n\n"}
+{"t":16812,"chunk":"event: gen\ndata: {\"delta\":\"</p>\\\\n        </div>\\\\n\"}\n\n"}
+{"t":16814,"chunk":"event: gen\ndata: {\"delta\":\"        <div class=\\\\\\\"footer-section\"}\n\n"}
+{"t":16820,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n          <h4>\"}\n\n"}
+{"t":16842,"chunk":"event: gen\ndata: {\"delta\":\"Product\"}\n\n"}
+{"t":16863,"chunk":"event: gen\ndata: {\"delta\":\"</h4>\\\\n          <ul\"}\n\n"}
+{"t":16884,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            <li><a href\"}\n\n"}
+{"t":16907,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#\\\\\\\">Features\"}\n\n"}
+{"t":16930,"chunk":"event: gen\ndata: {\"delta\":\"</a></li>\\\\n            \"}\n\n"}
+{"t":16951,"chunk":"event: gen\ndata: {\"delta\":\"<li><a href=\\\\\\\"#\\\\\\\">\"}\n\n"}
+{"t":16975,"chunk":"event: gen\ndata: {\"delta\":\"Pricing</a></li>\\\\n\"}\n\n"}
+{"t":17007,"chunk":"event: gen\ndata: {\"delta\":\"            <li><a href=\\\\\\\"#\"}\n\n"}
+{"t":17054,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">Security\"}\n\n"}
+{"t":17055,"chunk":"event: gen\ndata: {\"delta\":\"</a></li>\\\\n          \"}\n\n"}
+{"t":17074,"chunk":"event: gen\ndata: {\"delta\":\"</ul>\\\\n        </div>\\\\\"}\n\n"}
+{"t":17093,"chunk":"event: gen\ndata: {\"delta\":\"n        <div class=\\\\\\\"footer-\"}\n\n"}
+{"t":17117,"chunk":"event: gen\ndata: {\"delta\":\"section\\\\\\\">\\\\n          <h4\"}\n\n"}
+{"t":17215,"chunk":"event: gen\ndata: {\"delta\":\">Company\"}\n\n"}
+{"t":17215,"chunk":"event: gen\ndata: {\"delta\":\"</h4>\\\\n          <ul\"}\n\nevent: gen\ndata: {\"delta\":\">\\\\n            <li><a href\"}\n\n"}
+{"t":17215,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#\\\\\\\">About</a>\"}\n\n"}
+{"t":17227,"chunk":"event: gen\ndata: {\"delta\":\"</li>\\\\n            <li>\"}\n\n"}
+{"t":17247,"chunk":"event: gen\ndata: {\"delta\":\"<a href=\\\\\\\"#\\\\\\\">Blog\"}\n\n"}
+{"t":17270,"chunk":"event: gen\ndata: {\"delta\":\"</a></li>\\\\n            \"}\n\n"}
+{"t":17292,"chunk":"event: gen\ndata: {\"delta\":\"<li><a href=\\\\\\\"#\\\\\\\">\"}\n\n"}
+{"t":17315,"chunk":"event: gen\ndata: {\"delta\":\"Careers</a></li>\\\\n\"}\n\n"}
+{"t":17344,"chunk":"event: gen\ndata: {\"delta\":\"          </ul>\\\\n        </div\"}\n\n"}
+{"t":17364,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n        <div class=\\\\\\\"footer\"}\n\n"}
+{"t":17391,"chunk":"event: gen\ndata: {\"delta\":\"-section\\\\\\\">\\\\n          <h\"}\n\n"}
+{"t":17408,"chunk":"event: gen\ndata: {\"delta\":\"4>Legal\"}\n\n"}
+{"t":17430,"chunk":"event: gen\ndata: {\"delta\":\"</h4>\\\\n          <ul\"}\n\n"}
+{"t":17454,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            <li><a href\"}\n\n"}
+{"t":17475,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"#\\\\\\\">Privacy</a>\"}\n\n"}
+{"t":17496,"chunk":"event: gen\ndata: {\"delta\":\"</li>\\\\n            <li>\"}\n\n"}
+{"t":17520,"chunk":"event: gen\ndata: {\"delta\":\"<a href=\\\\\\\"#\\\\\\\">Terms\"}\n\n"}
+{"t":17541,"chunk":"event: gen\ndata: {\"delta\":\"</a></li>\\\\n            <li>\"}\n\n"}
+{"t":17565,"chunk":"event: gen\ndata: {\"delta\":\"<a href=\\\\\\\"#\\\\\\\">Contact\"}\n\n"}
+{"t":17584,"chunk":"event: gen\ndata: {\"delta\":\"</a></li>\\\\n          \"}\n\n"}
+{"t":17606,"chunk":"event: gen\ndata: {\"delta\":\"</ul>\\\\n        </div>\\\\n\"}\n\n"}
+{"t":17739,"chunk":"event: gen\ndata: {\"delta\":\"      </div>\\\\n      <div\"}\n\n"}
+{"t":17740,"chunk":"event: gen\ndata: {\"delta\":\" class=\\\\\\\"footer-bottom\\\\\\\">\\\\n\"}\n\n"}
+{"t":17740,"chunk":"event: gen\ndata: {\"delta\":\"        <p>&copy; 2\"}\n\nevent: gen\ndata: {\"delta\":\"024 Atlas. All rights reserved.\"}\n\n"}
+{"t":17740,"chunk":"event: gen\ndata: {\"delta\":\"</p>\\\\n      </div>\\\\n\"}\n\n"}
+{"t":17744,"chunk":"event: gen\ndata: {\"delta\":\"    </div>\\\\n  </footer\"}\n\n"}
+{"t":17760,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n\\\\n  <script src\"}\n\n"}
+{"t":17782,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"main\"}\n\n"}
+{"t":17805,"chunk":"event: gen\ndata: {\"delta\":\".js\\\\\\\"></script>\\\\n\"}\n\n"}
+{"t":17827,"chunk":"event: gen\ndata: {\"delta\":\"</body>\\\\n</html>\"}\n\n"}
+{"t":17848,"chunk":"event: gen\ndata: {\"delta\":\"\\\",\"}\n\n"}
+{"t":17871,"chunk":"event: gen\ndata: {\"delta\":\"\\n    \\\"/\"}\n\n"}
+{"t":17893,"chunk":"event: gen\ndata: {\"delta\":\"styles\"}\n\n"}
+{"t":17914,"chunk":"event: gen\ndata: {\"delta\":\".css\\\": \\\"\"}\n\n"}
+{"t":17937,"chunk":"event: gen\ndata: {\"delta\":\"*\"}\n\n"}
+{"t":17958,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  margin: 0\"}\n\n"}
+{"t":17983,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  padding: 0;\\\\\"}\n\n"}
+{"t":18003,"chunk":"event: gen\ndata: {\"delta\":\"n  box-sizing: border-\"}\n\n"}
+{"t":18027,"chunk":"event: gen\ndata: {\"delta\":\"box;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":18052,"chunk":"event: gen\ndata: {\"delta\":\"html\"}\n\n"}
+{"t":18069,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  scroll\"}\n\n"}
+{"t":18101,"chunk":"event: gen\ndata: {\"delta\":\"-behavior: smooth;\\\\n}\\\\n\"}\n\n"}
+{"t":18113,"chunk":"event: gen\ndata: {\"delta\":\"\\\\nb\"}\n\n"}
+{"t":18135,"chunk":"event: gen\ndata: {\"delta\":\"ody {\\\\n  font-family\"}\n\n"}
+{"t":18156,"chunk":"event: gen\ndata: {\"delta\":\": -\"}\n\n"}
+{"t":18262,"chunk":"event: gen\ndata: {\"delta\":\"apple-system, BlinkMac\"}\n\n"}
+{"t":18262,"chunk":"event: gen\ndata: {\"delta\":\"SystemFont, 'Segoe\"}\n\nevent: gen\ndata: {\"delta\":\" UI', Roboto, \"}\n\nevent: gen\ndata: {\"delta\":\"'Helvetica Neue', Arial\"}\n\n"}
+{"t":18274,"chunk":"event: gen\ndata: {\"delta\":\", sans-serif;\\\\n  color\"}\n\n"}
+{"t":18303,"chunk":"event: gen\ndata: {\"delta\":\": #1\"}\n\n"}
+{"t":18324,"chunk":"event: gen\ndata: {\"delta\":\"f\"}\n\n"}
+{"t":18345,"chunk":"event: gen\ndata: {\"delta\":\"2937;\\\\n  backgroun\"}\n\n"}
+{"t":18366,"chunk":"event: gen\ndata: {\"delta\":\"d-color: #ffffff\"}\n\n"}
+{"t":18392,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  \"}\n\n"}
+{"t":18414,"chunk":"event: gen\ndata: {\"delta\":\"line-height: 1.6\"}\n\n"}
+{"t":18433,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.container\"}\n\n"}
+{"t":18464,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  max-width:\"}\n\n"}
+{"t":18477,"chunk":"event: gen\ndata: {\"delta\":\" 1200px;\\\\n  margin\"}\n\n"}
+{"t":18499,"chunk":"event: gen\ndata: {\"delta\":\": 0 auto;\\\\n  \"}\n\n"}
+{"t":18529,"chunk":"event: gen\ndata: {\"delta\":\"padding: 0 20px;\\\\\"}\n\n"}
+{"t":18551,"chunk":"event: gen\ndata: {\"delta\":\"n}\\\\n\\\\n/*\"}\n\n"}
+{"t":18573,"chunk":"event: gen\ndata: {\"delta\":\" Header */\\\\n.header {\\\\\"}\n\n"}
+{"t":18600,"chunk":"event: gen\ndata: {\"delta\":\"n  position\"}\n\n"}
+{"t":18618,"chunk":"event: gen\ndata: {\"delta\":\": sticky\"}\n\n"}
+{"t":18639,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  top: 0;\\\\\"}\n\n"}
+{"t":18660,"chunk":"event: gen\ndata: {\"delta\":\"n  background:\"}\n\n"}
+{"t":18682,"chunk":"event: gen\ndata: {\"delta\":\" white\"}\n\n"}
+{"t":18785,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  border\"}\n\n"}
+{"t":18786,"chunk":"event: gen\ndata: {\"delta\":\"-bottom: 1px solid #\"}\n\nevent: gen\ndata: {\"delta\":\"e5e7eb;\\\\n  \"}\n\nevent: gen\ndata: {\"delta\":\"z-index: 100;\\\\n\"}\n\n"}
+{"t":18792,"chunk":"event: gen\ndata: {\"delta\":\"  \"}\n\n"}
+{"t":18815,"chunk":"event: gen\ndata: {\"delta\":\"backdrop\"}\n\n"}
+{"t":18837,"chunk":"event: gen\ndata: {\"delta\":\"-filter: blur(10px)\"}\n\n"}
+{"t":18859,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  \"}\n\n"}
+{"t":18887,"chunk":"event: gen\ndata: {\"delta\":\"backgroun\"}\n\n"}
+{"t":18910,"chunk":"event: gen\ndata: {\"delta\":\"d-color\"}\n\n"}
+{"t":18931,"chunk":"event: gen\ndata: {\"delta\":\": rgba\"}\n\n"}
+{"t":18954,"chunk":"event: gen\ndata: {\"delta\":\"(255\"}\n\n"}
+{"t":18974,"chunk":"event: gen\ndata: {\"delta\":\", 255, 255, \"}\n\n"}
+{"t":18997,"chunk":"event: gen\ndata: {\"delta\":\"0.95);\\\\n}\\\\n\"}\n\n"}
+{"t":19020,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n.header-content {\\\\\"}\n\n"}
+{"t":19042,"chunk":"event: gen\ndata: {\"delta\":\"n  display: flex;\\\\n  \"}\n\n"}
+{"t":19064,"chunk":"event: gen\ndata: {\"delta\":\"align\"}\n\n"}
+{"t":19085,"chunk":"event: gen\ndata: {\"delta\":\"-items: center;\\\\n  justify\"}\n\n"}
+{"t":19109,"chunk":"event: gen\ndata: {\"delta\":\"-content: space-between;\\\\n\"}\n\n"}
+{"t":19145,"chunk":"event: gen\ndata: {\"delta\":\"  padding: 16\"}\n\n"}
+{"t":19159,"chunk":"event: gen\ndata: {\"delta\":\"px 0;\\\\n}\\\\\"}\n\n"}
+{"t":19191,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.logo {\\\\n\"}\n\n"}
+{"t":19310,"chunk":"event: gen\ndata: {\"delta\":\"  font-size: 24px\"}\n\n"}
+{"t":19310,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  font-weight: \"}\n\nevent: gen\ndata: {\"delta\":\"700;\\\\n  backgroun\"}\n\n"}
+{"t":19311,"chunk":"event: gen\ndata: {\"delta\":\"d: linear-gradient(135deg,\"}\n\n"}
+{"t":19311,"chunk":"event: gen\ndata: {\"delta\":\" #6\"}\n\n"}
+{"t":19483,"chunk":"event: gen\ndata: {\"delta\":\"366\"}\n\nevent: gen\ndata: {\"delta\":\"f1, #8\"}\n\nevent: gen\ndata: {\"delta\":\"b5cf6);\\\\n  \"}\n\nevent: gen\ndata: {\"delta\":\"-webkit-background-clip: text\"}\n\n"}
+{"t":19483,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  -webkit-text-\"}\n\nevent: gen\ndata: {\"delta\":\"fill-color: transparent;\\\\n  \"}\n\nevent: gen\ndata: {\"delta\":\"background-clip: text;\\\\n}\\\\\"}\n\nevent: gen\ndata: {\"delta\":\"n\\\\n.nav \"}\n\n"}
+{"t":19496,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  display: flex;\\\\n\"}\n\n"}
+{"t":19519,"chunk":"event: gen\ndata: {\"delta\":\"  gap: 32\"}\n\n"}
+{"t":19540,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":19563,"chunk":"event: gen\ndata: {\"delta\":\"align\"}\n\n"}
+{"t":19587,"chunk":"event: gen\ndata: {\"delta\":\"-items: center;\\\\n}\\\\n\"}\n\n"}
+{"t":19607,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n.nav a\"}\n\n"}
+{"t":19634,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  text\"}\n\n"}
+{"t":19654,"chunk":"event: gen\ndata: {\"delta\":\"-decoration: none;\\\\n  color\"}\n\n"}
+{"t":19693,"chunk":"event: gen\ndata: {\"delta\":\": #6\"}\n\n"}
+{"t":19696,"chunk":"event: gen\ndata: {\"delta\":\"b\"}\n\n"}
+{"t":19718,"chunk":"event: gen\ndata: {\"delta\":\"7280;\\\\n  font-size\"}\n\n"}
+{"t":19739,"chunk":"event: gen\ndata: {\"delta\":\": 14\"}\n\n"}
+{"t":19833,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font\"}\n\n"}
+{"t":19833,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 500;\\\\n  \"}\n\nevent: gen\ndata: {\"delta\":\"transition: color 0.3s\"}\n\n"}
+{"t":19839,"chunk":"event: gen\ndata: {\"delta\":\" ease;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":19867,"chunk":"event: gen\ndata: {\"delta\":\"nav a:hover {\\\\n  \"}\n\n"}
+{"t":19898,"chunk":"event: gen\ndata: {\"delta\":\"color: #6\"}\n\n"}
+{"t":19911,"chunk":"event: gen\ndata: {\"delta\":\"366\"}\n\n"}
+{"t":19934,"chunk":"event: gen\ndata: {\"delta\":\"f1;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":19962,"chunk":"event: gen\ndata: {\"delta\":\".\"}\n\n"}
+{"t":19984,"chunk":"event: gen\ndata: {\"delta\":\"c\"}\n\n"}
+{"t":20007,"chunk":"event: gen\ndata: {\"delta\":\"ta-button {\\\\n  padding\"}\n\n"}
+{"t":20029,"chunk":"event: gen\ndata: {\"delta\":\": 10\"}\n\n"}
+{"t":20050,"chunk":"event: gen\ndata: {\"delta\":\"px 20px;\\\\n  border\"}\n\n"}
+{"t":20071,"chunk":"event: gen\ndata: {\"delta\":\": \"}\n\n"}
+{"t":20096,"chunk":"event: gen\ndata: {\"delta\":\"1\"}\n\n"}
+{"t":20115,"chunk":"event: gen\ndata: {\"delta\":\"px solid #e5e7eb\"}\n\n"}
+{"t":20141,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  backgroun\"}\n\n"}
+{"t":20160,"chunk":"event: gen\ndata: {\"delta\":\"d: white\"}\n\n"}
+{"t":20181,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  color: #1f\"}\n\n"}
+{"t":20209,"chunk":"event: gen\ndata: {\"delta\":\"2937;\\\\n  border-radius\"}\n\n"}
+{"t":20359,"chunk":"event: gen\ndata: {\"delta\":\": 6px;\\\\n  font\"}\n\n"}
+{"t":20359,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14px;\\\\n\"}\n\n"}
+{"t":20359,"chunk":"event: gen\ndata: {\"delta\":\"  font-weight: 600\"}\n\n"}
+{"t":20359,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  cursor: pointer;\\\\n\"}\n\n"}
+{"t":20359,"chunk":"event: gen\ndata: {\"delta\":\"  transition: all 0.3\"}\n\n"}
+{"t":20417,"chunk":"event: gen\ndata: {\"delta\":\"s ease;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":20426,"chunk":"event: gen\ndata: {\"delta\":\".cta-button:hover \"}\n\n"}
+{"t":20432,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  border\"}\n\n"}
+{"t":20441,"chunk":"event: gen\ndata: {\"delta\":\"-color: #6366f1\"}\n\n"}
+{"t":20443,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  color\"}\n\n"}
+{"t":20446,"chunk":"event: gen\ndata: {\"delta\":\": #6366f1;\\\\n\"}\n\n"}
+{"t":20474,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n.cta-\"}\n\n"}
+{"t":20496,"chunk":"event: gen\ndata: {\"delta\":\"button.c\"}\n\n"}
+{"t":20521,"chunk":"event: gen\ndata: {\"delta\":\"ta-primary {\\\\n  backgroun\"}\n\n"}
+{"t":20541,"chunk":"event: gen\ndata: {\"delta\":\"d: linear-gradient(135deg,\"}\n\n"}
+{"t":20564,"chunk":"event: gen\ndata: {\"delta\":\" #6366f1, #8\"}\n\n"}
+{"t":20587,"chunk":"event: gen\ndata: {\"delta\":\"b5cf6);\\\\n  \"}\n\n"}
+{"t":20612,"chunk":"event: gen\ndata: {\"delta\":\"color\"}\n\n"}
+{"t":20671,"chunk":"event: gen\ndata: {\"delta\":\": white;\\\\n  \"}\n\n"}
+{"t":20671,"chunk":"event: gen\ndata: {\"delta\":\"border:\"}\n\n"}
+{"t":20675,"chunk":"event: gen\ndata: {\"delta\":\" none;\\\\n}\\\\\"}\n\n"}
+{"t":20699,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.cta-button\"}\n\n"}
+{"t":20724,"chunk":"event: gen\ndata: {\"delta\":\".cta-primary:hover \"}\n\n"}
+{"t":20747,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  transform\"}\n\n"}
+{"t":20767,"chunk":"event: gen\ndata: {\"delta\":\": translateY(-2px);\\\\\"}\n\n"}
+{"t":20788,"chunk":"event: gen\ndata: {\"delta\":\"n  box-shadow: 0\"}\n\n"}
+{"t":20883,"chunk":"event: gen\ndata: {\"delta\":\" 10px 25\"}\n\n"}
+{"t":20883,"chunk":"event: gen\ndata: {\"delta\":\"px rgba(99\"}\n\n"}
+{"t":20896,"chunk":"event: gen\ndata: {\"delta\":\", 102, 241, \"}\n\n"}
+{"t":20916,"chunk":"event: gen\ndata: {\"delta\":\"0.3);\\\\n}\\\\n\"}\n\n"}
+{"t":20935,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n/*\"}\n\n"}
+{"t":20957,"chunk":"event: gen\ndata: {\"delta\":\" Hero Section */\\\\n.hero \"}\n\n"}
+{"t":20980,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  padding\"}\n\n"}
+{"t":21001,"chunk":"event: gen\ndata: {\"delta\":\": 80px 0;\\\\\"}\n\n"}
+{"t":21022,"chunk":"event: gen\ndata: {\"delta\":\"n  backgroun\"}\n\n"}
+{"t":21046,"chunk":"event: gen\ndata: {\"delta\":\"d: linear-gradient(135deg,\"}\n\n"}
+{"t":21070,"chunk":"event: gen\ndata: {\"delta\":\" #f8fafc \"}\n\n"}
+{"t":21091,"chunk":"event: gen\ndata: {\"delta\":\"0%, #f\"}\n\n"}
+{"t":21114,"chunk":"event: gen\ndata: {\"delta\":\"1f5f9 100%)\"}\n\n"}
+{"t":21145,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\\"}\n\n"}
+{"t":21178,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.hero .\"}\n\n"}
+{"t":21189,"chunk":"event: gen\ndata: {\"delta\":\"container\"}\n\n"}
+{"t":21212,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  display\"}\n\n"}
+{"t":21232,"chunk":"event: gen\ndata: {\"delta\":\": grid;\\\\n  grid-template\"}\n\n"}
+{"t":21255,"chunk":"event: gen\ndata: {\"delta\":\"-columns: 1fr 1\"}\n\n"}
+{"t":21274,"chunk":"event: gen\ndata: {\"delta\":\"fr;\\\\n  gap: 60\"}\n\n"}
+{"t":21298,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  align-items:\"}\n\n"}
+{"t":21318,"chunk":"event: gen\ndata: {\"delta\":\" center;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":21408,"chunk":"event: gen\ndata: {\"delta\":\"hero-content h\"}\n\n"}
+{"t":21408,"chunk":"event: gen\ndata: {\"delta\":\"1 {\\\\n  font-\"}\n\nevent: gen\ndata: {\"delta\":\"size: 48px;\\\\n  \"}\n\n"}
+{"t":21410,"chunk":"event: gen\ndata: {\"delta\":\"font\"}\n\n"}
+{"t":21430,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 700;\\\\n  \"}\n\n"}
+{"t":21535,"chunk":"event: gen\ndata: {\"delta\":\"line\"}\n\n"}
+{"t":21542,"chunk":"event: gen\ndata: {\"delta\":\"-height: 1.2\"}\n\n"}
+{"t":21544,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  margin-bottom: \"}\n\n"}
+{"t":21555,"chunk":"event: gen\ndata: {\"delta\":\"20\"}\n\n"}
+{"t":21558,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #0\"}\n\n"}
+{"t":21565,"chunk":"event: gen\ndata: {\"delta\":\"f172\"}\n\n"}
+{"t":21585,"chunk":"event: gen\ndata: {\"delta\":\"a;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":21633,"chunk":"event: gen\ndata: {\"delta\":\"hero-content .\"}\n\n"}
+{"t":21638,"chunk":"event: gen\ndata: {\"delta\":\"sub\"}\n\n"}
+{"t":21646,"chunk":"event: gen\ndata: {\"delta\":\"line\"}\n\n"}
+{"t":21672,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  font-size:\"}\n\n"}
+{"t":21690,"chunk":"event: gen\ndata: {\"delta\":\" 18\"}\n\n"}
+{"t":21713,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #6\"}\n\n"}
+{"t":21735,"chunk":"event: gen\ndata: {\"delta\":\"b7280;\\\\n  margin-\"}\n\n"}
+{"t":21944,"chunk":"event: gen\ndata: {\"delta\":\"bottom: 32\"}\n\n"}
+{"t":21944,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":21944,"chunk":"event: gen\ndata: {\"delta\":\"line-height: 1.6\"}\n\n"}
+{"t":21945,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.hero\"}\n\n"}
+{"t":21945,"chunk":"event: gen\ndata: {\"delta\":\"-visual\"}\n\n"}
+{"t":21945,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  display\"}\n\n"}
+{"t":21945,"chunk":"event: gen\ndata: {\"delta\":\": flex;\\\\n  justify\"}\n\n"}
+{"t":21945,"chunk":"event: gen\ndata: {\"delta\":\"-content: center;\\\\n  align\"}\n\n"}
+{"t":21946,"chunk":"event: gen\ndata: {\"delta\":\"-items: center;\\\\n}\\\\\"}\n\n"}
+{"t":21962,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.hero-visual svg\"}\n\n"}
+{"t":21989,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  width: 100\"}\n\n"}
+{"t":22004,"chunk":"event: gen\ndata: {\"delta\":\"%\"}\n\n"}
+{"t":22028,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  max\"}\n\n"}
+{"t":22051,"chunk":"event: gen\ndata: {\"delta\":\"-width: 400\"}\n\n"}
+{"t":22072,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":22092,"chunk":"event: gen\ndata: {\"delta\":\"height: auto;\\\\n  \"}\n\n"}
+{"t":22115,"chunk":"event: gen\ndata: {\"delta\":\"animation\"}\n\n"}
+{"t":22137,"chunk":"event: gen\ndata: {\"delta\":\": float 3s ease-in\"}\n\n"}
+{"t":22158,"chunk":"event: gen\ndata: {\"delta\":\"-out infinite;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":22181,"chunk":"event: gen\ndata: {\"delta\":\"n@keyframes float {\\\\n\"}\n\n"}
+{"t":22205,"chunk":"event: gen\ndata: {\"delta\":\"  0%, 100% {\"}\n\n"}
+{"t":22226,"chunk":"event: gen\ndata: {\"delta\":\" transform: translateY(0px\"}\n\n"}
+{"t":22250,"chunk":"event: gen\ndata: {\"delta\":\"); }\\\\n  50% {\"}\n\n"}
+{"t":22269,"chunk":"event: gen\ndata: {\"delta\":\" transform: translateY(-20px);\"}\n\n"}
+{"t":22359,"chunk":"event: gen\ndata: {\"delta\":\" }\\\\n}\\\\n\\\\n/*\"}\n\n"}
+{"t":22360,"chunk":"event: gen\ndata: {\"delta\":\" Features Section */\\\\n.features \"}\n\n"}
+{"t":22363,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  padding: 80px\"}\n\n"}
+{"t":22454,"chunk":"event: gen\ndata: {\"delta\":\" 0;\\\\n  background: white\"}\n\n"}
+{"t":22454,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.features\"}\n\n"}
+{"t":22458,"chunk":"event: gen\ndata: {\"delta\":\" h\"}\n\n"}
+{"t":22458,"chunk":"event: gen\ndata: {\"delta\":\"2 {\\\\n  font-\"}\n\n"}
+{"t":22463,"chunk":"event: gen\ndata: {\"delta\":\"size: 36px;\\\\n  \"}\n\n"}
+{"t":22515,"chunk":"event: gen\ndata: {\"delta\":\"font-weight: 700;\\\\n\"}\n\n"}
+{"t":22515,"chunk":"event: gen\ndata: {\"delta\":\"  text\"}\n\n"}
+{"t":22537,"chunk":"event: gen\ndata: {\"delta\":\"-align: center;\\\\n  margin\"}\n\n"}
+{"t":22552,"chunk":"event: gen\ndata: {\"delta\":\"-bottom: 60\"}\n\n"}
+{"t":22600,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #0\"}\n\n"}
+{"t":22605,"chunk":"event: gen\ndata: {\"delta\":\"f172a;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":22618,"chunk":"event: gen\ndata: {\"delta\":\"n.features-grid {\\\\n\"}\n\n"}
+{"t":22639,"chunk":"event: gen\ndata: {\"delta\":\"  display: grid;\\\\n  gri\"}\n\n"}
+{"t":22664,"chunk":"event: gen\ndata: {\"delta\":\"d-template-columns: repeat(auto\"}\n\n"}
+{"t":22684,"chunk":"event: gen\ndata: {\"delta\":\"-fit, minmax(280\"}\n\n"}
+{"t":22731,"chunk":"event: gen\ndata: {\"delta\":\"px, 1fr));\\\\n\"}\n\n"}
+{"t":22735,"chunk":"event: gen\ndata: {\"delta\":\"  gap: 32\"}\n\n"}
+{"t":22750,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":22771,"chunk":"event: gen\ndata: {\"delta\":\"feature-card {\\\\n  padding\"}\n\n"}
+{"t":22797,"chunk":"event: gen\ndata: {\"delta\":\": 32px;\\\\n  border\"}\n\n"}
+{"t":22814,"chunk":"event: gen\ndata: {\"delta\":\":\"}\n\n"}
+{"t":22839,"chunk":"event: gen\ndata: {\"delta\":\" 1px solid #e5e\"}\n\n"}
+{"t":22858,"chunk":"event: gen\ndata: {\"delta\":\"7eb;\\\\n  border-radius\"}\n\n"}
+{"t":22981,"chunk":"event: gen\ndata: {\"delta\":\": 12px;\\\\n  backgroun\"}\n\n"}
+{"t":22981,"chunk":"event: gen\ndata: {\"delta\":\"d: #\"}\n\n"}
+{"t":22981,"chunk":"event: gen\ndata: {\"delta\":\"f9fafb;\\\\n  \"}\n\n"}
+{"t":22981,"chunk":"event: gen\ndata: {\"delta\":\"transition\"}\n\n"}
+{"t":22986,"chunk":"event: gen\ndata: {\"delta\":\": all 0.3s ease\"}\n\n"}
+{"t":23006,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.feature\"}\n\n"}
+{"t":23032,"chunk":"event: gen\ndata: {\"delta\":\"-card:hover {\\\\n  \"}\n\n"}
+{"t":23054,"chunk":"event: gen\ndata: {\"delta\":\"border\"}\n\n"}
+{"t":23076,"chunk":"event: gen\ndata: {\"delta\":\"-color: #6366f1\"}\n\n"}
+{"t":23098,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  box-shadow: \"}\n\n"}
+{"t":23191,"chunk":"event: gen\ndata: {\"delta\":\"0 10px 30\"}\n\n"}
+{"t":23197,"chunk":"event: gen\ndata: {\"delta\":\"px rgba(99\"}\n\n"}
+{"t":23202,"chunk":"event: gen\ndata: {\"delta\":\", 102, 241, \"}\n\n"}
+{"t":23205,"chunk":"event: gen\ndata: {\"delta\":\"0.1);\\\\n  \"}\n\n"}
+{"t":23213,"chunk":"event: gen\ndata: {\"delta\":\"transform: translateY(-4\"}\n\n"}
+{"t":23238,"chunk":"event: gen\ndata: {\"delta\":\"px);\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":23258,"chunk":"event: gen\ndata: {\"delta\":\".feature-icon\"}\n\n"}
+{"t":23277,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  width\"}\n\n"}
+{"t":23300,"chunk":"event: gen\ndata: {\"delta\":\": 64\"}\n\n"}
+{"t":23322,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  height: 64\"}\n\n"}
+{"t":23343,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  margin\"}\n\n"}
+{"t":23370,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":23389,"chunk":"event: gen\ndata: {\"delta\":\"bottom: 20\"}\n\n"}
+{"t":23411,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":23505,"chunk":"event: gen\ndata: {\"delta\":\"display\"}\n\n"}
+{"t":23505,"chunk":"event: gen\ndata: {\"delta\":\": flex;\\\\n  align-items\"}\n\nevent: gen\ndata: {\"delta\":\": center;\\\\n  justify-content\"}\n\n"}
+{"t":23505,"chunk":"event: gen\ndata: {\"delta\":\": center;\\\\n}\\\\\"}\n\n"}
+{"t":23595,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.feature-icon svg\"}\n\n"}
+{"t":23595,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  width: 100\"}\n\n"}
+{"t":23595,"chunk":"event: gen\ndata: {\"delta\":\"%;\\\\n  height: 100\"}\n\n"}
+{"t":23596,"chunk":"event: gen\ndata: {\"delta\":\"%;\\\\n}\\\\\"}\n\n"}
+{"t":23608,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.\"}\n\n"}
+{"t":23629,"chunk":"event: gen\ndata: {\"delta\":\"feature-card h3 {\\\\\"}\n\n"}
+{"t":23651,"chunk":"event: gen\ndata: {\"delta\":\"n  font-size: 18\"}\n\n"}
+{"t":23674,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font-weight:\"}\n\n"}
+{"t":23695,"chunk":"event: gen\ndata: {\"delta\":\" 600;\\\\n  margin-bottom\"}\n\n"}
+{"t":23718,"chunk":"event: gen\ndata: {\"delta\":\": 12\"}\n\n"}
+{"t":23741,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #1\"}\n\n"}
+{"t":23772,"chunk":"event: gen\ndata: {\"delta\":\"f2937;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":23791,"chunk":"event: gen\ndata: {\"delta\":\"n.feature-card p {\\\\\"}\n\n"}
+{"t":23814,"chunk":"event: gen\ndata: {\"delta\":\"n  font\"}\n\n"}
+{"t":23835,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14px;\\\\n\"}\n\n"}
+{"t":23858,"chunk":"event: gen\ndata: {\"delta\":\"  color: #6b7280\"}\n\n"}
+{"t":23878,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  line\"}\n\n"}
+{"t":23900,"chunk":"event: gen\ndata: {\"delta\":\"-height: 1.6\"}\n\n"}
+{"t":23922,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n/* How\"}\n\n"}
+{"t":24029,"chunk":"event: gen\ndata: {\"delta\":\" It Works Section */\\\\n.how\"}\n\n"}
+{"t":24029,"chunk":"event: gen\ndata: {\"delta\":\"-it-works {\\\\n  \"}\n\n"}
+{"t":24029,"chunk":"event: gen\ndata: {\"delta\":\"padding: 80px 0;\\\\\"}\n\n"}
+{"t":24029,"chunk":"event: gen\ndata: {\"delta\":\"n  background: linear-gradient(\"}\n\n"}
+{"t":24031,"chunk":"event: gen\ndata: {\"delta\":\"135deg, #f8fafc\"}\n\n"}
+{"t":24053,"chunk":"event: gen\ndata: {\"delta\":\" 0%, #f1f5\"}\n\n"}
+{"t":24075,"chunk":"event: gen\ndata: {\"delta\":\"f9 100%);\\\\n}\\\\\"}\n\n"}
+{"t":24097,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.how-it-\"}\n\n"}
+{"t":24121,"chunk":"event: gen\ndata: {\"delta\":\"works h2 {\\\\n  \"}\n\n"}
+{"t":24140,"chunk":"event: gen\ndata: {\"delta\":\"font-size: 36px;\\\\\"}\n\n"}
+{"t":24162,"chunk":"event: gen\ndata: {\"delta\":\"n  font-weight: 700\"}\n\n"}
+{"t":24194,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  text-align: center\"}\n\n"}
+{"t":24220,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  margin-bottom: \"}\n\n"}
+{"t":24237,"chunk":"event: gen\ndata: {\"delta\":\"60px;\\\\n  color: #\"}\n\n"}
+{"t":24259,"chunk":"event: gen\ndata: {\"delta\":\"0f172a;\\\\n}\\\\n\"}\n\n"}
+{"t":24281,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n.steps\"}\n\n"}
+{"t":24306,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  display: flex\"}\n\n"}
+{"t":24396,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  justify\"}\n\n"}
+{"t":24400,"chunk":"event: gen\ndata: {\"delta\":\"-content: space-between\"}\n\n"}
+{"t":24403,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  align-items: center\"}\n\n"}
+{"t":24407,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  flex\"}\n\n"}
+{"t":24413,"chunk":"event: gen\ndata: {\"delta\":\"-wrap: wrap;\\\\n  gap\"}\n\n"}
+{"t":24437,"chunk":"event: gen\ndata: {\"delta\":\": 20\"}\n\n"}
+{"t":24457,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":24553,"chunk":"event: gen\ndata: {\"delta\":\"step {\\\\n  flex: \"}\n\n"}
+{"t":24554,"chunk":"event: gen\ndata: {\"delta\":\"1;\\\\n  min-width:\"}\n\nevent: gen\ndata: {\"delta\":\" 200\"}\n\n"}
+{"t":24554,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  text-align:\"}\n\n"}
+{"t":24567,"chunk":"event: gen\ndata: {\"delta\":\" center;\\\\n  \"}\n\n"}
+{"t":24588,"chunk":"event: gen\ndata: {\"delta\":\"padding: 24\"}\n\n"}
+{"t":24612,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  background: white;\\\\\"}\n\n"}
+{"t":24632,"chunk":"event: gen\ndata: {\"delta\":\"n  border-radius: 12\"}\n\n"}
+{"t":24655,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  border\"}\n\n"}
+{"t":24679,"chunk":"event: gen\ndata: {\"delta\":\": 1px solid #e5\"}\n\n"}
+{"t":24699,"chunk":"event: gen\ndata: {\"delta\":\"e7eb;\\\\n}\\\\\"}\n\n"}
+{"t":24722,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.step-number \"}\n\n"}
+{"t":24744,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  display\"}\n\n"}
+{"t":24763,"chunk":"event: gen\ndata: {\"delta\":\": inline\"}\n\n"}
+{"t":24792,"chunk":"event: gen\ndata: {\"delta\":\"-flex\"}\n\n"}
+{"t":24808,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  align-items: center\"}\n\n"}
+{"t":24831,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  justify-content: center\"}\n\n"}
+{"t":24873,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  width: 48\"}\n\n"}
+{"t":24875,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  height: 48\"}\n\n"}
+{"t":24897,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  background: linear\"}\n\n"}
+{"t":24919,"chunk":"event: gen\ndata: {\"delta\":\"-gradient(135deg, #6\"}\n\n"}
+{"t":24958,"chunk":"event: gen\ndata: {\"delta\":\"366f1, #8b5\"}\n\n"}
+{"t":24965,"chunk":"event: gen\ndata: {\"delta\":\"cf6);\\\\n  color:\"}\n\n"}
+{"t":24987,"chunk":"event: gen\ndata: {\"delta\":\" white;\\\\n  border-radius:\"}\n\n"}
+{"t":25075,"chunk":"event: gen\ndata: {\"delta\":\" 50%;\\\\n  font\"}\n\n"}
+{"t":25076,"chunk":"event: gen\ndata: {\"delta\":\"-size\"}\n\nevent: gen\ndata: {\"delta\":\": 20px;\\\\n  font\"}\n\n"}
+{"t":25084,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 700\"}\n\n"}
+{"t":25096,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  margin-bottom: \"}\n\n"}
+{"t":25122,"chunk":"event: gen\ndata: {\"delta\":\"16\"}\n\n"}
+{"t":25139,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\\"}\n\n"}
+{"t":25161,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.step h\"}\n\n"}
+{"t":25182,"chunk":"event: gen\ndata: {\"delta\":\"3 {\\\\n  font-\"}\n\n"}
+{"t":25204,"chunk":"event: gen\ndata: {\"delta\":\"size: 16\"}\n\n"}
+{"t":25226,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font\"}\n\n"}
+{"t":25254,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 600;\\\\n  \"}\n\n"}
+{"t":25271,"chunk":"event: gen\ndata: {\"delta\":\"margin-bottom: 8px;\\\\\"}\n\n"}
+{"t":25291,"chunk":"event: gen\ndata: {\"delta\":\"n  color: #1\"}\n\n"}
+{"t":25314,"chunk":"event: gen\ndata: {\"delta\":\"f2937;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":25335,"chunk":"event: gen\ndata: {\"delta\":\"n.step p {\\\\n  \"}\n\n"}
+{"t":25394,"chunk":"event: gen\ndata: {\"delta\":\"font-size: 14px;\\\\\"}\n\n"}
+{"t":25423,"chunk":"event: gen\ndata: {\"delta\":\"n  color: #6b7\"}\n\n"}
+{"t":25446,"chunk":"event: gen\ndata: {\"delta\":\"280;\\\\n}\\\\\"}\n\n"}
+{"t":25602,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.\"}\n\n"}
+{"t":25602,"chunk":"event: gen\ndata: {\"delta\":\"step-arrow\"}\n\n"}
+{"t":25602,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  font\"}\n\n"}
+{"t":25602,"chunk":"event: gen\ndata: {\"delta\":\"-size: 24px;\\\\n\"}\n\n"}
+{"t":25628,"chunk":"event: gen\ndata: {\"delta\":\"  color\"}\n\n"}
+{"t":25628,"chunk":"event: gen\ndata: {\"delta\":\": #\"}\n\n"}
+{"t":25628,"chunk":"event: gen\ndata: {\"delta\":\"d1d5db;\\\\n  font\"}\n\n"}
+{"t":25632,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 300\"}\n\n"}
+{"t":25650,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  display\"}\n\n"}
+{"t":25670,"chunk":"event: gen\ndata: {\"delta\":\": none\"}\n\n"}
+{"t":25693,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n@\"}\n\n"}
+{"t":25714,"chunk":"event: gen\ndata: {\"delta\":\"media (min\"}\n\n"}
+{"t":25737,"chunk":"event: gen\ndata: {\"delta\":\"-width: 768px) \"}\n\n"}
+{"t":25758,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  .step\"}\n\n"}
+{"t":25780,"chunk":"event: gen\ndata: {\"delta\":\"-arrow {\\\\n    display:\"}\n\n"}
+{"t":25823,"chunk":"event: gen\ndata: {\"delta\":\" block;\\\\n  }\\\\n}\\\\\"}\n\n"}
+{"t":25826,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n/*\"}\n\n"}
+{"t":25849,"chunk":"event: gen\ndata: {\"delta\":\" Pricing Section */\\\\n.pricing \"}\n\n"}
+{"t":25869,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  padding: 80px\"}\n\n"}
+{"t":25896,"chunk":"event: gen\ndata: {\"delta\":\" 0;\\\\n  background: white\"}\n\n"}
+{"t":25918,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.pricing\"}\n\n"}
+{"t":25942,"chunk":"event: gen\ndata: {\"delta\":\" h2 {\\\\n  font\"}\n\n"}
+{"t":25965,"chunk":"event: gen\ndata: {\"delta\":\"-size: 36px;\\\\n\"}\n\n"}
+{"t":25987,"chunk":"event: gen\ndata: {\"delta\":\"  font-weight: 700;\\\\\"}\n\n"}
+{"t":26009,"chunk":"event: gen\ndata: {\"delta\":\"n  text-align: center;\\\\\"}\n\n"}
+{"t":26032,"chunk":"event: gen\ndata: {\"delta\":\"n  margin-bottom: 60\"}\n\n"}
+{"t":26126,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #0\"}\n\n"}
+{"t":26126,"chunk":"event: gen\ndata: {\"delta\":\"f172a;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":26126,"chunk":"event: gen\ndata: {\"delta\":\"n.pricing-grid {\\\\n\"}\n\n"}
+{"t":26126,"chunk":"event: gen\ndata: {\"delta\":\"  display: grid;\\\\n  gri\"}\n\n"}
+{"t":26169,"chunk":"event: gen\ndata: {\"delta\":\"d-template-columns: repeat(auto\"}\n\n"}
+{"t":26169,"chunk":"event: gen\ndata: {\"delta\":\"-fit, minmax(300px\"}\n\n"}
+{"t":26192,"chunk":"event: gen\ndata: {\"delta\":\", 1fr));\\\\n  \"}\n\n"}
+{"t":26215,"chunk":"event: gen\ndata: {\"delta\":\"gap: 32px;\\\\n  \"}\n\n"}
+{"t":26249,"chunk":"event: gen\ndata: {\"delta\":\"max\"}\n\n"}
+{"t":26267,"chunk":"event: gen\ndata: {\"delta\":\"-width: 1000\"}\n\n"}
+{"t":26292,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  margin: 0\"}\n\n"}
+{"t":26311,"chunk":"event: gen\ndata: {\"delta\":\" auto;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":26334,"chunk":"event: gen\ndata: {\"delta\":\".pricing-card {\\\\n  \"}\n\n"}
+{"t":26356,"chunk":"event: gen\ndata: {\"delta\":\"padding: 40\"}\n\n"}
+{"t":26380,"chunk":"event: gen\ndata: {\"delta\":\"px \"}\n\n"}
+{"t":26399,"chunk":"event: gen\ndata: {\"delta\":\"32\"}\n\n"}
+{"t":26421,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  border: 1\"}\n\n"}
+{"t":26450,"chunk":"event: gen\ndata: {\"delta\":\"px solid #e5e7eb\"}\n\n"}
+{"t":26474,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  border-radius: \"}\n\n"}
+{"t":26495,"chunk":"event: gen\ndata: {\"delta\":\"12px;\\\\n  background: #\"}\n\n"}
+{"t":26532,"chunk":"event: gen\ndata: {\"delta\":\"f9fafb;\\\\n  \"}\n\n"}
+{"t":26548,"chunk":"event: gen\ndata: {\"delta\":\"position\"}\n\n"}
+{"t":26650,"chunk":"event: gen\ndata: {\"delta\":\": relative;\\\\n  transition: all\"}\n\n"}
+{"t":26650,"chunk":"event: gen\ndata: {\"delta\":\" 0.3s ease;\\\\n\"}\n\n"}
+{"t":26651,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n.pricing-car\"}\n\n"}
+{"t":26651,"chunk":"event: gen\ndata: {\"delta\":\"d.\"}\n\n"}
+{"t":26657,"chunk":"event: gen\ndata: {\"delta\":\"feature\"}\n\n"}
+{"t":26704,"chunk":"event: gen\ndata: {\"delta\":\"d {\\\\n  border:\"}\n\n"}
+{"t":26706,"chunk":"event: gen\ndata: {\"delta\":\" 2px solid #6366f\"}\n\n"}
+{"t":26722,"chunk":"event: gen\ndata: {\"delta\":\"1;\\\\n  background: linear-\"}\n\n"}
+{"t":26744,"chunk":"event: gen\ndata: {\"delta\":\"gradient(135deg, #f8\"}\n\n"}
+{"t":26769,"chunk":"event: gen\ndata: {\"delta\":\"fafc 0%, #f3\"}\n\n"}
+{"t":26790,"chunk":"event: gen\ndata: {\"delta\":\"f4f6 100%);\\\\\"}\n\n"}
+{"t":26809,"chunk":"event: gen\ndata: {\"delta\":\"n  \"}\n\n"}
+{"t":26840,"chunk":"event: gen\ndata: {\"delta\":\"transform\"}\n\n"}
+{"t":26853,"chunk":"event: gen\ndata: {\"delta\":\": scale\"}\n\n"}
+{"t":26875,"chunk":"event: gen\ndata: {\"delta\":\"(1.05);\\\\n}\\\\\"}\n\n"}
+{"t":26899,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.pricing-card:\"}\n\n"}
+{"t":26918,"chunk":"event: gen\ndata: {\"delta\":\"hover {\\\\n  box-shadow\"}\n\n"}
+{"t":26942,"chunk":"event: gen\ndata: {\"delta\":\": 0 10px 30\"}\n\n"}
+{"t":26963,"chunk":"event: gen\ndata: {\"delta\":\"px rgba(99, 102,\"}\n\n"}
+{"t":26986,"chunk":"event: gen\ndata: {\"delta\":\" 241, 0.1)\"}\n\n"}
+{"t":27011,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\\"}\n\n"}
+{"t":27028,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.badge\"}\n\n"}
+{"t":27051,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  position\"}\n\n"}
+{"t":27073,"chunk":"event: gen\ndata: {\"delta\":\": absolute;\\\\n  top: -\"}\n\n"}
+{"t":27175,"chunk":"event: gen\ndata: {\"delta\":\"12\"}\n\n"}
+{"t":27175,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  left\"}\n\nevent: gen\ndata: {\"delta\":\": 20\"}\n\nevent: gen\ndata: {\"delta\":\"px;\\\\n  background: linear-\"}\n\n"}
+{"t":27184,"chunk":"event: gen\ndata: {\"delta\":\"gradient(135deg, #6366\"}\n\n"}
+{"t":27224,"chunk":"event: gen\ndata: {\"delta\":\"f1, #8b5cf\"}\n\n"}
+{"t":27233,"chunk":"event: gen\ndata: {\"delta\":\"6);\\\\n  color: white\"}\n\n"}
+{"t":27257,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  padding: 6\"}\n\n"}
+{"t":27277,"chunk":"event: gen\ndata: {\"delta\":\"px 12\"}\n\n"}
+{"t":27304,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  border-radius:\"}\n\n"}
+{"t":27326,"chunk":"event: gen\ndata: {\"delta\":\" 20\"}\n\n"}
+{"t":27351,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font-size:\"}\n\n"}
+{"t":27370,"chunk":"event: gen\ndata: {\"delta\":\" 12px;\\\\n  font-\"}\n\n"}
+{"t":27392,"chunk":"event: gen\ndata: {\"delta\":\"weight: 600;\\\\n}\\\\\"}\n\n"}
+{"t":27413,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.pricing\"}\n\n"}
+{"t":27436,"chunk":"event: gen\ndata: {\"delta\":\"-card h\"}\n\n"}
+{"t":27458,"chunk":"event: gen\ndata: {\"delta\":\"3 {\\\\n  font-\"}\n\n"}
+{"t":27479,"chunk":"event: gen\ndata: {\"delta\":\"size: 20\"}\n\n"}
+{"t":27500,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font-weight:\"}\n\n"}
+{"t":27529,"chunk":"event: gen\ndata: {\"delta\":\" 600;\\\\n  margin-bottom\"}\n\n"}
+{"t":27544,"chunk":"event: gen\ndata: {\"delta\":\": 16\"}\n\n"}
+{"t":27566,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #1\"}\n\n"}
+{"t":27588,"chunk":"event: gen\ndata: {\"delta\":\"f2937;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":27702,"chunk":"event: gen\ndata: {\"delta\":\"n.price\"}\n\n"}
+{"t":27702,"chunk":"event: gen\ndata: {\"delta\":\" \"}\n\nevent: gen\ndata: {\"delta\":\"{\\\\n  font-size: \"}\n\nevent: gen\ndata: {\"delta\":\"36\"}\n\n"}
+{"t":27706,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font-weight:\"}\n\n"}
+{"t":27730,"chunk":"event: gen\ndata: {\"delta\":\" 700;\\\\n  color: #\"}\n\n"}
+{"t":27753,"chunk":"event: gen\ndata: {\"delta\":\"6\"}\n\n"}
+{"t":27783,"chunk":"event: gen\ndata: {\"delta\":\"366f1;\\\\n  \"}\n\n"}
+{"t":27804,"chunk":"event: gen\ndata: {\"delta\":\"margin-bottom: 8px;\\\\\"}\n\n"}
+{"t":27826,"chunk":"event: gen\ndata: {\"delta\":\"n}\\\\n\\\\n.price span\"}\n\n"}
+{"t":27847,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  font-size:\"}\n\n"}
+{"t":27872,"chunk":"event: gen\ndata: {\"delta\":\" 16\"}\n\n"}
+{"t":28946,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #6\"}\n\n"}
+{"t":28951,"chunk":"event: gen\ndata: {\"delta\":\"b7280;\\\\n  \"}\n\n"}
+{"t":28957,"chunk":"event: gen\ndata: {\"delta\":\"font-weight: 400\"}\n\n"}
+{"t":28966,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.pricing\"}\n\n"}
+{"t":28970,"chunk":"event: gen\ndata: {\"delta\":\"-features\"}\n\n"}
+{"t":28974,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  list\"}\n\n"}
+{"t":28988,"chunk":"event: gen\ndata: {\"delta\":\"-style: none;\\\\n  margin\"}\n\n"}
+{"t":28993,"chunk":"event: gen\ndata: {\"delta\":\":\"}\n\n"}
+{"t":29000,"chunk":"event: gen\ndata: {\"delta\":\" 32\"}\n\n"}
+{"t":29005,"chunk":"event: gen\ndata: {\"delta\":\"px 0;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":29014,"chunk":"event: gen\ndata: {\"delta\":\"n.pricing-features li {\\\\\"}\n\n"}
+{"t":29022,"chunk":"event: gen\ndata: {\"delta\":\"n  padding: 12\"}\n\n"}
+{"t":29107,"chunk":"event: gen\ndata: {\"delta\":\"px 0;\\\\n  border-\"}\n\n"}
+{"t":29180,"chunk":"event: gen\ndata: {\"delta\":\"bottom: 1px solid #e\"}\n\n"}
+{"t":29272,"chunk":"event: gen\ndata: {\"delta\":\"5e7eb;\\\\n  font\"}\n\n"}
+{"t":29272,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14px;\\\\n\"}\n\nevent: gen\ndata: {\"delta\":\"  color: #6b7280\"}\n\nevent: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.pricing\"}\n\n"}
+{"t":29272,"chunk":"event: gen\ndata: {\"delta\":\"-features li:last-child \"}\n\n"}
+{"t":29273,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  border-bottom: none\"}\n\n"}
+{"t":29273,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":29273,"chunk":"event: gen\ndata: {\"delta\":\"pricing-button\"}\n\n"}
+{"t":29273,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  width\"}\n\n"}
+{"t":29273,"chunk":"event: gen\ndata: {\"delta\":\": 100%;\\\\n  padding\"}\n\n"}
+{"t":29274,"chunk":"event: gen\ndata: {\"delta\":\": 12\"}\n\nevent: gen\ndata: {\"delta\":\"px 20\"}\n\nevent: gen\ndata: {\"delta\":\"px;\\\\n  border\"}\n\n"}
+{"t":29274,"chunk":"event: gen\ndata: {\"delta\":\": \"}\n\n"}
+{"t":29274,"chunk":"event: gen\ndata: {\"delta\":\"1px solid #e5e7\"}\n\n"}
+{"t":29274,"chunk":"event: gen\ndata: {\"delta\":\"eb;\\\\n  backgroun\"}\n\n"}
+{"t":29274,"chunk":"event: gen\ndata: {\"delta\":\"d: white\"}\n\n"}
+{"t":29275,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  color: #1\"}\n\n"}
+{"t":29275,"chunk":"event: gen\ndata: {\"delta\":\"f2937;\\\\n  border-\"}\n\n"}
+{"t":29300,"chunk":"event: gen\ndata: {\"delta\":\"radius: 6\"}\n\n"}
+{"t":29327,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font-size:\"}\n\n"}
+{"t":29329,"chunk":"event: gen\ndata: {\"delta\":\" 14px;\\\\n  font-\"}\n\n"}
+{"t":29334,"chunk":"event: gen\ndata: {\"delta\":\"weight: 600;\\\\n  cursor\"}\n\n"}
+{"t":29338,"chunk":"event: gen\ndata: {\"delta\":\": pointer;\\\\n  transition: all\"}\n\n"}
+{"t":29343,"chunk":"event: gen\ndata: {\"delta\":\" 0.3s ease;\\\\n\"}\n\n"}
+{"t":29348,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n.pricing-button\"}\n\n"}
+{"t":29350,"chunk":"event: gen\ndata: {\"delta\":\":hover {\\\\n  border\"}\n\n"}
+{"t":29352,"chunk":"event: gen\ndata: {\"delta\":\"-color: #6366f1\"}\n\n"}
+{"t":29353,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  color\"}\n\n"}
+{"t":29354,"chunk":"event: gen\ndata: {\"delta\":\": #\"}\n\n"}
+{"t":29355,"chunk":"event: gen\ndata: {\"delta\":\"6366f1;\\\\n}\\\\n\"}\n\n"}
+{"t":29357,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n.pricing-button.primary\"}\n\n"}
+{"t":29359,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  background: linear-\"}\n\n"}
+{"t":29361,"chunk":"event: gen\ndata: {\"delta\":\"gradient(135deg, #6366\"}\n\n"}
+{"t":29362,"chunk":"event: gen\ndata: {\"delta\":\"f1, #8b5cf\"}\n\n"}
+{"t":29362,"chunk":"event: gen\ndata: {\"delta\":\"6);\\\\n  color: white\"}\n\n"}
+{"t":29364,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  \"}\n\n"}
+{"t":29364,"chunk":"event: gen\ndata: {\"delta\":\"border:\"}\n\n"}
+{"t":29368,"chunk":"event: gen\ndata: {\"delta\":\" none\"}\n\n"}
+{"t":29368,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\\"}\n\n"}
+{"t":29371,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.pricing-button.\"}\n\n"}
+{"t":29371,"chunk":"event: gen\ndata: {\"delta\":\"primary:hover {\\\\n  transform\"}\n\n"}
+{"t":29373,"chunk":"event: gen\ndata: {\"delta\":\": translateY(-2px);\\\\\"}\n\n"}
+{"t":29374,"chunk":"event: gen\ndata: {\"delta\":\"n  box-shadow: 0\"}\n\n"}
+{"t":29374,"chunk":"event: gen\ndata: {\"delta\":\" 10\"}\n\n"}
+{"t":29375,"chunk":"event: gen\ndata: {\"delta\":\"px 25\"}\n\n"}
+{"t":29376,"chunk":"event: gen\ndata: {\"delta\":\"px rgba(99, 102,\"}\n\n"}
+{"t":29378,"chunk":"event: gen\ndata: {\"delta\":\" 241, 0.3\"}\n\n"}
+{"t":29379,"chunk":"event: gen\ndata: {\"delta\":\");\\\\n}\\\\n\\\\n/*\"}\n\n"}
+{"t":29379,"chunk":"event: gen\ndata: {\"delta\":\" C\"}\n\n"}
+{"t":29381,"chunk":"event: gen\ndata: {\"delta\":\"TA Section */\\\\n.cta\"}\n\n"}
+{"t":29381,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":29383,"chunk":"event: gen\ndata: {\"delta\":\"section {\\\\n  padding: \"}\n\n"}
+{"t":29383,"chunk":"event: gen\ndata: {\"delta\":\"80px 0;\\\\n  backgroun\"}\n\n"}
+{"t":29393,"chunk":"event: gen\ndata: {\"delta\":\"d: linear-gradient(135deg,\"}\n\n"}
+{"t":29416,"chunk":"event: gen\ndata: {\"delta\":\" #6\"}\n\n"}
+{"t":29461,"chunk":"event: gen\ndata: {\"delta\":\"366f1 \"}\n\n"}
+{"t":29461,"chunk":"event: gen\ndata: {\"delta\":\"0%, #8b5cf6\"}\n\n"}
+{"t":29482,"chunk":"event: gen\ndata: {\"delta\":\" 100%);\\\\n  \"}\n\n"}
+{"t":29505,"chunk":"event: gen\ndata: {\"delta\":\"text-align: center;\\\\n  \"}\n\n"}
+{"t":29527,"chunk":"event: gen\ndata: {\"delta\":\"color\"}\n\n"}
+{"t":29555,"chunk":"event: gen\ndata: {\"delta\":\": white;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":29582,"chunk":"event: gen\ndata: {\"delta\":\".cta-section h2 \"}\n\n"}
+{"t":29614,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  font-size:\"}\n\n"}
+{"t":29617,"chunk":"event: gen\ndata: {\"delta\":\" 36px;\\\\n  font-\"}\n\n"}
+{"t":29638,"chunk":"event: gen\ndata: {\"delta\":\"weight: 700;\\\\n  margin\"}\n\n"}
+{"t":29662,"chunk":"event: gen\ndata: {\"delta\":\"-bottom: 16\"}\n\n"}
+{"t":29683,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\\"}\n\n"}
+{"t":29711,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.cta-section\"}\n\n"}
+{"t":29797,"chunk":"event: gen\ndata: {\"delta\":\" p {\\\\n  font-size\"}\n\n"}
+{"t":29797,"chunk":"event: gen\ndata: {\"delta\":\": 18px;\\\\n  margin\"}\n\nevent: gen\ndata: {\"delta\":\"-bottom: 32\"}\n\n"}
+{"t":29797,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":29816,"chunk":"event: gen\ndata: {\"delta\":\"opacity\"}\n\n"}
+{"t":29837,"chunk":"event: gen\ndata: {\"delta\":\": 0.95\"}\n\n"}
+{"t":29859,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n/*\"}\n\n"}
+{"t":29885,"chunk":"event: gen\ndata: {\"delta\":\" Footer */\\\\n.footer {\\\\\"}\n\n"}
+{"t":29943,"chunk":"event: gen\ndata: {\"delta\":\"n  background: #0\"}\n\n"}
+{"t":29969,"chunk":"event: gen\ndata: {\"delta\":\"f172a;\\\\n  color:\"}\n\n"}
+{"t":29992,"chunk":"event: gen\ndata: {\"delta\":\" #\"}\n\n"}
+{"t":30037,"chunk":"event: gen\ndata: {\"delta\":\"d1d5db;\\\\n  padding\"}\n\n"}
+{"t":30051,"chunk":": keep-alive\n\n"}
+{"t":30057,"chunk":"event: gen\ndata: {\"delta\":\": 60\"}\n\n"}
+{"t":30078,"chunk":"event: gen\ndata: {\"delta\":\"px 0 \"}\n\n"}
+{"t":30100,"chunk":"event: gen\ndata: {\"delta\":\"20px;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":30123,"chunk":"event: gen\ndata: {\"delta\":\".footer-\"}\n\n"}
+{"t":30144,"chunk":"event: gen\ndata: {\"delta\":\"content {\\\\n  display: gri\"}\n\n"}
+{"t":30167,"chunk":"event: gen\ndata: {\"delta\":\"d;\\\\n  grid-template-columns\"}\n\n"}
+{"t":30189,"chunk":"event: gen\ndata: {\"delta\":\": repeat(auto-fit, min\"}\n\n"}
+{"t":30211,"chunk":"event: gen\ndata: {\"delta\":\"max(200\"}\n\n"}
+{"t":30321,"chunk":"event: gen\ndata: {\"delta\":\"px, 1fr));\\\\n\"}\n\n"}
+{"t":30324,"chunk":"event: gen\ndata: {\"delta\":\"  gap: 40px;\\\\n\"}\n\n"}
+{"t":30324,"chunk":"event: gen\ndata: {\"delta\":\"  margin-bottom: 40px\"}\n\n"}
+{"t":30324,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.footer\"}\n\n"}
+{"t":30327,"chunk":"event: gen\ndata: {\"delta\":\"-section h4\"}\n\n"}
+{"t":30350,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  color\"}\n\n"}
+{"t":30371,"chunk":"event: gen\ndata: {\"delta\":\": white\"}\n\n"}
+{"t":30395,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  font\"}\n\n"}
+{"t":30415,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14\"}\n\n"}
+{"t":30447,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  font\"}\n\n"}
+{"t":30468,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 600;\\\\n  \"}\n\n"}
+{"t":30489,"chunk":"event: gen\ndata: {\"delta\":\"margin-bottom: 16px;\\\\\"}\n\n"}
+{"t":30510,"chunk":"event: gen\ndata: {\"delta\":\"n}\\\\n\\\\n.footer-\"}\n\n"}
+{"t":30537,"chunk":"event: gen\ndata: {\"delta\":\"section p\"}\n\n"}
+{"t":30556,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  font\"}\n\n"}
+{"t":30578,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14px;\\\\n\"}\n\n"}
+{"t":30599,"chunk":"event: gen\ndata: {\"delta\":\"  line\"}\n\n"}
+{"t":30621,"chunk":"event: gen\ndata: {\"delta\":\"-height: 1.6;\\\\\"}\n\n"}
+{"t":30642,"chunk":"event: gen\ndata: {\"delta\":\"n}\\\\\"}\n\n"}
+{"t":30663,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.footer-section ul\"}\n\n"}
+{"t":30685,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  list-style:\"}\n\n"}
+{"t":30730,"chunk":"event: gen\ndata: {\"delta\":\" none;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":30734,"chunk":"event: gen\ndata: {\"delta\":\"footer-section ul li {\\\\n\"}\n\n"}
+{"t":30753,"chunk":"event: gen\ndata: {\"delta\":\"  margin-bottom: 12\"}\n\n"}
+{"t":30846,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":30846,"chunk":"event: gen\ndata: {\"delta\":\"footer-section a {\\\\n  \"}\n\nevent: gen\ndata: {\"delta\":\"color: #d1d5db\"}\n\n"}
+{"t":30849,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  text-decoration: none\"}\n\n"}
+{"t":30862,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  font\"}\n\n"}
+{"t":30888,"chunk":"event: gen\ndata: {\"delta\":\"-size\"}\n\n"}
+{"t":30906,"chunk":"event: gen\ndata: {\"delta\":\": 14px;\\\\n  transition\"}\n\n"}
+{"t":30934,"chunk":"event: gen\ndata: {\"delta\":\": color 0.3s ease\"}\n\n"}
+{"t":30951,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.footer\"}\n\n"}
+{"t":30972,"chunk":"event: gen\ndata: {\"delta\":\"-section a:hover {\\\\n\"}\n\n"}
+{"t":30993,"chunk":"event: gen\ndata: {\"delta\":\"  color: #6366f1\"}\n\n"}
+{"t":31014,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":31037,"chunk":"event: gen\ndata: {\"delta\":\"footer-bottom {\\\\n  border\"}\n\n"}
+{"t":31058,"chunk":"event: gen\ndata: {\"delta\":\"-top: 1px solid #\"}\n\n"}
+{"t":31080,"chunk":"event: gen\ndata: {\"delta\":\"374\"}\n\n"}
+{"t":31104,"chunk":"event: gen\ndata: {\"delta\":\"151;\\\\n  padding-top:\"}\n\n"}
+{"t":31124,"chunk":"event: gen\ndata: {\"delta\":\" 20px;\\\\n  text\"}\n\n"}
+{"t":31147,"chunk":"event: gen\ndata: {\"delta\":\"-align: center;\\\\n  font\"}\n\n"}
+{"t":31173,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14\"}\n\n"}
+{"t":31188,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color: #9\"}\n\n"}
+{"t":31212,"chunk":"event: gen\ndata: {\"delta\":\"ca3af;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":31236,"chunk":"event: gen\ndata: {\"delta\":\"n/* Responsive Design */\\\\n\"}\n\n"}
+{"t":31260,"chunk":"event: gen\ndata: {\"delta\":\"@media (max-width: \"}\n\n"}
+{"t":31369,"chunk":"event: gen\ndata: {\"delta\":\"768px) {\\\\n  .\"}\n\n"}
+{"t":31369,"chunk":"event: gen\ndata: {\"delta\":\"header\"}\n\nevent: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":31369,"chunk":"event: gen\ndata: {\"delta\":\"content {\\\\n    flex-wrap\"}\n\n"}
+{"t":31383,"chunk":"event: gen\ndata: {\"delta\":\": wrap;\\\\n    gap\"}\n\n"}
+{"t":31392,"chunk":"event: gen\ndata: {\"delta\":\": 16\"}\n\n"}
+{"t":31413,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":31436,"chunk":"event: gen\ndata: {\"delta\":\"n  .nav\"}\n\n"}
+{"t":31458,"chunk":"event: gen\ndata: {\"delta\":\" \"}\n\n"}
+{"t":31555,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n    gap\"}\n\n"}
+{"t":31560,"chunk":"event: gen\ndata: {\"delta\":\": 16px;\\\\n    \"}\n\n"}
+{"t":31561,"chunk":"event: gen\ndata: {\"delta\":\"order\"}\n\n"}
+{"t":31562,"chunk":"event: gen\ndata: {\"delta\":\": 3\"}\n\n"}
+{"t":31574,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n    \"}\n\n"}
+{"t":31603,"chunk":"event: gen\ndata: {\"delta\":\"width\"}\n\n"}
+{"t":31624,"chunk":"event: gen\ndata: {\"delta\":\": 100%;\\\\n    \"}\n\n"}
+{"t":31649,"chunk":"event: gen\ndata: {\"delta\":\"flex\"}\n\n"}
+{"t":31670,"chunk":"event: gen\ndata: {\"delta\":\"-wrap\"}\n\n"}
+{"t":31691,"chunk":"event: gen\ndata: {\"delta\":\": wrap;\\\\n  }\\\\n\"}\n\n"}
+{"t":31714,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  .hero .\"}\n\n"}
+{"t":31736,"chunk":"event: gen\ndata: {\"delta\":\"container\"}\n\n"}
+{"t":31758,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    gri\"}\n\n"}
+{"t":31778,"chunk":"event: gen\ndata: {\"delta\":\"d-template-columns: 1fr\"}\n\n"}
+{"t":31802,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n    \"}\n\n"}
+{"t":31894,"chunk":"event: gen\ndata: {\"delta\":\"gap: 40px;\\\\n    \"}\n\n"}
+{"t":31894,"chunk":"event: gen\ndata: {\"delta\":\"padding\"}\n\nevent: gen\ndata: {\"delta\":\": 40\"}\n\n"}
+{"t":31894,"chunk":"event: gen\ndata: {\"delta\":\"px 0\"}\n\n"}
+{"t":31912,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  }\\\\n\\\\n\"}\n\n"}
+{"t":31934,"chunk":"event: gen\ndata: {\"delta\":\"  .hero-\"}\n\n"}
+{"t":31954,"chunk":"event: gen\ndata: {\"delta\":\"content h\"}\n\n"}
+{"t":31976,"chunk":"event: gen\ndata: {\"delta\":\"1\"}\n\n"}
+{"t":31998,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    font-size\"}\n\n"}
+{"t":32020,"chunk":"event: gen\ndata: {\"delta\":\": 32px;\\\\n  \"}\n\n"}
+{"t":32040,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n  .hero-\"}\n\n"}
+{"t":32064,"chunk":"event: gen\ndata: {\"delta\":\"content .\"}\n\n"}
+{"t":32086,"chunk":"event: gen\ndata: {\"delta\":\"sub\"}\n\n"}
+{"t":32113,"chunk":"event: gen\ndata: {\"delta\":\"line\"}\n\n"}
+{"t":32132,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    font-size:\"}\n\n"}
+{"t":32198,"chunk":"event: gen\ndata: {\"delta\":\" 16\"}\n\n"}
+{"t":32199,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":32205,"chunk":"event: gen\ndata: {\"delta\":\"n  .features\"}\n\n"}
+{"t":32235,"chunk":"event: gen\ndata: {\"delta\":\" h\"}\n\n"}
+{"t":32257,"chunk":"event: gen\ndata: {\"delta\":\"2,\"}\n\n"}
+{"t":32279,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  .how\"}\n\n"}
+{"t":32303,"chunk":"event: gen\ndata: {\"delta\":\"-it-works h2,\"}\n\n"}
+{"t":32417,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  .pricing h2 \"}\n\n"}
+{"t":32417,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n    font-size:\"}\n\n"}
+{"t":32417,"chunk":"event: gen\ndata: {\"delta\":\" 28px;\\\\n    \"}\n\n"}
+{"t":32417,"chunk":"event: gen\ndata: {\"delta\":\"margin-bottom: 40\"}\n\n"}
+{"t":32418,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":32442,"chunk":"event: gen\ndata: {\"delta\":\"n  .features,\"}\n\n"}
+{"t":32457,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  .how-it-\"}\n\n"}
+{"t":32479,"chunk":"event: gen\ndata: {\"delta\":\"works,\\\\n  .pricing,\"}\n\n"}
+{"t":32501,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  .cta-section\"}\n\n"}
+{"t":32522,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    padding: 40\"}\n\n"}
+{"t":32544,"chunk":"event: gen\ndata: {\"delta\":\"px 0;\\\\n  }\\\\\"}\n\n"}
+{"t":32567,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n  .pricing\"}\n\n"}
+{"t":32613,"chunk":"event: gen\ndata: {\"delta\":\"-car\"}\n\n"}
+{"t":32614,"chunk":"event: gen\ndata: {\"delta\":\"d.\"}\n\n"}
+{"t":32655,"chunk":"event: gen\ndata: {\"delta\":\"featured {\\\\n    transform\"}\n\n"}
+{"t":32657,"chunk":"event: gen\ndata: {\"delta\":\": scale(1)\"}\n\n"}
+{"t":32721,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  }\\\\n\\\\n\"}\n\n"}
+{"t":32721,"chunk":"event: gen\ndata: {\"delta\":\"  .c\"}\n\nevent: gen\ndata: {\"delta\":\"ta-section h2 {\\\\\"}\n\n"}
+{"t":32796,"chunk":"event: gen\ndata: {\"delta\":\"n    font-size: 28\"}\n\n"}
+{"t":32798,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":32802,"chunk":"event: gen\ndata: {\"delta\":\"n  .c\"}\n\n"}
+{"t":32810,"chunk":"event: gen\ndata: {\"delta\":\"ta-section p {\\\\n    \"}\n\n"}
+{"t":32996,"chunk":"event: gen\ndata: {\"delta\":\"font-size: 16px;\\\\\"}\n\n"}
+{"t":32996,"chunk":"event: gen\ndata: {\"delta\":\"n  }\\\\n\\\\n  \"}\n\n"}
+{"t":32997,"chunk":"event: gen\ndata: {\"delta\":\".steps\"}\n\n"}
+{"t":32997,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    flex-direction:\"}\n\n"}
+{"t":32997,"chunk":"event: gen\ndata: {\"delta\":\" column;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":32997,"chunk":"event: gen\ndata: {\"delta\":\"n  .step-arrow\"}\n\n"}
+{"t":32997,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    display\"}\n\n"}
+{"t":32997,"chunk":"event: gen\ndata: {\"delta\":\": none;\\\\n  }\\\\n\"}\n\n"}
+{"t":33019,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\\"}\n\n"}
+{"t":33043,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n@media (max-\"}\n\n"}
+{"t":33066,"chunk":"event: gen\ndata: {\"delta\":\"width: 480px) {\\\\\"}\n\n"}
+{"t":33086,"chunk":"event: gen\ndata: {\"delta\":\"n  .logo\"}\n\n"}
+{"t":33108,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    font-size:\"}\n\n"}
+{"t":33128,"chunk":"event: gen\ndata: {\"delta\":\" 20\"}\n\n"}
+{"t":33154,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":33177,"chunk":"event: gen\ndata: {\"delta\":\"n  .nav\"}\n\n"}
+{"t":33197,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    gap\"}\n\n"}
+{"t":33226,"chunk":"event: gen\ndata: {\"delta\":\": 12\"}\n\n"}
+{"t":33245,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":33265,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n  .nav\"}\n\n"}
+{"t":33287,"chunk":"event: gen\ndata: {\"delta\":\" a\"}\n\n"}
+{"t":33309,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    font\"}\n\n"}
+{"t":33333,"chunk":"event: gen\ndata: {\"delta\":\"-size: 12\"}\n\n"}
+{"t":33358,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":33466,"chunk":"event: gen\ndata: {\"delta\":\"n  .hero-content h1\"}\n\n"}
+{"t":33466,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    font-size\"}\n\n"}
+{"t":33466,"chunk":"event: gen\ndata: {\"delta\":\": 24\"}\n\nevent: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":33475,"chunk":"event: gen\ndata: {\"delta\":\"n  .hero-content .sub\"}\n\n"}
+{"t":33490,"chunk":"event: gen\ndata: {\"delta\":\"line {\\\\n    font-size\"}\n\n"}
+{"t":33587,"chunk":"event: gen\ndata: {\"delta\":\": 14px;\\\\n  \"}\n\n"}
+{"t":33588,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n  .features h\"}\n\n"}
+{"t":33592,"chunk":"event: gen\ndata: {\"delta\":\"2,\\\\n  .how-\"}\n\n"}
+{"t":33592,"chunk":"event: gen\ndata: {\"delta\":\"it-works h2,\\\\n\"}\n\n"}
+{"t":33609,"chunk":"event: gen\ndata: {\"delta\":\"  .pricing h2 {\\\\\"}\n\n"}
+{"t":33629,"chunk":"event: gen\ndata: {\"delta\":\"n    font-size: 24\"}\n\n"}
+{"t":33652,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":33672,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n  .feature\"}\n\n"}
+{"t":33703,"chunk":"event: gen\ndata: {\"delta\":\"-car\"}\n\n"}
+{"t":33800,"chunk":"event: gen\ndata: {\"delta\":\"d,\"}\n\n"}
+{"t":33801,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  .step\"}\n\n"}
+{"t":33804,"chunk":"event: gen\ndata: {\"delta\":\" \"}\n\n"}
+{"t":33809,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n    padding: 20\"}\n\n"}
+{"t":33823,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":33844,"chunk":"event: gen\ndata: {\"delta\":\"n  .price\"}\n\n"}
+{"t":33868,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    font-size:\"}\n\n"}
+{"t":33889,"chunk":"event: gen\ndata: {\"delta\":\" 28px;\\\\n  }\\\\\"}\n\n"}
+{"t":33991,"chunk":"event: gen\ndata: {\"delta\":\"n}\"}\n\n"}
+{"t":33991,"chunk":"event: gen\ndata: {\"delta\":\"\\\",\"}\n\n"}
+{"t":33991,"chunk":"event: gen\ndata: {\"delta\":\"\\n    \"}\n\n"}
+{"t":33991,"chunk":"event: gen\ndata: {\"delta\":\"\\\"/\"}\n\n"}
+{"t":33998,"chunk":"event: gen\ndata: {\"delta\":\"main\"}\n\n"}
+{"t":34046,"chunk":"event: gen\ndata: {\"delta\":\".js\\\": \\\"\"}\n\n"}
+{"t":34046,"chunk":"event: gen\ndata: {\"delta\":\"document.addEventListener('DOMContentLoade\"}\n\n"}
+{"t":34064,"chunk":"event: gen\ndata: {\"delta\":\"d', function() {\\\\n  //\"}\n\n"}
+{"t":34110,"chunk":"event: gen\ndata: {\"delta\":\" Smooth scroll\"}\n\n"}
+{"t":34153,"chunk":"event: gen\ndata: {\"delta\":\" for navigation links\\\\n  const\"}\n\n"}
+{"t":34155,"chunk":"event: gen\ndata: {\"delta\":\" navLinks = document.querySelector\"}\n\n"}
+{"t":34200,"chunk":"event: gen\ndata: {\"delta\":\"All('.\"}\n\n"}
+{"t":34209,"chunk":"event: gen\ndata: {\"delta\":\"nav a\"}\n\n"}
+{"t":34228,"chunk":"event: gen\ndata: {\"delta\":\"');\\\\n  nav\"}\n\n"}
+{"t":34238,"chunk":"event: gen\ndata: {\"delta\":\"Links.forEach(link => {\\\\\"}\n\n"}
+{"t":34279,"chunk":"event: gen\ndata: {\"delta\":\"n    link.addEventListener('click',\"}\n\n"}
+{"t":34282,"chunk":"event: gen\ndata: {\"delta\":\" function(e) {\\\\n      \"}\n\n"}
+{"t":34304,"chunk":"event: gen\ndata: {\"delta\":\"const\"}\n\n"}
+{"t":34329,"chunk":"event: gen\ndata: {\"delta\":\" href\"}\n\n"}
+{"t":34353,"chunk":"event: gen\ndata: {\"delta\":\" = this.getAttribute('href');\\\\\"}\n\n"}
+{"t":34382,"chunk":"event: gen\ndata: {\"delta\":\"n      if (href.\"}\n\n"}
+{"t":34404,"chunk":"event: gen\ndata: {\"delta\":\"startsWith('#')) {\\\\n        \"}\n\n"}
+{"t":34425,"chunk":"event: gen\ndata: {\"delta\":\"e.preventDefault();\\\\n        const\"}\n\n"}
+{"t":34513,"chunk":"event: gen\ndata: {\"delta\":\" target\"}\n\n"}
+{"t":34513,"chunk":"event: gen\ndata: {\"delta\":\" = \"}\n\n"}
+{"t":34526,"chunk":"event: gen\ndata: {\"delta\":\"document.querySelector(href);\\\\n        \"}\n\n"}
+{"t":34548,"chunk":"event: gen\ndata: {\"delta\":\"if (target) {\\\\n          \"}\n\n"}
+{"t":34570,"chunk":"event: gen\ndata: {\"delta\":\"target.scrollIntoView({\"}\n\n"}
+{"t":34595,"chunk":"event: gen\ndata: {\"delta\":\" behavior: 'smooth' });\\\\\"}\n\n"}
+{"t":34615,"chunk":"event: gen\ndata: {\"delta\":\"n        }\\\\n      }\\\\\"}\n\n"}
+{"t":34636,"chunk":"event: gen\ndata: {\"delta\":\"n    });\\\\n  });\\\\\"}\n\n"}
+{"t":34658,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n  // C\"}\n\n"}
+{"t":34682,"chunk":"event: gen\ndata: {\"delta\":\"TA button\"}\n\n"}
+{"t":34701,"chunk":"event: gen\ndata: {\"delta\":\" interactions\"}\n\n"}
+{"t":34723,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  const ctaButtons =\"}\n\n"}
+{"t":34748,"chunk":"event: gen\ndata: {\"delta\":\" document.querySelectorAll('.c\"}\n\n"}
+{"t":34770,"chunk":"event: gen\ndata: {\"delta\":\"ta-button,\"}\n\n"}
+{"t":34789,"chunk":"event: gen\ndata: {\"delta\":\" .pricing\"}\n\n"}
+{"t":34811,"chunk":"event: gen\ndata: {\"delta\":\"-button');\\\\n  cta\"}\n\n"}
+{"t":34897,"chunk":"event: gen\ndata: {\"delta\":\"Buttons.forEach(button => {\\\\\"}\n\n"}
+{"t":34908,"chunk":"event: gen\ndata: {\"delta\":\"n    button.addEventListener('click',\"}\n\n"}
+{"t":34912,"chunk":"event: gen\ndata: {\"delta\":\" function() {\\\\n      const text\"}\n\n"}
+{"t":34916,"chunk":"event: gen\ndata: {\"delta\":\" = this.textContent.\"}\n\n"}
+{"t":34933,"chunk":"event: gen\ndata: {\"delta\":\"trim();\\\\n      console\"}\n\n"}
+{"t":35040,"chunk":"event: gen\ndata: {\"delta\":\".log('C\"}\n\n"}
+{"t":35040,"chunk":"event: gen\ndata: {\"delta\":\"TA clicke\"}\n\nevent: gen\ndata: {\"delta\":\"d:', text);\\\\n      //\"}\n\n"}
+{"t":35040,"chunk":"event: gen\ndata: {\"delta\":\" In\"}\n\n"}
+{"t":35043,"chunk":"event: gen\ndata: {\"delta\":\" a real app, this\"}\n\n"}
+{"t":35068,"chunk":"event: gen\ndata: {\"delta\":\" would navigate or\"}\n\n"}
+{"t":35109,"chunk":"event: gen\ndata: {\"delta\":\" open\"}\n\n"}
+{"t":35115,"chunk":"event: gen\ndata: {\"delta\":\" a modal\\\\n    \"}\n\n"}
+{"t":35132,"chunk":"event: gen\ndata: {\"delta\":\"});\\\\n  });\\\\n\\\\\"}\n\n"}
+{"t":35155,"chunk":"event: gen\ndata: {\"delta\":\"n  // Ad\"}\n\n"}
+{"t":35176,"chunk":"event: gen\ndata: {\"delta\":\"d animation\"}\n\n"}
+{"t":35199,"chunk":"event: gen\ndata: {\"delta\":\" on\"}\n\n"}
+{"t":35221,"chunk":"event: gen\ndata: {\"delta\":\" scroll for\"}\n\n"}
+{"t":35241,"chunk":"event: gen\ndata: {\"delta\":\" feature\"}\n\n"}
+{"t":35274,"chunk":"event: gen\ndata: {\"delta\":\" cards\\\\n  const observ\"}\n\n"}
+{"t":35295,"chunk":"event: gen\ndata: {\"delta\":\"erOptions = {\\\\n    threshol\"}\n\n"}
+{"t":35317,"chunk":"event: gen\ndata: {\"delta\":\"d: 0\"}\n\n"}
+{"t":35340,"chunk":"event: gen\ndata: {\"delta\":\".1,\\\\n    rootMar\"}\n\n"}
+{"t":35361,"chunk":"event: gen\ndata: {\"delta\":\"gin: '0px \"}\n\n"}
+{"t":35384,"chunk":"event: gen\ndata: {\"delta\":\"0px -\"}\n\n"}
+{"t":35413,"chunk":"event: gen\ndata: {\"delta\":\"50px 0px'\\\\\"}\n\n"}
+{"t":35435,"chunk":"event: gen\ndata: {\"delta\":\"n  };\\\\n\\\\\"}\n\n"}
+{"t":35563,"chunk":"event: gen\ndata: {\"delta\":\"n  const observer = new Inters\"}\n\n"}
+{"t":35563,"chunk":"event: gen\ndata: {\"delta\":\"ectionObserver(\"}\n\n"}
+{"t":35563,"chunk":"event: gen\ndata: {\"delta\":\"function\"}\n\nevent: gen\ndata: {\"delta\":\"(entries) {\\\\n    entries\"}\n\n"}
+{"t":35564,"chunk":"event: gen\ndata: {\"delta\":\".forEach(entry => {\\\\n\"}\n\n"}
+{"t":35567,"chunk":"event: gen\ndata: {\"delta\":\"      if (entry.isInters\"}\n\n"}
+{"t":35590,"chunk":"event: gen\ndata: {\"delta\":\"ecting) {\\\\n        entry.\"}\n\n"}
+{"t":35611,"chunk":"event: gen\ndata: {\"delta\":\"target.style.opacity = '1\"}\n\n"}
+{"t":35639,"chunk":"event: gen\ndata: {\"delta\":\"';\\\\n        entry.target.\"}\n\n"}
+{"t":35657,"chunk":"event: gen\ndata: {\"delta\":\"style.transform = 'translateY\"}\n\n"}
+{"t":35677,"chunk":"event: gen\ndata: {\"delta\":\"(0)';\\\\n      \"}\n\n"}
+{"t":35790,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n    });\\\\n  \"}\n\n"}
+{"t":35791,"chunk":"event: gen\ndata: {\"delta\":\"}, observerOptions);\\\\n\\\\\"}\n\n"}
+{"t":35791,"chunk":"event: gen\ndata: {\"delta\":\"n  const\"}\n\n"}
+{"t":35791,"chunk":"event: gen\ndata: {\"delta\":\" fe\"}\n\n"}
+{"t":35796,"chunk":"event: gen\ndata: {\"delta\":\"atureCards = document.querySelector\"}\n\n"}
+{"t":35838,"chunk":"event: gen\ndata: {\"delta\":\"All('.feature-card,\"}\n\n"}
+{"t":35840,"chunk":"event: gen\ndata: {\"delta\":\" .step,\"}\n\n"}
+{"t":35862,"chunk":"event: gen\ndata: {\"delta\":\" .pricing-card');\\\\n  \"}\n\n"}
+{"t":35882,"chunk":"event: gen\ndata: {\"delta\":\"featureCards.forEach(card =>\"}\n\n"}
+{"t":35905,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    car\"}\n\n"}
+{"t":35925,"chunk":"event: gen\ndata: {\"delta\":\"d.style.opacity = '0'\"}\n\n"}
+{"t":35949,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n    card.style.transform\"}\n\n"}
+{"t":35971,"chunk":"event: gen\ndata: {\"delta\":\" = 'translateY(20px\"}\n\n"}
+{"t":35994,"chunk":"event: gen\ndata: {\"delta\":\")';\\\\n    car\"}\n\n"}
+{"t":36087,"chunk":"event: gen\ndata: {\"delta\":\"d.style.transition = 'opacity\"}\n\n"}
+{"t":36088,"chunk":"event: gen\ndata: {\"delta\":\" 0.6\"}\n\n"}
+{"t":36088,"chunk":"event: gen\ndata: {\"delta\":\"s ease\"}\n\n"}
+{"t":36089,"chunk":"event: gen\ndata: {\"delta\":\", transform 0.6s ease\"}\n\n"}
+{"t":36108,"chunk":"event: gen\ndata: {\"delta\":\"';\\\\n    observer.observe(\"}\n\n"}
+{"t":36132,"chunk":"event: gen\ndata: {\"delta\":\"card);\\\\n  });\\\\n\"}\n\n"}
+{"t":36146,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  // Header\"}\n\n"}
+{"t":36169,"chunk":"event: gen\ndata: {\"delta\":\" scroll\"}\n\n"}
+{"t":36190,"chunk":"event: gen\ndata: {\"delta\":\" effect\"}\n\n"}
+{"t":36213,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  const header = document.\"}\n\n"}
+{"t":36235,"chunk":"event: gen\ndata: {\"delta\":\"querySelector('.header');\\\\n  let\"}\n\n"}
+{"t":36335,"chunk":"event: gen\ndata: {\"delta\":\" last\"}\n\n"}
+{"t":36339,"chunk":"event: gen\ndata: {\"delta\":\"ScrollTop\"}\n\n"}
+{"t":36343,"chunk":"event: gen\ndata: {\"delta\":\" = \"}\n\n"}
+{"t":36347,"chunk":"event: gen\ndata: {\"delta\":\"0;\\\\n\\\\\"}\n\n"}
+{"t":36349,"chunk":"event: gen\ndata: {\"delta\":\"n  window.addEventListener('scroll',\"}\n\n"}
+{"t":36365,"chunk":"event: gen\ndata: {\"delta\":\" function() {\\\\n    const scroll\"}\n\n"}
+{"t":36386,"chunk":"event: gen\ndata: {\"delta\":\"Top = window.pageYOffset ||\"}\n\n"}
+{"t":36481,"chunk":"event: gen\ndata: {\"delta\":\" document.documentElement.scrollTop;\\\\\"}\n\n"}
+{"t":36484,"chunk":"event: gen\ndata: {\"delta\":\"n    \\\\\"}\n\n"}
+{"t":36487,"chunk":"event: gen\ndata: {\"delta\":\"n    if (scrollTop > \"}\n\n"}
+{"t":36489,"chunk":"event: gen\ndata: {\"delta\":\"50\"}\n\n"}
+{"t":36495,"chunk":"event: gen\ndata: {\"delta\":\") {\\\\n      header.style\"}\n\n"}
+{"t":36518,"chunk":"event: gen\ndata: {\"delta\":\".box\"}\n\n"}
+{"t":36610,"chunk":"event: gen\ndata: {\"delta\":\"Shadow = '0 2\"}\n\n"}
+{"t":36611,"chunk":"event: gen\ndata: {\"delta\":\"px 10px rgba(0,\"}\n\nevent: gen\ndata: {\"delta\":\" 0, 0, 0\"}\n\n"}
+{"t":36637,"chunk":"event: gen\ndata: {\"delta\":\".05\"}\n\n"}
+{"t":36642,"chunk":"event: gen\ndata: {\"delta\":\")';\\\\n    \"}\n\n"}
+{"t":36651,"chunk":"event: gen\ndata: {\"delta\":\"} else {\\\\n      header.\"}\n\n"}
+{"t":36673,"chunk":"event: gen\ndata: {\"delta\":\"style.boxShadow = \"}\n\n"}
+{"t":36696,"chunk":"event: gen\ndata: {\"delta\":\"'none';\\\\n    }\\\\\"}\n\n"}
+{"t":36717,"chunk":"event: gen\ndata: {\"delta\":\"n    \\\\n    last\"}\n\n"}
+{"t":36740,"chunk":"event: gen\ndata: {\"delta\":\"ScrollTop = scrollTop;\\\\n  \"}\n\n"}
+{"t":36789,"chunk":"event: gen\ndata: {\"delta\":\"});\\\\n});\\\"\\n  }\"}\n\n"}
+{"t":36792,"chunk":"event: gen\ndata: {\"delta\":\"\\n}\"}\n\n"}
+{"t":36804,"chunk":"event: gen\ndata: {\"delta\":\"\\n```\"}\n\n"}
+{"t":36971,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Claude Haiku 4.5 · files JSON\",\"detail\":\"streaming json · valid first pass\"}\n\n"}
+{"t":37145,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Files persisted\",\"detail\":\"3 files · entry /index.html\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Sandbox\",\"detail\":\"bundles client-side · CSP locked · offline\"}\n\n"}
+{"t":40463,"chunk":"event: artifact\ndata: {\"artifactId\":\"a_mrp1nq3xv65fla\",\"name\":\"preview-site\",\"kind\":\"site\",\"meta\":\"3 files · bundled offline\",\"ver\":1}\n\nevent: assistant_text\ndata: {\"text\":\"A site project has been created for Atlas with three files: an HTML landing page featuring the product name and value proposition, a CSS stylesheet with responsive design and modern styling, and a JavaScript file enabling interactive elements like navigation and call-to-action buttons for user engagement.\"}\n\n"}
+{"t":40509,"chunk":"event: pipeline\ndata: {\"phase\":\"end\",\"duration\":\"36.7s\"}\n\nevent: done\ndata: {\"messageId\":\"m_mrp1nssxn2qenf\"}\n\n"}

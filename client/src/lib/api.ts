@@ -237,13 +237,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers as Record<string, string> | undefined),
     },
   });
-  if (res.status === 401) {
-    localStorage.removeItem('atlas_token');
-    window.dispatchEvent(new CustomEvent('atlas-unauth'));
-  }
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
     const message = body.error ?? `${res.status} ${res.statusText}`;
+    // Only a token the server actually rejected ends the session. A bare 401 is
+    // not enough: the server used to answer any unhandled route error with one,
+    // which tore down a perfectly good session and lost whatever was on screen.
+    // Signing the user out is destructive, so it needs the explicit signal.
+    if (res.status === 401 && body.code === 'unauthenticated') {
+      localStorage.removeItem('atlas_token');
+      window.dispatchEvent(new CustomEvent('atlas-unauth'));
+    }
     window.dispatchEvent(new CustomEvent('atlas-error', { detail: message }));
     throw new Error(message);
   }

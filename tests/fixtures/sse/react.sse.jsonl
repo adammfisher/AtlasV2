@@ -1,0 +1,423 @@
+{"meta":{"name":"react","prompt":"Build a simple interactive tip calculator component","convId":"c_mrp1mmmsegkl25","recordedAt":"2026-07-17T14:38:56.745Z","events":{"step":7,"pipeline":2,"gen":432,"artifact":1,"assistant_text":1,"done":1}}}
+{"t":318,"chunk":"event: step\ndata: {\"state\":\"pending\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"classifying the task\"}\n\n"}
+{"t":484,"chunk":"event: pipeline\ndata: {\"phase\":\"start\",\"skillBadge\":\"react skill\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Router · Claude Haiku 4.5\",\"detail\":\"intent: create_doc · skill: react · 2 ms\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Skill loaded\",\"detail\":\"react playbook · 0.3k tokens\"}\n\nevent: step\ndata: {\"state\":\"pending\",\"label\":\"Claude Haiku 4.5 · files JSON\",\"detail\":\"streaming json\"}\n\nevent: gen\ndata: {\"reset\":true,\"label\":\"react\"}\n\n"}
+{"t":1482,"chunk":"event: gen\ndata: {\"delta\":\"```\"}\n\nevent: gen\ndata: {\"delta\":\"json\\n{\\n  \\\"files\"}\n\nevent: gen\ndata: {\"delta\":\"\\\": {\\n    \\\"/\"}\n\n"}
+{"t":1500,"chunk":"event: gen\ndata: {\"delta\":\"App.jsx\\\": \\\"\"}\n\n"}
+{"t":1521,"chunk":"event: gen\ndata: {\"delta\":\"import\"}\n\n"}
+{"t":1542,"chunk":"event: gen\ndata: {\"delta\":\" React, { useState } from '\"}\n\n"}
+{"t":1565,"chunk":"event: gen\ndata: {\"delta\":\"react'\"}\n\n"}
+{"t":1587,"chunk":"event: gen\ndata: {\"delta\":\";\\\\nimport './\"}\n\n"}
+{"t":1609,"chunk":"event: gen\ndata: {\"delta\":\"styles\"}\n\n"}
+{"t":1633,"chunk":"event: gen\ndata: {\"delta\":\".css';\\\\n\\\\nex\"}\n\n"}
+{"t":1653,"chunk":"event: gen\ndata: {\"delta\":\"port default function TipCalculator()\"}\n\n"}
+{"t":1677,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  const [bill\"}\n\n"}
+{"t":1698,"chunk":"event: gen\ndata: {\"delta\":\"Amount, setBillAmount] = useState\"}\n\n"}
+{"t":1720,"chunk":"event: gen\ndata: {\"delta\":\"('');\\\\n  const [tip\"}\n\n"}
+{"t":1740,"chunk":"event: gen\ndata: {\"delta\":\"Per\"}\n\n"}
+{"t":1763,"chunk":"event: gen\ndata: {\"delta\":\"centage, setTipPercent\"}\n\n"}
+{"t":1786,"chunk":"event: gen\ndata: {\"delta\":\"age] = useState(15\"}\n\n"}
+{"t":1807,"chunk":"event: gen\ndata: {\"delta\":\");\\\\n  const [split\"}\n\n"}
+{"t":1828,"chunk":"event: gen\ndata: {\"delta\":\"Count\"}\n\n"}
+{"t":2005,"chunk":"event: gen\ndata: {\"delta\":\", setSplitCount] = useState\"}\n\n"}
+{"t":2005,"chunk":"event: gen\ndata: {\"delta\":\"(1);\\\\n\\\\\"}\n\n"}
+{"t":2005,"chunk":"event: gen\ndata: {\"delta\":\"n  const bill\"}\n\n"}
+{"t":2006,"chunk":"event: gen\ndata: {\"delta\":\" = parse\"}\n\n"}
+{"t":2006,"chunk":"event: gen\ndata: {\"delta\":\"Float(billAmount) || 0\"}\n\n"}
+{"t":2006,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  const tip\"}\n\n"}
+{"t":2006,"chunk":"event: gen\ndata: {\"delta\":\"Amount = bill * (\"}\n\n"}
+{"t":2035,"chunk":"event: gen\ndata: {\"delta\":\"tipPercentage / 100)\"}\n\n"}
+{"t":2035,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  const totalAmount = bill\"}\n\n"}
+{"t":2056,"chunk":"event: gen\ndata: {\"delta\":\" + tipAmount;\\\\n  \"}\n\n"}
+{"t":2078,"chunk":"event: gen\ndata: {\"delta\":\"const per\"}\n\n"}
+{"t":2099,"chunk":"event: gen\ndata: {\"delta\":\"Person\"}\n\n"}
+{"t":2124,"chunk":"event: gen\ndata: {\"delta\":\"Amount\"}\n\n"}
+{"t":2149,"chunk":"event: gen\ndata: {\"delta\":\" = split\"}\n\n"}
+{"t":2249,"chunk":"event: gen\ndata: {\"delta\":\"Count >\"}\n\n"}
+{"t":2250,"chunk":"event: gen\ndata: {\"delta\":\" 0\"}\n\n"}
+{"t":2250,"chunk":"event: gen\ndata: {\"delta\":\" ? totalAmount / splitCount :\"}\n\n"}
+{"t":2250,"chunk":"event: gen\ndata: {\"delta\":\" 0;\\\\n\\\\n  const\"}\n\n"}
+{"t":2258,"chunk":"event: gen\ndata: {\"delta\":\" handleB\"}\n\n"}
+{"t":2282,"chunk":"event: gen\ndata: {\"delta\":\"illChange = (e) => \"}\n\n"}
+{"t":2303,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n    setB\"}\n\n"}
+{"t":2325,"chunk":"event: gen\ndata: {\"delta\":\"illAmount(e.target.value\"}\n\n"}
+{"t":2353,"chunk":"event: gen\ndata: {\"delta\":\");\\\\n  };\\\\n\\\\\"}\n\n"}
+{"t":2373,"chunk":"event: gen\ndata: {\"delta\":\"n  const handleTipPer\"}\n\n"}
+{"t":2396,"chunk":"event: gen\ndata: {\"delta\":\"centageChange = (percentage\"}\n\n"}
+{"t":2418,"chunk":"event: gen\ndata: {\"delta\":\") => {\\\\n    setT\"}\n\n"}
+{"t":2529,"chunk":"event: gen\ndata: {\"delta\":\"ipPercentage(percentage);\\\\\"}\n\n"}
+{"t":2529,"chunk":"event: gen\ndata: {\"delta\":\"n  };\\\\n\\\\n  \"}\n\n"}
+{"t":2529,"chunk":"event: gen\ndata: {\"delta\":\"const handleSplitChange = (\"}\n\nevent: gen\ndata: {\"delta\":\"e) => {\\\\n    const\"}\n\n"}
+{"t":2529,"chunk":"event: gen\ndata: {\"delta\":\" value = parseInt\"}\n\n"}
+{"t":2550,"chunk":"event: gen\ndata: {\"delta\":\"(e.target.value)\"}\n\n"}
+{"t":2573,"chunk":"event: gen\ndata: {\"delta\":\" || 1;\\\\n    setSpl\"}\n\n"}
+{"t":2605,"chunk":"event: gen\ndata: {\"delta\":\"itCount(Math\"}\n\n"}
+{"t":2635,"chunk":"event: gen\ndata: {\"delta\":\".max(1, value));\\\\\"}\n\n"}
+{"t":2660,"chunk":"event: gen\ndata: {\"delta\":\"n  };\\\\n\\\\n  \"}\n\n"}
+{"t":2681,"chunk":"event: gen\ndata: {\"delta\":\"const handleR\"}\n\n"}
+{"t":2701,"chunk":"event: gen\ndata: {\"delta\":\"eset = () => {\\\\n    \"}\n\n"}
+{"t":2722,"chunk":"event: gen\ndata: {\"delta\":\"setBillAmount('');\\\\n    set\"}\n\n"}
+{"t":2748,"chunk":"event: gen\ndata: {\"delta\":\"TipPercentage(15)\"}\n\n"}
+{"t":2781,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n    setSplitCount(\"}\n\n"}
+{"t":2797,"chunk":"event: gen\ndata: {\"delta\":\"1);\\\\n  };\\\\n\"}\n\n"}
+{"t":2821,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n  return (\\\\n    \"}\n\n"}
+{"t":2842,"chunk":"event: gen\ndata: {\"delta\":\"<div className=\\\\\\\"container\"}\n\n"}
+{"t":2864,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"\"}\n\n"}
+{"t":2885,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n      <div className=\\\\\\\"calculator\"}\n\n"}
+{"t":2908,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n        <h1>\"}\n\n"}
+{"t":2929,"chunk":"event: gen\ndata: {\"delta\":\"Tip Calculator</h1>\\\\n\"}\n\n"}
+{"t":2952,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":3053,"chunk":"event: gen\ndata: {\"delta\":\"n        <div className=\\\\\\\"input-\"}\n\n"}
+{"t":3053,"chunk":"event: gen\ndata: {\"delta\":\"group\\\\\\\">\\\\n          <label html\"}\n\nevent: gen\ndata: {\"delta\":\"For=\\\\\\\"bill\"}\n\nevent: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":3071,"chunk":"event: gen\ndata: {\"delta\":\"\\\">Bill Amount\"}\n\n"}
+{"t":3097,"chunk":"event: gen\ndata: {\"delta\":\"</label>\\\\n          <div\"}\n\n"}
+{"t":3118,"chunk":"event: gen\ndata: {\"delta\":\" className=\\\\\\\"input-wrapper\"}\n\n"}
+{"t":3210,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n            <span\"}\n\n"}
+{"t":3217,"chunk":"event: gen\ndata: {\"delta\":\" className\"}\n\n"}
+{"t":3219,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"currency\"}\n\n"}
+{"t":3221,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\"}\n\n"}
+{"t":3229,"chunk":"event: gen\ndata: {\"delta\":\"\\\">$</span>\\\\n            \"}\n\n"}
+{"t":3251,"chunk":"event: gen\ndata: {\"delta\":\"<input\\\\n              id=\\\\\\\"bill\\\\\"}\n\n"}
+{"t":3273,"chunk":"event: gen\ndata: {\"delta\":\"\\\"\\\\n              type=\\\\\\\"number\\\\\\\"\\\\\"}\n\n"}
+{"t":3296,"chunk":"event: gen\ndata: {\"delta\":\"n              placeholder\"}\n\n"}
+{"t":3318,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"0.\"}\n\n"}
+{"t":3340,"chunk":"event: gen\ndata: {\"delta\":\"00\\\\\\\"\\\\n              value={bill\"}\n\n"}
+{"t":3362,"chunk":"event: gen\ndata: {\"delta\":\"Amount}\\\\n              onChange={handleB\"}\n\n"}
+{"t":3383,"chunk":"event: gen\ndata: {\"delta\":\"illChange}\\\\n              min\"}\n\n"}
+{"t":3405,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"0\\\\\\\"\\\\n              step=\\\\\\\"\"}\n\n"}
+{"t":3430,"chunk":"event: gen\ndata: {\"delta\":\"0.01\\\\\\\"\\\\n            /\"}\n\n"}
+{"t":3475,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n          </div>\\\\n        \"}\n\n"}
+{"t":3576,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n\\\\n        \"}\n\n"}
+{"t":3576,"chunk":"event: gen\ndata: {\"delta\":\"<div className=\\\\\\\"input-group\\\\\\\">\\\\\"}\n\n"}
+{"t":3577,"chunk":"event: gen\ndata: {\"delta\":\"n          <label>\"}\n\nevent: gen\ndata: {\"delta\":\"Tip Percentage</label>\\\\n\"}\n\n"}
+{"t":3606,"chunk":"event: gen\ndata: {\"delta\":\"          <div className=\\\\\\\"tip\"}\n\n"}
+{"t":3614,"chunk":"event: gen\ndata: {\"delta\":\"-buttons\"}\n\n"}
+{"t":3630,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n            {\"}\n\n"}
+{"t":3653,"chunk":"event: gen\ndata: {\"delta\":\"[10\"}\n\n"}
+{"t":3674,"chunk":"event: gen\ndata: {\"delta\":\", 15, 20, \"}\n\n"}
+{"t":3697,"chunk":"event: gen\ndata: {\"delta\":\"25].\"}\n\n"}
+{"t":3748,"chunk":"event: gen\ndata: {\"delta\":\"map((percentage) => (\\\\n\"}\n\n"}
+{"t":3784,"chunk":"event: gen\ndata: {\"delta\":\"              <button\\\\n                key={\"}\n\n"}
+{"t":3806,"chunk":"event: gen\ndata: {\"delta\":\"percentage}\\\\n                className={`tip\"}\n\n"}
+{"t":3836,"chunk":"event: gen\ndata: {\"delta\":\"-btn\"}\n\n"}
+{"t":3861,"chunk":"event: gen\ndata: {\"delta\":\" ${tip\"}\n\n"}
+{"t":3884,"chunk":"event: gen\ndata: {\"delta\":\"Percentage === percentage ? '\"}\n\n"}
+{"t":3906,"chunk":"event: gen\ndata: {\"delta\":\"active' : ''}`}\\\\n                \"}\n\n"}
+{"t":3927,"chunk":"event: gen\ndata: {\"delta\":\"onClick={() => handleTipPercent\"}\n\n"}
+{"t":3950,"chunk":"event: gen\ndata: {\"delta\":\"ageChange(percentage)}\\\\n              \"}\n\n"}
+{"t":3973,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n                {percentage}%\"}\n\n"}
+{"t":3994,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n              </button>\\\\n            \"}\n\n"}
+{"t":4101,"chunk":"event: gen\ndata: {\"delta\":\"))}\\\\n          </div>\\\\n\"}\n\n"}
+{"t":4101,"chunk":"event: gen\ndata: {\"delta\":\"          \"}\n\nevent: gen\ndata: {\"delta\":\"<div\"}\n\n"}
+{"t":4102,"chunk":"event: gen\ndata: {\"delta\":\" className=\\\\\\\"custom\"}\n\n"}
+{"t":4104,"chunk":"event: gen\ndata: {\"delta\":\"-tip\\\\\\\"\"}\n\n"}
+{"t":4128,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            <input\"}\n\n"}
+{"t":4175,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n              type=\\\\\\\"number\\\\\\\"\\\\\"}\n\n"}
+{"t":4175,"chunk":"event: gen\ndata: {\"delta\":\"n              placeholder=\\\\\\\"Custom\"}\n\n"}
+{"t":4193,"chunk":"event: gen\ndata: {\"delta\":\" %\"}\n\n"}
+{"t":4229,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"\\\\n              value={tipPer\"}\n\n"}
+{"t":4236,"chunk":"event: gen\ndata: {\"delta\":\"centage}\\\\n              onChange={(e\"}\n\n"}
+{"t":4259,"chunk":"event: gen\ndata: {\"delta\":\") => set\"}\n\n"}
+{"t":4281,"chunk":"event: gen\ndata: {\"delta\":\"TipPercentage(parse\"}\n\n"}
+{"t":4302,"chunk":"event: gen\ndata: {\"delta\":\"Float(e.target.value)\"}\n\n"}
+{"t":4325,"chunk":"event: gen\ndata: {\"delta\":\" || 0\"}\n\n"}
+{"t":4347,"chunk":"event: gen\ndata: {\"delta\":\")}\\\\n              \"}\n\n"}
+{"t":4374,"chunk":"event: gen\ndata: {\"delta\":\"min=\\\\\\\"0\\\\\\\"\\\\n              max\"}\n\n"}
+{"t":4400,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"100\\\\\\\"\\\\n              \"}\n\n"}
+{"t":4422,"chunk":"event: gen\ndata: {\"delta\":\"step=\\\\\\\"0.1\\\\\\\"\\\\n\"}\n\n"}
+{"t":4444,"chunk":"event: gen\ndata: {\"delta\":\"            />\\\\n          </div>\\\\\"}\n\n"}
+{"t":4477,"chunk":"event: gen\ndata: {\"delta\":\"n        </div>\\\\n\\\\n\"}\n\n"}
+{"t":4499,"chunk":"event: gen\ndata: {\"delta\":\"        <div className=\\\\\\\"input-group\"}\n\n"}
+{"t":4519,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n          <label html\"}\n\n"}
+{"t":4626,"chunk":"event: gen\ndata: {\"delta\":\"For=\\\\\\\"split\\\\\\\">Split Between\"}\n\n"}
+{"t":4626,"chunk":"event: gen\ndata: {\"delta\":\"</label>\\\\n          <input\"}\n\n"}
+{"t":4627,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n            id=\\\\\\\"split\\\\\\\"\\\\\"}\n\n"}
+{"t":4627,"chunk":"event: gen\ndata: {\"delta\":\"n            type=\\\\\\\"number\\\\\\\"\\\\n\"}\n\n"}
+{"t":4627,"chunk":"event: gen\ndata: {\"delta\":\"            value\"}\n\n"}
+{"t":4651,"chunk":"event: gen\ndata: {\"delta\":\"={splitCount}\\\\n            onChange={\"}\n\n"}
+{"t":4672,"chunk":"event: gen\ndata: {\"delta\":\"handleSplitChange}\\\\n            \"}\n\n"}
+{"t":4693,"chunk":"event: gen\ndata: {\"delta\":\"min=\\\\\\\"1\\\\\\\"\\\\n            step\"}\n\n"}
+{"t":4717,"chunk":"event: gen\ndata: {\"delta\":\"=\\\\\\\"1\\\\\\\"\\\\n          />\\\\\"}\n\n"}
+{"t":4739,"chunk":"event: gen\ndata: {\"delta\":\"n        </div>\\\\n\\\\n\"}\n\n"}
+{"t":4759,"chunk":"event: gen\ndata: {\"delta\":\"        <div className=\\\\\\\"results\"}\n\n"}
+{"t":4781,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n          <div\"}\n\n"}
+{"t":4818,"chunk":"event: gen\ndata: {\"delta\":\" className=\\\\\\\"result-row\"}\n\n"}
+{"t":4827,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n            <span>\"}\n\n"}
+{"t":4871,"chunk":"event: gen\ndata: {\"delta\":\"Tip\"}\n\n"}
+{"t":4896,"chunk":"event: gen\ndata: {\"delta\":\" Amount:</span>\\\\n            <span\"}\n\n"}
+{"t":4917,"chunk":"event: gen\ndata: {\"delta\":\" className=\\\\\\\"amount\"}\n\n"}
+{"t":4939,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">${tipAmount.toFixed(\"}\n\n"}
+{"t":4959,"chunk":"event: gen\ndata: {\"delta\":\"2)}</span>\\\\n          \"}\n\n"}
+{"t":4981,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n          <div className=\\\\\\\"\"}\n\n"}
+{"t":5004,"chunk":"event: gen\ndata: {\"delta\":\"result-row\\\\\\\">\\\\n            \"}\n\n"}
+{"t":5029,"chunk":"event: gen\ndata: {\"delta\":\"<span>Total Amount:</span>\\\\n\"}\n\n"}
+{"t":5050,"chunk":"event: gen\ndata: {\"delta\":\"            <span className=\\\\\\\"amount\\\\\\\">${\"}\n\n"}
+{"t":5150,"chunk":"event: gen\ndata: {\"delta\":\"totalAmount.toFixed(2)\"}\n\n"}
+{"t":5150,"chunk":"event: gen\ndata: {\"delta\":\"}</span>\\\\n          </div>\\\\\"}\n\n"}
+{"t":5151,"chunk":"event: gen\ndata: {\"delta\":\"n          {\"}\n\n"}
+{"t":5151,"chunk":"event: gen\ndata: {\"delta\":\"split\"}\n\n"}
+{"t":5166,"chunk":"event: gen\ndata: {\"delta\":\"Count > 1 && (\\\\\"}\n\n"}
+{"t":5191,"chunk":"event: gen\ndata: {\"delta\":\"n            <div className=\\\\\\\"result-\"}\n\n"}
+{"t":5221,"chunk":"event: gen\ndata: {\"delta\":\"row highlight\"}\n\n"}
+{"t":5255,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\">\\\\n              <span>Per\"}\n\n"}
+{"t":5275,"chunk":"event: gen\ndata: {\"delta\":\" Person:</span>\\\\n              <span\"}\n\n"}
+{"t":5296,"chunk":"event: gen\ndata: {\"delta\":\" className=\\\\\\\"amount\\\\\\\">${perPersonAmount\"}\n\n"}
+{"t":5321,"chunk":"event: gen\ndata: {\"delta\":\".toFixed(2)}</span\"}\n\n"}
+{"t":5343,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n            </div>\\\\n          \"}\n\n"}
+{"t":5362,"chunk":"event: gen\ndata: {\"delta\":\")}\\\\n        </div>\\\\n\"}\n\n"}
+{"t":5386,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n        <button\"}\n\n"}
+{"t":5407,"chunk":"event: gen\ndata: {\"delta\":\" className=\\\\\\\"reset-btn\\\\\\\" onClick={\"}\n\n"}
+{"t":5430,"chunk":"event: gen\ndata: {\"delta\":\"handleReset}\"}\n\n"}
+{"t":5452,"chunk":"event: gen\ndata: {\"delta\":\">\\\\n          Reset\\\\\"}\n\n"}
+{"t":5475,"chunk":"event: gen\ndata: {\"delta\":\"n        </button>\\\\n      \"}\n\n"}
+{"t":5496,"chunk":"event: gen\ndata: {\"delta\":\"</div>\\\\n    </div>\\\\n\"}\n\n"}
+{"t":5517,"chunk":"event: gen\ndata: {\"delta\":\"  );\\\\n}\"}\n\n"}
+{"t":5540,"chunk":"event: gen\ndata: {\"delta\":\"\\\",\"}\n\n"}
+{"t":5583,"chunk":"event: gen\ndata: {\"delta\":\"\\n    \\\"/styles.css\\\": \\\"\"}\n\n"}
+{"t":5675,"chunk":"event: gen\ndata: {\"delta\":\"*\"}\n\n"}
+{"t":5675,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  margin: 0\"}\n\nevent: gen\ndata: {\"delta\":\";\\\\n  padding: 0;\\\\\"}\n\n"}
+{"t":5675,"chunk":"event: gen\ndata: {\"delta\":\"n  box-sizing: border-\"}\n\n"}
+{"t":5688,"chunk":"event: gen\ndata: {\"delta\":\"box;\\\\n}\\\\n\\\\nb\"}\n\n"}
+{"t":5711,"chunk":"event: gen\ndata: {\"delta\":\"ody {\\\\n  font-family\"}\n\n"}
+{"t":5734,"chunk":"event: gen\ndata: {\"delta\":\": -apple-system, Blink\"}\n\n"}
+{"t":5755,"chunk":"event: gen\ndata: {\"delta\":\"MacSystemFont, '\"}\n\n"}
+{"t":5777,"chunk":"event: gen\ndata: {\"delta\":\"Segoe UI',\"}\n\n"}
+{"t":5799,"chunk":"event: gen\ndata: {\"delta\":\" Roboto,\"}\n\n"}
+{"t":5820,"chunk":"event: gen\ndata: {\"delta\":\" Oxygen, Ubuntu, Cantarell\"}\n\n"}
+{"t":5844,"chunk":"event: gen\ndata: {\"delta\":\", sans-serif;\\\\n  backgroun\"}\n\n"}
+{"t":5865,"chunk":"event: gen\ndata: {\"delta\":\"d:\"}\n\n"}
+{"t":5887,"chunk":"event: gen\ndata: {\"delta\":\" linear\"}\n\n"}
+{"t":5909,"chunk":"event: gen\ndata: {\"delta\":\"-gradient(135deg, #667\"}\n\n"}
+{"t":5931,"chunk":"event: gen\ndata: {\"delta\":\"eea 0%, #764\"}\n\n"}
+{"t":5959,"chunk":"event: gen\ndata: {\"delta\":\"ba2 100%);\\\\n  \"}\n\n"}
+{"t":5975,"chunk":"event: gen\ndata: {\"delta\":\"min-height: 100vh;\\\\\"}\n\n"}
+{"t":5997,"chunk":"event: gen\ndata: {\"delta\":\"n  display: flex;\\\\n  \"}\n\n"}
+{"t":6018,"chunk":"event: gen\ndata: {\"delta\":\"align\"}\n\n"}
+{"t":6040,"chunk":"event: gen\ndata: {\"delta\":\"-items: center;\\\\n  justify\"}\n\n"}
+{"t":6075,"chunk":"event: gen\ndata: {\"delta\":\"-content: center;\\\\n  padding\"}\n\n"}
+{"t":6199,"chunk":"event: gen\ndata: {\"delta\":\": 20px;\\\\n}\\\\n\"}\n\n"}
+{"t":6199,"chunk":"event: gen\ndata: {\"delta\":\"\\\\n.container {\\\\n  \"}\n\n"}
+{"t":6199,"chunk":"event: gen\ndata: {\"delta\":\"width\"}\n\n"}
+{"t":6199,"chunk":"event: gen\ndata: {\"delta\":\": 100%;\\\\n  max\"}\n\n"}
+{"t":6199,"chunk":"event: gen\ndata: {\"delta\":\"-width: 500\"}\n\n"}
+{"t":6199,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\\"}\n\n"}
+{"t":6217,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.calculator {\\\\n\"}\n\n"}
+{"t":6239,"chunk":"event: gen\ndata: {\"delta\":\"  background: white;\\\\n  border\"}\n\n"}
+{"t":6262,"chunk":"event: gen\ndata: {\"delta\":\"-radius: 16\"}\n\n"}
+{"t":6299,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  padding: 32\"}\n\n"}
+{"t":6304,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  box-shadow:\"}\n\n"}
+{"t":6327,"chunk":"event: gen\ndata: {\"delta\":\" 0 20\"}\n\n"}
+{"t":6348,"chunk":"event: gen\ndata: {\"delta\":\"px 60\"}\n\n"}
+{"t":6371,"chunk":"event: gen\ndata: {\"delta\":\"px rgba(0, 0,\"}\n\n"}
+{"t":6395,"chunk":"event: gen\ndata: {\"delta\":\" 0, 0.3\"}\n\n"}
+{"t":6415,"chunk":"event: gen\ndata: {\"delta\":\");\\\\n}\\\\\"}\n\n"}
+{"t":6438,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\\"}\n\n"}
+{"t":6458,"chunk":"event: gen\ndata: {\"delta\":\"nh1 {\\\\n  text\"}\n\n"}
+{"t":6482,"chunk":"event: gen\ndata: {\"delta\":\"-align: center;\\\\n  color\"}\n\n"}
+{"t":6503,"chunk":"event: gen\ndata: {\"delta\":\": #333;\\\\n  margin-\"}\n\n"}
+{"t":6526,"chunk":"event: gen\ndata: {\"delta\":\"bottom: 28\"}\n\n"}
+{"t":6550,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":6571,"chunk":"event: gen\ndata: {\"delta\":\"font-size: 28\"}\n\n"}
+{"t":6609,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":6630,"chunk":"event: gen\ndata: {\"delta\":\"input-group {\\\\n  margin\"}\n\n"}
+{"t":6724,"chunk":"event: gen\ndata: {\"delta\":\"-bottom: 24px;\\\\n\"}\n\n"}
+{"t":6724,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\nl\"}\n\nevent: gen\ndata: {\"delta\":\"abel {\\\\n  display: block\"}\n\n"}
+{"t":6724,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  color\"}\n\n"}
+{"t":6743,"chunk":"event: gen\ndata: {\"delta\":\": #555;\\\\n  font-\"}\n\n"}
+{"t":6764,"chunk":"event: gen\ndata: {\"delta\":\"weight: 600;\\\\n  margin\"}\n\n"}
+{"t":6788,"chunk":"event: gen\ndata: {\"delta\":\"-bottom: 8px;\\\\n\"}\n\n"}
+{"t":6808,"chunk":"event: gen\ndata: {\"delta\":\"  \"}\n\n"}
+{"t":6832,"chunk":"event: gen\ndata: {\"delta\":\"font-size: 14px;\\\\\"}\n\n"}
+{"t":6854,"chunk":"event: gen\ndata: {\"delta\":\"n  \"}\n\n"}
+{"t":6874,"chunk":"event: gen\ndata: {\"delta\":\"text\"}\n\n"}
+{"t":6895,"chunk":"event: gen\ndata: {\"delta\":\"-transform: uppercase;\\\\n  letter\"}\n\n"}
+{"t":6921,"chunk":"event: gen\ndata: {\"delta\":\"-spacing: 0.5px\"}\n\n"}
+{"t":6941,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":6964,"chunk":"event: gen\ndata: {\"delta\":\".input-wrapper {\\\\n  \"}\n\n"}
+{"t":6985,"chunk":"event: gen\ndata: {\"delta\":\"position\"}\n\n"}
+{"t":7013,"chunk":"event: gen\ndata: {\"delta\":\": relative;\\\\n  display: flex\"}\n\n"}
+{"t":7041,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  align-items: center\"}\n\n"}
+{"t":7065,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\\"}\n\n"}
+{"t":7087,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.currency {\\\\n\"}\n\n"}
+{"t":7109,"chunk":"event: gen\ndata: {\"delta\":\"  position\"}\n\n"}
+{"t":7131,"chunk":"event: gen\ndata: {\"delta\":\": absolute;\\\\n  left: \"}\n\n"}
+{"t":7156,"chunk":"event: gen\ndata: {\"delta\":\"12\"}\n\n"}
+{"t":7247,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  color\"}\n\n"}
+{"t":7247,"chunk":"event: gen\ndata: {\"delta\":\": #999\"}\n\n"}
+{"t":7247,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  font-weight\"}\n\n"}
+{"t":7269,"chunk":"event: gen\ndata: {\"delta\":\": 600;\\\\n  font-\"}\n\n"}
+{"t":7284,"chunk":"event: gen\ndata: {\"delta\":\"size: 18\"}\n\n"}
+{"t":7357,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\\"}\n\n"}
+{"t":7359,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\nin\"}\n\n"}
+{"t":7361,"chunk":"event: gen\ndata: {\"delta\":\"put[\"}\n\n"}
+{"t":7365,"chunk":"event: gen\ndata: {\"delta\":\"type=\\\\\\\"number\\\\\\\"] {\\\\n\"}\n\n"}
+{"t":7376,"chunk":"event: gen\ndata: {\"delta\":\"  width: 100%;\\\\n\"}\n\n"}
+{"t":7397,"chunk":"event: gen\ndata: {\"delta\":\"  padding: 12px \"}\n\n"}
+{"t":7419,"chunk":"event: gen\ndata: {\"delta\":\"12\"}\n\n"}
+{"t":7441,"chunk":"event: gen\ndata: {\"delta\":\"px 12px 32\"}\n\n"}
+{"t":7465,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  border: 2\"}\n\n"}
+{"t":7486,"chunk":"event: gen\ndata: {\"delta\":\"px solid #e0\"}\n\n"}
+{"t":7507,"chunk":"event: gen\ndata: {\"delta\":\"e0e0;\\\\n  border\"}\n\n"}
+{"t":7531,"chunk":"event: gen\ndata: {\"delta\":\"-radius: 8px;\\\\n\"}\n\n"}
+{"t":7550,"chunk":"event: gen\ndata: {\"delta\":\"  font\"}\n\n"}
+{"t":7573,"chunk":"event: gen\ndata: {\"delta\":\"-size: 16\"}\n\n"}
+{"t":7608,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  transition: all\"}\n\n"}
+{"t":7628,"chunk":"event: gen\ndata: {\"delta\":\" 0.3\"}\n\n"}
+{"t":7652,"chunk":"event: gen\ndata: {\"delta\":\"s ease;\\\\n  color\"}\n\n"}
+{"t":7675,"chunk":"event: gen\ndata: {\"delta\":\": #333;\\\\n}\\\\\"}\n\n"}
+{"t":7772,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\ninput[type=\\\\\\\"number\"}\n\n"}
+{"t":7772,"chunk":"event: gen\ndata: {\"delta\":\"\\\\\\\"]:focus {\\\\n  outline\"}\n\nevent: gen\ndata: {\"delta\":\": none;\\\\n  border-color\"}\n\nevent: gen\ndata: {\"delta\":\": #667eea;\\\\n  \"}\n\n"}
+{"t":7784,"chunk":"event: gen\ndata: {\"delta\":\"box-shadow: 0 0\"}\n\n"}
+{"t":7804,"chunk":"event: gen\ndata: {\"delta\":\" 0 3px rgba(102\"}\n\n"}
+{"t":7842,"chunk":"event: gen\ndata: {\"delta\":\", 126\"}\n\n"}
+{"t":7851,"chunk":"event: gen\ndata: {\"delta\":\", 234, 0.1\"}\n\n"}
+{"t":7874,"chunk":"event: gen\ndata: {\"delta\":\");\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":7896,"chunk":"event: gen\ndata: {\"delta\":\".input\"}\n\n"}
+{"t":7917,"chunk":"event: gen\ndata: {\"delta\":\"-wrapper input\"}\n\n"}
+{"t":7938,"chunk":"event: gen\ndata: {\"delta\":\"[\"}\n\n"}
+{"t":7966,"chunk":"event: gen\ndata: {\"delta\":\"type=\\\\\\\"number\\\\\\\"] {\\\\n\"}\n\n"}
+{"t":7983,"chunk":"event: gen\ndata: {\"delta\":\"  padding\"}\n\n"}
+{"t":8006,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":8028,"chunk":"event: gen\ndata: {\"delta\":\"left\"}\n\n"}
+{"t":8050,"chunk":"event: gen\ndata: {\"delta\":\": 32\"}\n\n"}
+{"t":8075,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\\"}\n\n"}
+{"t":8094,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.tip-buttons \"}\n\n"}
+{"t":8118,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  display: gri\"}\n\n"}
+{"t":8137,"chunk":"event: gen\ndata: {\"delta\":\"d;\\\\n  grid-template-columns\"}\n\n"}
+{"t":8161,"chunk":"event: gen\ndata: {\"delta\":\": repeat(4\"}\n\n"}
+{"t":8197,"chunk":"event: gen\ndata: {\"delta\":\", 1fr);\\\\n  \"}\n\n"}
+{"t":8298,"chunk":"event: gen\ndata: {\"delta\":\"gap: 8px;\\\\n  \"}\n\n"}
+{"t":8298,"chunk":"event: gen\ndata: {\"delta\":\"margin-bottom: 12\"}\n\n"}
+{"t":8298,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\n\\\\n.\"}\n\n"}
+{"t":8298,"chunk":"event: gen\ndata: {\"delta\":\"tip-btn {\\\\n  padding\"}\n\n"}
+{"t":8309,"chunk":"event: gen\ndata: {\"delta\":\": 12\"}\n\n"}
+{"t":8361,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\\"}\n\n"}
+{"t":8398,"chunk":"event: gen\ndata: {\"delta\":\"n  border: 2px soli\"}\n\n"}
+{"t":8418,"chunk":"event: gen\ndata: {\"delta\":\"d #e\"}\n\n"}
+{"t":8440,"chunk":"event: gen\ndata: {\"delta\":\"0e0e0;\\\\n  \"}\n\n"}
+{"t":8459,"chunk":"event: gen\ndata: {\"delta\":\"backgroun\"}\n\n"}
+{"t":8492,"chunk":"event: gen\ndata: {\"delta\":\"d: white\"}\n\n"}
+{"t":8503,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  border-radius: \"}\n\n"}
+{"t":8525,"chunk":"event: gen\ndata: {\"delta\":\"8px;\\\\n  font\"}\n\n"}
+{"t":8550,"chunk":"event: gen\ndata: {\"delta\":\"-size: 14px;\\\\n\"}\n\n"}
+{"t":8570,"chunk":"event: gen\ndata: {\"delta\":\"  font\"}\n\n"}
+{"t":8591,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 600;\\\\n  \"}\n\n"}
+{"t":8613,"chunk":"event: gen\ndata: {\"delta\":\"cursor: pointer;\\\\n  transition:\"}\n\n"}
+{"t":8638,"chunk":"event: gen\ndata: {\"delta\":\" all 0.3s ease;\\\\\"}\n\n"}
+{"t":8657,"chunk":"event: gen\ndata: {\"delta\":\"n  color: #555\"}\n\n"}
+{"t":8681,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\\"}\n\n"}
+{"t":8701,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.tip-btn:\"}\n\n"}
+{"t":8726,"chunk":"event: gen\ndata: {\"delta\":\"hover {\\\\n  border\"}\n\n"}
+{"t":8820,"chunk":"event: gen\ndata: {\"delta\":\"-color: #667eea;\\\\\"}\n\n"}
+{"t":8820,"chunk":"event: gen\ndata: {\"delta\":\"n  color\"}\n\nevent: gen\ndata: {\"delta\":\": #667eea;\\\\n}\\\\\"}\n\n"}
+{"t":8820,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.tip\"}\n\n"}
+{"t":8833,"chunk":"event: gen\ndata: {\"delta\":\"-btn.active {\\\\n  \"}\n\n"}
+{"t":8856,"chunk":"event: gen\ndata: {\"delta\":\"background: #667eea;\\\\n\"}\n\n"}
+{"t":8877,"chunk":"event: gen\ndata: {\"delta\":\"  border\"}\n\n"}
+{"t":8899,"chunk":"event: gen\ndata: {\"delta\":\"-color: #667eea;\\\\\"}\n\n"}
+{"t":8923,"chunk":"event: gen\ndata: {\"delta\":\"n  color: white;\\\\n}\\\\\"}\n\n"}
+{"t":8958,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.custom-tip \"}\n\n"}
+{"t":8967,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  display: flex;\\\\n\"}\n\n"}
+{"t":8987,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\\"}\n\n"}
+{"t":9010,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.custom-tip input\"}\n\n"}
+{"t":9033,"chunk":"event: gen\ndata: {\"delta\":\" \"}\n\n"}
+{"t":9054,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  flex\"}\n\n"}
+{"t":9154,"chunk":"event: gen\ndata: {\"delta\":\": 1;\\\\n}\\\\\"}\n\n"}
+{"t":9158,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.results\"}\n\n"}
+{"t":9161,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  backgroun\"}\n\n"}
+{"t":9165,"chunk":"event: gen\ndata: {\"delta\":\"d: #\"}\n\n"}
+{"t":9168,"chunk":"event: gen\ndata: {\"delta\":\"f8\"}\n\n"}
+{"t":9184,"chunk":"event: gen\ndata: {\"delta\":\"f9fa;\\\\n  border-\"}\n\n"}
+{"t":9209,"chunk":"event: gen\ndata: {\"delta\":\"radius: 12\"}\n\n"}
+{"t":9230,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  padding: 20\"}\n\n"}
+{"t":9345,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  margin:\"}\n\n"}
+{"t":9345,"chunk":"event: gen\ndata: {\"delta\":\" 28\"}\n\n"}
+{"t":9345,"chunk":"event: gen\ndata: {\"delta\":\"px 0;\\\\n}\\\\n\\\\\"}\n\n"}
+{"t":9346,"chunk":"event: gen\ndata: {\"delta\":\"n.result-row {\\\\n\"}\n\n"}
+{"t":9346,"chunk":"event: gen\ndata: {\"delta\":\"  display: flex;\\\\n  justify\"}\n\n"}
+{"t":9363,"chunk":"event: gen\ndata: {\"delta\":\"-content: space-between;\\\\n\"}\n\n"}
+{"t":9384,"chunk":"event: gen\ndata: {\"delta\":\"  align-items: center;\\\\n\"}\n\n"}
+{"t":9406,"chunk":"event: gen\ndata: {\"delta\":\"  padding: 12px 0\"}\n\n"}
+{"t":9426,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  color\"}\n\n"}
+{"t":9449,"chunk":"event: gen\ndata: {\"delta\":\": #555;\\\\n  font-\"}\n\n"}
+{"t":9472,"chunk":"event: gen\ndata: {\"delta\":\"size: 16\"}\n\n"}
+{"t":9495,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  border\"}\n\n"}
+{"t":9520,"chunk":"event: gen\ndata: {\"delta\":\"-bottom: 1px solid #\"}\n\n"}
+{"t":9542,"chunk":"event: gen\ndata: {\"delta\":\"e0e0e0;\\\\n\"}\n\n"}
+{"t":9586,"chunk":"event: gen\ndata: {\"delta\":\"}\\\\n\\\\n.result-row\"}\n\n"}
+{"t":9586,"chunk":"event: gen\ndata: {\"delta\":\":last-child {\\\\n  \"}\n\n"}
+{"t":9608,"chunk":"event: gen\ndata: {\"delta\":\"border-bottom: none;\\\\n}\\\\\"}\n\n"}
+{"t":9629,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.result-row.\"}\n\n"}
+{"t":9654,"chunk":"event: gen\ndata: {\"delta\":\"highlight {\\\\n  background: #\"}\n\n"}
+{"t":9688,"chunk":"event: gen\ndata: {\"delta\":\"e8e\"}\n\n"}
+{"t":9717,"chunk":"event: gen\ndata: {\"delta\":\"af6;\\\\n  padding\"}\n\n"}
+{"t":9720,"chunk":"event: gen\ndata: {\"delta\":\": 12px;\\\\n  margin\"}\n\n"}
+{"t":9741,"chunk":"event: gen\ndata: {\"delta\":\": 0 \"}\n\n"}
+{"t":9763,"chunk":"event: gen\ndata: {\"delta\":\"-\"}\n\n"}
+{"t":9867,"chunk":"event: gen\ndata: {\"delta\":\"20\"}\n\n"}
+{"t":9868,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  \"}\n\n"}
+{"t":9871,"chunk":"event: gen\ndata: {\"delta\":\"padding\"}\n\n"}
+{"t":9871,"chunk":"event: gen\ndata: {\"delta\":\"-left: 20px;\\\\n\"}\n\n"}
+{"t":9873,"chunk":"event: gen\ndata: {\"delta\":\"  padding\"}\n\n"}
+{"t":9897,"chunk":"event: gen\ndata: {\"delta\":\"-right: 20px;\\\\n\"}\n\n"}
+{"t":9926,"chunk":"event: gen\ndata: {\"delta\":\"  border-radius\"}\n\n"}
+{"t":9961,"chunk":"event: gen\ndata: {\"delta\":\": 8px;\\\\n  \"}\n\n"}
+{"t":9984,"chunk":"event: gen\ndata: {\"delta\":\"font-weight\"}\n\n"}
+{"t":10003,"chunk":"event: gen\ndata: {\"delta\":\": 600;\\\\n  \"}\n\n"}
+{"t":10027,"chunk":"event: gen\ndata: {\"delta\":\"color\"}\n\n"}
+{"t":10049,"chunk":"event: gen\ndata: {\"delta\":\": #667eea;\\\\n}\\\\\"}\n\n"}
+{"t":10069,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.amount\"}\n\n"}
+{"t":10092,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  font-weight\"}\n\n"}
+{"t":10114,"chunk":"event: gen\ndata: {\"delta\":\": 700;\\\\n  color\"}\n\n"}
+{"t":10137,"chunk":"event: gen\ndata: {\"delta\":\": #333;\\\\n  font-\"}\n\n"}
+{"t":10158,"chunk":"event: gen\ndata: {\"delta\":\"size: 18\"}\n\n"}
+{"t":10196,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n}\\\\\"}\n\n"}
+{"t":10203,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.result\"}\n\n"}
+{"t":10225,"chunk":"event: gen\ndata: {\"delta\":\"-row.\"}\n\n"}
+{"t":10245,"chunk":"event: gen\ndata: {\"delta\":\"highlight .amount {\\\\n  color\"}\n\n"}
+{"t":10283,"chunk":"event: gen\ndata: {\"delta\":\": #667eea;\\\\n}\\\\\"}\n\n"}
+{"t":10290,"chunk":"event: gen\ndata: {\"delta\":\"n\\\\n.reset-btn \"}\n\n"}
+{"t":10392,"chunk":"event: gen\ndata: {\"delta\":\"{\\\\n  width\"}\n\n"}
+{"t":10392,"chunk":"event: gen\ndata: {\"delta\":\": 100%;\\\\n  padding\"}\n\nevent: gen\ndata: {\"delta\":\": 14\"}\n\n"}
+{"t":10393,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  background: #f\"}\n\n"}
+{"t":10403,"chunk":"event: gen\ndata: {\"delta\":\"0f0f0;\\\\n  \"}\n\n"}
+{"t":10425,"chunk":"event: gen\ndata: {\"delta\":\"border: none\"}\n\n"}
+{"t":10444,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  border-radius: \"}\n\n"}
+{"t":10468,"chunk":"event: gen\ndata: {\"delta\":\"8px;\\\\n  font-size\"}\n\n"}
+{"t":10490,"chunk":"event: gen\ndata: {\"delta\":\": 16px;\\\\n  font\"}\n\n"}
+{"t":10514,"chunk":"event: gen\ndata: {\"delta\":\"-weight: 600;\\\\n  \"}\n\n"}
+{"t":10541,"chunk":"event: gen\ndata: {\"delta\":\"color\"}\n\n"}
+{"t":10563,"chunk":"event: gen\ndata: {\"delta\":\": #555\"}\n\n"}
+{"t":10586,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n  cursor: pointer;\\\\n\"}\n\n"}
+{"t":10608,"chunk":"event: gen\ndata: {\"delta\":\"  transition: all 0.3\"}\n\n"}
+{"t":10633,"chunk":"event: gen\ndata: {\"delta\":\"s ease;\\\\n}\\\\n\\\\n\"}\n\n"}
+{"t":10657,"chunk":"event: gen\ndata: {\"delta\":\".reset-btn:hover {\\\\\"}\n\n"}
+{"t":10681,"chunk":"event: gen\ndata: {\"delta\":\"n  background: #e0e\"}\n\n"}
+{"t":10702,"chunk":"event: gen\ndata: {\"delta\":\"0e0;\\\\n  color:\"}\n\n"}
+{"t":10731,"chunk":"event: gen\ndata: {\"delta\":\" #333\"}\n\n"}
+{"t":10746,"chunk":"event: gen\ndata: {\"delta\":\";\\\\n}\\\\n\\\\n.reset\"}\n\n"}
+{"t":10917,"chunk":"event: gen\ndata: {\"delta\":\"-btn:active\"}\n\n"}
+{"t":10917,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n  transform\"}\n\n"}
+{"t":10917,"chunk":"event: gen\ndata: {\"delta\":\": scale\"}\n\n"}
+{"t":10918,"chunk":"event: gen\ndata: {\"delta\":\"(0.98\"}\n\n"}
+{"t":10918,"chunk":"event: gen\ndata: {\"delta\":\");\\\\n}\\\\n\\\\n@\"}\n\nevent: gen\ndata: {\"delta\":\"media (max-width: 480\"}\n\nevent: gen\ndata: {\"delta\":\"px) {\\\\n  .calculator\"}\n\n"}
+{"t":10932,"chunk":"event: gen\ndata: {\"delta\":\" {\\\\n    padding: 24\"}\n\n"}
+{"t":10947,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":10989,"chunk":"event: gen\ndata: {\"delta\":\"n  h1 {\\\\n\"}\n\n"}
+{"t":10992,"chunk":"event: gen\ndata: {\"delta\":\"    font-size: 24\"}\n\n"}
+{"t":11016,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n    \"}\n\n"}
+{"t":11037,"chunk":"event: gen\ndata: {\"delta\":\"margin-bottom: 20\"}\n\n"}
+{"t":11058,"chunk":"event: gen\ndata: {\"delta\":\"px;\\\\n  }\\\\n\\\\\"}\n\n"}
+{"t":11079,"chunk":"event: gen\ndata: {\"delta\":\"n  .tip\"}\n\n"}
+{"t":11102,"chunk":"event: gen\ndata: {\"delta\":\"-buttons {\\\\n    grid-\"}\n\n"}
+{"t":11129,"chunk":"event: gen\ndata: {\"delta\":\"template-columns: repeat\"}\n\n"}
+{"t":11159,"chunk":"event: gen\ndata: {\"delta\":\"(2, 1fr);\\\\\"}\n\n"}
+{"t":11187,"chunk":"event: gen\ndata: {\"delta\":\"n  }\\\\n}\\\"\"}\n\n"}
+{"t":11213,"chunk":"event: gen\ndata: {\"delta\":\"\\n  \"}\n\n"}
+{"t":11233,"chunk":"event: gen\ndata: {\"delta\":\"},\"}\n\n"}
+{"t":11254,"chunk":"event: gen\ndata: {\"delta\":\"\\n  \\\"entry\"}\n\n"}
+{"t":11275,"chunk":"event: gen\ndata: {\"delta\":\"\\\": \\\"/\"}\n\n"}
+{"t":11297,"chunk":"event: gen\ndata: {\"delta\":\"App.jsx\\\"\\n}\\n```\"}\n\n"}
+{"t":11509,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Claude Haiku 4.5 · files JSON\",\"detail\":\"streaming json · valid first pass\"}\n\n"}
+{"t":11558,"chunk":"event: step\ndata: {\"state\":\"ok\",\"label\":\"Files persisted\",\"detail\":\"2 files · entry /App.jsx\"}\n\nevent: step\ndata: {\"state\":\"ok\",\"label\":\"Sandbox\",\"detail\":\"bundles client-side · CSP locked · offline\"}\n\n"}
+{"t":13681,"chunk":"event: artifact\ndata: {\"artifactId\":\"a_mrp1mvjjxiw7b3\",\"name\":\"component\",\"kind\":\"react\",\"meta\":\"2 files · bundled offline\",\"ver\":1}\n\nevent: assistant_text\ndata: {\"text\":\"A React project was created with two files for an interactive tip calculator component. The component likely includes an input for the bill amount, options to select tip percentage, and displays the calculated tip and total. One file probably contains the main component logic while the other handles styling or configuration.\"}\n\n"}
+{"t":13740,"chunk":"event: pipeline\ndata: {\"phase\":\"end\",\"duration\":\"13.2s\"}\n\nevent: done\ndata: {\"messageId\":\"m_mrp1mx7wtg8x6z\"}\n\n"}
