@@ -32,7 +32,10 @@ STAGE="$WORK/stage"
 mkdir -p "$STAGE/schemas" "$STAGE/templates"
 for s in pptx docx xlsx pdf; do cp "skills/$s/schema.json" "$STAGE/schemas/$s.json"; done
 cp skills/pdf/templates/paged.css "$STAGE/templates/paged.css"
-( cd "$STAGE" && zip -q "$WORK/office.zip" schemas/*.json templates/paged.css )
+# rebrand renamed the default docx template; the handler looks it up by the new
+# name, so ship it (the stale atlas_default.dotx in the pulled zip is inert)
+cp skills/docx/templates/axiom_default.dotx "$STAGE/templates/axiom_default.dotx"
+( cd "$STAGE" && zip -q "$WORK/office.zip" schemas/*.json templates/paged.css templates/axiom_default.dotx )
 
 echo "→ uploading"
 aws s3 cp "$WORK/office.zip" "s3://$BUCKET/$KEY" --region "$REGION" --only-show-errors
