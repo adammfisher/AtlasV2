@@ -160,6 +160,7 @@ export interface SendResult {
   error?: string;
   text: string;
   routeIntent?: string;
+  tools: string[];
 }
 
 /** Send a message via the raw API and consume the SSE stream to completion —
@@ -171,7 +172,7 @@ export async function sendAndWait(
   text: string,
   opts?: { attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>; timeoutMs?: number },
 ): Promise<SendResult> {
-  const result: SendResult = { text: '' };
+  const result: SendResult = { text: '', tools: [] };
   const timeout = opts?.timeoutMs ?? 180_000;
   const deadline = Date.now() + timeout;
   let buf = '';
@@ -193,6 +194,7 @@ export async function sendAndWait(
         continue;
       }
       if (event === 'artifact') result.artifact = data as unknown as SendResult['artifact'];
+      else if (event === 'tool' && typeof data.tool === 'string') result.tools.push(data.tool);
       else if (event === 'error') result.error = String(data.message ?? 'error');
       else if (event === 'done') result.messageId = String(data.messageId ?? '');
       else if (event === 'route') result.routeIntent = String(data.intent ?? '');

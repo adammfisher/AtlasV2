@@ -52,9 +52,22 @@ const pad = (n: number, w = 13): string => String(n).padStart(w, '0');
 import { accountPrefix } from '../lib/account.js';
 
 /** Every pk is namespaced per account — the primary account's prefix is ''
- * so pre-accounts data belongs to it (zero migration). One choke point. */
+ * so pre-accounts data belongs to it (zero migration). One choke point.
+ *
+ * Idempotent by necessity (FX-9): every read-modify-write call site in this
+ * file follows the same shape — `put*({ ...rowJustReadFromQueryAll, field:
+ * newValue })` — and a row returned by queryAll()/getItem() carries its own
+ * STORED `pk` field, already prefixed. That field rides along in the spread
+ * and overwrites the raw `pk: 'PLUGINS'`-style literal the put* helper sets
+ * first in its own object literal (later spread keys win), so this function
+ * receives an already-prefixed value and would double-prefix it — writing to
+ * an orphaned partition key `putItem` never queries back from, so the update
+ * silently vanishes. No-op for the primary account (empty prefix), which is
+ * exactly why this was invisible until a non-primary account exercised it. */
 function acct(pk: string): string {
-  return `${accountPrefix()}${pk}`;
+  const prefix = accountPrefix();
+  if (!prefix || pk.startsWith(prefix)) return pk;
+  return `${prefix}${pk}`;
 }
 
 async function queryAll(pkRaw: string, skPrefix?: string): Promise<Record<string, unknown>[]> {

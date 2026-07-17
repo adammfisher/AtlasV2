@@ -18,6 +18,7 @@ import { modelsRouter } from './routes/models.js';
 import { artifactsRouter } from './routes/artifacts.js';
 import { ensureBundledInstalled, probeKnowledgeCore } from './mcp/manager.js';
 import { uploadsRouter } from './routes/uploads.js';
+import { accounts, runAsAccount } from './lib/account.js';
 
 const IS_LAMBDA = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
@@ -28,8 +29,18 @@ for (const dir of ['artifacts', 'logs', 'uploads', 'knowledge']) {
 
 // 2. Data layer (DynamoDB) — settings cache, first-boot seed, bundled plugins
 await loadSettings();
-await seedIfNeeded();
-await ensureBundledInstalled();
+// FX-9: seedIfNeeded/ensureBundledInstalled partition by the CURRENT account
+// context (AsyncLocalStorage), which is unset here — they only ever ran as
+// the primary account. Every other configured account (users.config.json)
+// got zero starter projects and, critically, no bundled plugin installs —
+// the memory connector included, so remember/forget/recall were silently
+// non-functional for every non-primary user, not just the test harness.
+for (const acct of accounts()) {
+  await runAsAccount(acct.username, async () => {
+    await seedIfNeeded();
+    await ensureBundledInstalled();
+  });
+}
 void probeKnowledgeCore();
 
 // 3. Bedrock auto-connect (non-fatal on failure)

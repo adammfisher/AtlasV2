@@ -52,6 +52,19 @@ export async function createConv(projectId?: string): Promise<Conv> {
   });
 }
 
+export interface Project {
+  id: string;
+  name: string;
+}
+
+export async function createProject(name: string): Promise<Project> {
+  return api<Project>('/projects', { method: 'POST', body: JSON.stringify({ name }) });
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  await api(`/projects/${id}`, { method: 'DELETE' });
+}
+
 /** Delete every e2etest conversation carrying the marker, and marked artifacts. */
 export async function cleanupE2E(): Promise<void> {
   const convs = await api<Array<{ id: string; title: string }>>('/conversations');
