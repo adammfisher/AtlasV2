@@ -21,6 +21,7 @@ export function LivePanel({
 
   return (
     <div
+      data-testid="live-panel"
       className="flex flex-col h-full flex-shrink-0"
       style={{ width: 'min(52vw, 880px)', minWidth: 480, background: C.panel, borderLeft: `1px solid ${C.borderSoft}` }}
     >

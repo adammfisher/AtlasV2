@@ -44,6 +44,7 @@ export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => vo
         <label className="block mb-3">
           <span className="block text-xs mb-1" style={{ color: C.mute, fontFamily: sans }}>Username</span>
           <input
+            data-testid="login-user"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoFocus
@@ -54,6 +55,7 @@ export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => vo
         <label className="block mb-4">
           <span className="block text-xs mb-1" style={{ color: C.mute, fontFamily: sans }}>Password</span>
           <input
+            data-testid="login-pass"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -66,6 +68,7 @@ export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => vo
           <p className="text-xs mb-3" style={{ color: C.amber, fontFamily: sans }}>{error}</p>
         ) : null}
         <button
+          data-testid="login-submit"
           onClick={() => void submit()}
           disabled={busy || !username || !password}
           className="w-full py-2 rounded-lg text-sm font-medium"

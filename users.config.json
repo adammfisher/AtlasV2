@@ -4,6 +4,7 @@
     { "username": "adammfisher", "password": "buster11", "models": ["haiku", "sonnet", "nova", "nemotron"] },
     { "username": "susan", "password": "ally", "models": ["nova", "nemotron"] },
     { "username": "demo", "password": "llama", "models": ["nova", "nemotron"] },
-    { "username": "brynn", "password": "green", "models": ["nova", "nemotron"] }
+    { "username": "brynn", "password": "green", "models": ["nova", "nemotron"] },
+    { "username": "e2etest", "password": "e2e-harness-only", "models": ["haiku", "sonnet", "nova", "nemotron"] }
   ]
 }

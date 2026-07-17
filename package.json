@@ -20,7 +20,16 @@
     "test:e2e-brain": "tsx scripts/test/orchestration/run-e2e.ts",
     "test:design": "tsx scripts/test/design_eval.ts",
     "test:e2e": "playwright test",
-    "test:polish": "tsx scripts/test/polish_eval.ts"
+    "test:polish": "tsx scripts/test/polish_eval.ts",
+    "test:unit": "vitest run --passWithNoTests tests/unit tests/integration",
+    "test:ui": "playwright test --project=ui-mocked",
+    "test:live": "playwright test --project=live-smoke",
+    "test:parity": "playwright test --project=parity-legacy",
+    "test:evals": "tsx tests/evals/run-all.ts",
+    "test:ceiling": "ATLAS_CEILING=1 tsx tests/evals/run-all.ts --ceiling",
+    "test:validators": "runtimes/python/venv/bin/python tests/validators/selftest.py",
+    "test:all": "pnpm test:unit && pnpm test:validators && pnpm test:ui && pnpm test:live && pnpm test:parity && pnpm test:evals",
+    "test:report": "playwright show-report"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -36,7 +45,8 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "prettier": "3.8.4",
     "tsx": "4.22.4",
-    "typescript-eslint": "8.61.0"
+    "typescript-eslint": "8.61.0",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",

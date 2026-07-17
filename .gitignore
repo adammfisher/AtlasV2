@@ -14,6 +14,7 @@ playwright-report/
 dist-lambda/
 build/
 tests/e2e/.auth-state.json
+tests/e2e/.auth-state-e2e.json
 .eval-design/
 __pycache__/
 *.pyc

@@ -858,9 +858,9 @@ export function ChatView({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div data-testid="chat-thread" className="flex-1 overflow-y-auto px-6 py-6">
         {empty ? (
-          <div className="h-full flex flex-col items-center justify-center">
+          <div data-testid="chat-empty-state" className="h-full flex flex-col items-center justify-center">
             <div className="mb-1" style={{ color: C.text, fontFamily: serif, fontSize: 26 }}>
               {userName ? `What are we building, ${userName}?` : 'What are we building?'}
             </div>
@@ -981,7 +981,7 @@ export function ChatView({
               ),
             )}
             {live && (
-              <>
+              <div data-testid="live-exchange">
                 <Msg who="user">
                   {live.userAttachments?.length ? (
                     <span className="flex flex-wrap gap-1.5 mb-1.5">
@@ -1024,12 +1024,14 @@ export function ChatView({
                   )}
                   {live.error ? (
                     <div
+                      data-testid="stream-error"
                       className="flex items-start gap-2 text-sm rounded-xl px-3.5 py-3"
                       style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
                     >
                       <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
                       <span className="flex-1">{live.error}</span>
                       <button
+                        data-testid="stream-retry"
                         onClick={() => void send(live.userText, true)}
                         className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium flex-shrink-0"
                         style={{ background: wash(C.amber, 20), color: C.amber, border: `1px solid ${wash(C.amber, 40)}` }}
@@ -1071,7 +1073,7 @@ export function ChatView({
                     </>
                   ) : null}
                 </Msg>
-              </>
+              </div>
             )}
             <div ref={bottomRef} />
             {bedrockModal ? <BedrockModal onClose={() => setBedrockModal(false)} /> : null}
@@ -1082,6 +1084,7 @@ export function ChatView({
       <div className="px-6 pb-5">
         <div className="max-w-2xl mx-auto relative rounded-2xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
           <textarea
+            data-testid="composer"
             ref={taRef}
             rows={1}
             value={input}
@@ -1338,6 +1341,8 @@ export function ChatView({
               </button>
             ) : null}
             <button
+              data-testid="send-btn"
+              data-busy={busy ? 'true' : 'false'}
               onClick={busy ? stop : () => void send()}
               title={busy ? 'Stop generating' : 'Send'}
               className="flex items-center justify-center rounded-lg"

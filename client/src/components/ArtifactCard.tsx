@@ -18,6 +18,9 @@ export function ArtifactCard({ artifact, onOpen }: { artifact: ArtifactRef; onOp
   const Icon = namedIcon(KIND_ICONS[artifact.kind] ?? 'file-text');
   return (
     <button
+      data-testid="artifact-card"
+      data-kind={artifact.kind}
+      data-ver={artifact.ver}
       onClick={onOpen}
       className="w-full flex items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-colors"
       style={{ background: C.panel, border: `1px solid ${C.border}` }}

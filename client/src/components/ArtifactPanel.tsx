@@ -76,6 +76,9 @@ export function ArtifactPanel({ artifactId, onClose }: { artifactId: string; onC
 
   return (
     <div
+      data-testid="artifact-panel"
+      data-kind={a.kind}
+      data-ver={a.ver}
       className={fullscreen ? 'flex flex-col fixed inset-0 z-50' : 'flex flex-col h-full flex-shrink-0'}
       style={
         fullscreen

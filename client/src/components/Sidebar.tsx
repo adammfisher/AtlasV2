@@ -73,6 +73,7 @@ export function Sidebar({
 
       <div className="px-2.5">
         <button
+          data-testid="new-chat"
           onClick={() => newChat()}
           className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{ color: C.accent, fontFamily: sans }}

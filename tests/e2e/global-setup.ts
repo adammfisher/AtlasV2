@@ -36,5 +36,27 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     },
   ]);
   await ctx.storageState({ path: 'tests/e2e/.auth-state.json' });
+
+  // Second state for the isolated e2etest harness account (TESTPLAN §4): the
+  // ui-mocked and live-smoke projects run in the A#e2etest| data partition so
+  // they never touch primary-account data.
+  const res2 = await fetch(`${api}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'e2etest', password: 'e2e-harness-only' }),
+  });
+  if (!res2.ok) throw new Error(`global-setup e2etest login failed: ${res2.status} ${await res2.text()}`);
+  const { token: e2eToken } = (await res2.json()) as { token: string };
+  process.env.ATLAS_E2E_TOKEN = e2eToken;
+  const ctx2 = await browser.newContext({ baseURL });
+  await ctx2.addInitScript((t) => localStorage.setItem('atlas_token', t), e2eToken);
+  const p2 = await ctx2.newPage();
+  await p2.goto('/');
+  await p2.getByTestId('new-chat').waitFor({ timeout: 15_000 });
+  await ctx2.addCookies([
+    { name: 'atlas_token', value: e2eToken, url: baseURL },
+    { name: 'atlas_token', value: e2eToken, url: api },
+  ]);
+  await ctx2.storageState({ path: 'tests/e2e/.auth-state-e2e.json' });
   await browser.close();
 }
