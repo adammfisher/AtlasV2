@@ -1,7 +1,8 @@
 /** Simple account login (users.config.json — no Cognito). The server sets an
  * axiom_token cookie; we mirror it into localStorage for the api header. */
 import { useState } from 'react';
-import { C, sans, serif } from '../../theme/tokens';
+import { C, sans } from '../../theme/tokens';
+import { AxiomLogo } from '../../components/AxiomLogo';
 
 export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => void }) {
   const [username, setUsername] = useState('');
@@ -36,7 +37,9 @@ export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => vo
     <div className="h-screen flex items-center justify-center" style={{ background: C.bg }}>
       <div className="rounded-2xl p-8 w-full" style={{ maxWidth: 360, background: C.panel, border: `1px solid ${C.border}` }}>
         <div className="mb-6 text-center">
-          <span style={{ fontFamily: serif, fontSize: 28, color: C.text }}>Axiom</span>
+          <div className="flex justify-center">
+            <AxiomLogo height={44} />
+          </div>
           <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>
             Sign in to your workspace
           </p>
