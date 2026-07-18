@@ -90,7 +90,7 @@ const DOC_TOOLS: BedrockTool[] = [
   {
     name: 'analyze_table',
     description:
-      'Compute exact statistics over an attached CSV/TSV/spreadsheet: row and column counts (operation "shape"), or mean/sum/min/max/count of a named column. ALWAYS use this for counts and aggregates — never estimate them from the visible text.',
+      'Compute exact statistics over an attached CSV/TSV/spreadsheet: row and column counts (operation "shape"), or mean/sum/min/max/count of a named column. ALWAYS use this for counts and aggregates — never estimate them from the visible text. When you report the result, state the exact number this tool returned, character for character — never round it or restate it from memory.',
     schema: {
       type: 'object',
       additionalProperties: false,
@@ -110,6 +110,18 @@ const DOC_TOOLS: BedrockTool[] = [
 
 function mangle(t: ChatTool): string {
   return `${t.connectorId.replace(/-/g, '_')}__${t.name}`.slice(0, 64);
+}
+
+/** Not every thrown value is an Error instance — the Bedrock SDK's own stream
+ * can surface plain `{ message: string }` objects (observed: a content-filter
+ * block, "Output blocked by content filtering policy"). `String(err)` on one
+ * of those yields the useless "[object Object]" the user would otherwise see. */
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === 'object' && typeof (err as { message?: unknown }).message === 'string') {
+    return (err as { message: string }).message;
+  }
+  return String(err);
 }
 import { type ChatMessage } from '../llama/client.js';
 import { routeWorkflow, toLegacyRoute, productRoute, type RouterSignals, type RouteResult } from '../pipeline/router.js';
@@ -220,7 +232,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
           ? `\n\n--- Attached file: ${att.name} ---\n${content.text.slice(0, 24_000)}`
           : `\n\n--- Attached file: ${att.name} — COULD NOT BE READ: ${content.error} ---\nTell the user this file could not be read and why. Do not claim an extraction is still running or that you will retry in the background.`;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = errorMessage(err);
         logTo('app', `attachment ${att.id} unusable: ${msg}`);
         attachedDocs += `\n\n--- Attached file: ${att.name} — COULD NOT BE READ: ${msg} ---`;
       }
@@ -314,7 +326,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
           // project knowledge is never gated (document Q&A depends on it)
           recall = await recallContext(conv.project_id, text.trim().slice(0, 200), { workflowId, sources });
         } catch (err) {
-          logTo('mcp', `memory recall skipped: ${err instanceof Error ? err.message : err}`);
+          logTo('mcp', `memory recall skipped: ${errorMessage(err)}`);
         }
       }
 
@@ -406,7 +418,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
           });
         }
       } catch (err) {
-        logTo('mcp', `connector tools unavailable: ${err instanceof Error ? err.message : err}`);
+        logTo('mcp', `connector tools unavailable: ${errorMessage(err)}`);
       }
       // document reads only matter when there is something to read
       const docsReadable = atts.some((a) => a.kind === 'document') || knowledgeCount > 0;
@@ -623,7 +635,7 @@ chatRouter.post('/:id/messages', async (req, res) => {
     sse(res, 'pipeline', { phase: 'end', duration: payload.duration });
     sse(res, 'done', { messageId: id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     logTo('pipeline', `pipeline error: ${message}`);
     // edit-state missing: NEVER describe or invent the artifact — ask which
     // one to edit (the permanent modify-bug guard, surfaced honestly).

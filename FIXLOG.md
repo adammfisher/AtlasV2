@@ -253,3 +253,23 @@ A full 122-test `parity-legacy` re-run (first of the two required consecutive cl
 - **Fix:** wait for the actual `POST .../feedback` response (`page.waitForResponse`) before reloading, instead of a fixed delay guessing how long the fire-and-forget write takes.
 - **Files changed:** `tests/e2e/parity/v7-v12.spec.ts`.
 - **Regression lock:** full file re-run 3× consecutive (18/18 each time, V10 included).
+
+---
+
+## FX-17 — a Bedrock content-filter block surfaced as `[object Object]`; found a second, real timing race along the way
+
+A second full 122-test `parity-legacy` re-run (now looking for two *consecutive* clean passes) surfaced two more never-before-seen failures: `chat.spec.ts`'s "stop aborts..." and `r5.spec.ts`'s csv row-count test. Investigated both rather than assuming "just flaky."
+
+**`chat.spec.ts` "stop aborts, keeps the partial, and the next send works":**
+- **Symptom:** `Timeout 240000ms exceeded` waiting for the stop button (`svg.lucide-square`) to appear.
+- **Root cause:** the test sent "list the numbers one to forty as words" then waited a flat `6000ms` before assuming the stream was still active and clicking stop — a race against the model's own response speed. Under fast Bedrock latency, generating 40 short words can finish well inside 6s, so the stop button had already reverted to the send/arrow icon by the time the test looked for it, and `.click()` on a zero-match locator just waits (and eventually times out the whole test) rather than failing fast.
+- **First fix attempt, and why it made things worse:** switched to *waiting for the stop button to become visible* (correct — robust regardless of response speed) but ALSO bumped the list from 40 to 200 items to make early completion implausible. That second change introduced a NEW, WORSE, 100%-reproducible failure: **a long, repetitive number-word enumeration (200 items) reliably trips Bedrock's own content-filter guardrail** — every affected request came back `Output blocked by content filtering policy`, and every subsequent turn in that same conversation kept failing the same way (the blocked/malformed history keeps re-triggering it). Reverted the count back to 40 — plenty long enough once the wait is for actual button visibility, not a guessed duration — and kept only the visibility-wait fix. 6/6 clean, consistently ~8.2s each run.
+- **The `[object Object]` bug this surfaced, independently real and worth keeping fixed:** while that content-filter block was live, the user-facing error read `Something went wrong: [object Object]` instead of the actual reason. Root cause: `server/src/routes/chat.ts`'s error handling derived the display message as `err instanceof Error ? err.message : String(err)` — but the Bedrock SDK's stream can throw a **plain `{ message: string }` object that is not an `Error` instance** (confirmed via a temporary diagnostic: `DIAG-JSON:{"message":"The model returned the following errors: Output blocked by content filtering policy"}`), and `String()` on a plain object yields the useless `"[object Object]"`. Added a shared `errorMessage(err)` helper that also checks for a `.message` string property on any object, not just true `Error` instances, and applied it at all 4 call sites in the file that had the same fragile pattern.
+- **Files changed:** `tests/e2e/chat.spec.ts`, `server/src/routes/chat.ts`.
+- **Regression lock:** `chat.spec.ts` "stop aborts" 6/6 consecutive; full file (7 tests) re-run clean.
+
+**`r5.spec.ts` "row count and column names" — investigated, not a code bug:**
+- **Symptom:** the model reported "1000 data rows" for `readings.csv`, which actually has 1200 (confirmed: `wc -l` → 1201 lines = 1 header + 1200 data rows, unchanged).
+- **Investigated and ruled out a real bug:** traced the full path — `analyze_table` → `tabularRows` → `attachmentContent` → `hydrateAttachment` — none of it truncates or caps row counts; the CSV is read and split into lines with no slicing before the `shape` operation reports `rows.length` directly. Re-ran in isolation 6/6 clean. This reads as the model occasionally paraphrasing/rounding the tool's own exact number when restating it in prose — a real trust gap (the point of the deterministic tool was to make this impossible), but not a reproducible code defect; a full fix can't be verified deterministically the way a code bug can.
+- **Mitigation (not a proven fix):** strengthened `analyze_table`'s tool description: "When you report the result, state the exact number this tool returned, character for character — never round it or restate it from memory."
+- **Files changed:** `server/src/routes/chat.ts`.

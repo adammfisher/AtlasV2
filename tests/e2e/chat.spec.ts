@@ -13,9 +13,19 @@ test.describe('chat core @fast', () => {
 
   test('stop aborts, keeps the partial, and the next send works', async ({ page }) => {
     await page.goto('/');
+    // "forty" items as words can finish generating in well under a flat
+    // wait, especially under fast Bedrock latency — the stop button reverts
+    // to send/arrow as soon as the stream ends, so a fixed-time guess before
+    // clicking it races the model's own response speed. Wait for the stop
+    // button to actually be visible instead (works regardless of response
+    // speed). Tried bumping the count to 200 to make early completion
+    // implausible instead — don't: a long, repetitive enumeration like that
+    // reliably (5/5) trips Bedrock's content-filter guardrail as anomalous
+    // output, a much worse failure mode than the original race.
     await sendNew(page, 'List the numbers one to forty as words, one per line, no other text.');
-    await page.waitForTimeout(6000);
-    await page.locator('button:has(svg.lucide-square)').last().click();
+    const stop = page.locator('button:has(svg.lucide-square)').last();
+    await expect(stop).toBeVisible({ timeout: 15_000 });
+    await stop.click();
     await page.waitForTimeout(2500);
     const t = await assistantText(page);
     expect(t).toMatch(/\bone\b/i); // partial persisted
