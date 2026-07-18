@@ -71,7 +71,15 @@ test.describe('chat core @fast', () => {
     await composer(page).fill(`${MARK} Say exactly: AFTER-EDIT`);
     await composer(page).press('Enter');
     await expectReply(page, /AFTER-EDIT/);
-    expect(await assistantText(page)).not.toContain('BEFORE-EDIT');
+    // scoped to the transcript's rendered messages, not the whole page: this
+    // very conversation's OWN sidebar title is generated from its first
+    // message ("[e2e] Say exactly: BEFORE-EDIT") and never renames itself
+    // just because that message was later edited — assistantText(), a raw
+    // page.locator('body').innerText(), correctly finds "BEFORE-EDIT" there
+    // and always will. That's expected sidebar behavior, not what this test
+    // is checking; only the transcript itself should have dropped it.
+    const transcript = (await page.locator('.chat-md').allInnerTexts()).join('\n');
+    expect(transcript).not.toContain('BEFORE-EDIT');
   });
 
   test('extended thinking streams a reasoning block', async ({ page }) => {

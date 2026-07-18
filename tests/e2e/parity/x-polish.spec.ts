@@ -117,10 +117,14 @@ test.describe('X polish', () => {
   test('X7 cross-chat artifacts gallery surface', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Artifacts', { exact: true }).first().click();
-    await page.waitForTimeout(1200);
-    // rows from MANY chats/projects render with kind filters + downloads
+    // rows from MANY chats/projects render with kind filters + downloads. The
+    // static heading paints immediately, but the rows depend on the
+    // ['artifacts-gallery'] query resolving — a flat wait before checking for
+    // them races that fetch under load instead of confirming it landed.
     await expect(page.getByText('Everything generated across every chat and project.')).toBeVisible();
-    expect(await page.locator('a[title^="Download"]').count(), 'artifact rows with downloads').toBeGreaterThan(3);
+    await expect
+      .poll(() => page.locator('a[title^="Download"]').count(), { timeout: 15_000 })
+      .toBeGreaterThan(3);
     // kind filter narrows — pick whichever kind actually has a filter button
     // right now rather than hardcoding one: the button list is generated from
     // this account's CURRENT artifacts (ArtifactsGallery.tsx), and exactly

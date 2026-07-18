@@ -283,3 +283,15 @@ A second full 122-test `parity-legacy` re-run (now looking for two *consecutive*
 - **Fix:** read whichever kind buttons are actually rendered (excluding "All") and click the first one found, then assert the filtered rows contain THAT kind — same behavioral coverage (kind filter narrows correctly) without depending on which specific kind happens to still exist.
 - **Files changed:** `tests/e2e/parity/x-polish.spec.ts`.
 - **Regression lock:** X7 3/3 consecutive; full file (9 tests) re-run clean (only the pre-existing `@red` X3b/KaTeX gap remains).
+
+---
+
+## FX-19 — a fourth full-run flake wave: X7's OWN precondition race, edit-message's sidebar-vs-transcript scoping, and one confirmed non-reproducible LLM-variance case
+
+A fourth full `parity-legacy` run (still chasing two clean consecutive passes) surfaced three more failures — the FX-18 fix above didn't fully cover X7, plus two new ones.
+
+- **`x-polish.spec.ts` X7, round 2 — the PRECONDITION before my FX-18 fix ever runs was itself racy:** `expect(...).toBeGreaterThan(3)` on `a[title^="Download"]` count came back 0, not just missing one kind. The heading text above it is static JSX and paints immediately, but the actual artifact rows depend on the `['artifacts-gallery']` query resolving — the test only waited a flat `1200ms` after navigating before checking, a guess that can lose under load exactly like V10 and chat.spec.ts's stop-abort before it. Switched to `expect.poll(...)` on the download-link count instead of a fixed wait + single check.
+- **`chat.spec.ts` "edit message truncates and regenerates":** `assistantText()` (a raw `body.innerText()`) correctly found "BEFORE-EDIT" on the page — in the conversation's OWN sidebar title, generated once from its first message and never renamed just because that message was later edited. That's correct, expected sidebar behavior and has nothing to do with what the test is actually checking (that the edited-away text is gone from the TRANSCRIPT). Scoped the assertion to `.chat-md` (rendered message content) instead of the whole page.
+- **`x-polish.spec.ts` X3 markdown torture — investigated, not a code bug:** the model's reply to a "markdown table + nested list + code block, all three" compound instruction omitted the table this one time. Re-ran 5/5 clean in isolation. Same class as R5's row-count paraphrase above: genuine, low-probability LLM instruction-compliance variance on a complex multi-part ask, not a reproducible defect in routing or rendering (both already independently verified working — this exact prompt's routing was FX-15's fix, confirmed still correct here since the table/list/code elements DO render whenever the model includes them). No code change; noted here rather than silently ignored.
+- **Files changed:** `tests/e2e/parity/x-polish.spec.ts`, `tests/e2e/chat.spec.ts`.
+- **Regression lock:** X7 3/3 consecutive, edit-message 3/3 consecutive.
