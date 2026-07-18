@@ -14,6 +14,19 @@ office Lambda are all deployed at HEAD. Deployed evidence: R suite 12/12
 (non-@red), memory-eval 14/14, M2 isolation 8/8, S2 routing 20/20, DeepWiki
 remote MCP live, ultra file-type sweep (see audit log).
 
+**Full local re-audit, 2026-07-18 (Phase 7 parity sweep, local dev only —
+deployment state above unchanged):** a full `parity-legacy` sweep (122 tests)
+plus `ui-mocked` (14), `live-smoke` (54), `test:routing` (305 cases × 3 tiers),
+and `test:stage4-gates` (rewritten for DynamoDB — see FIXLOG.md) all ran
+green except the 2 pre-existing, self-documented `@red` gaps (P2's local
+streamable-HTTP-by-URL variant, X3b/KaTeX). Several rows below that were
+GREEN as of 2026-07-14/15 had regressed since (mostly from an interim fix —
+FX-11 — that made the `filesystem` MCP tool actually reachable everywhere for
+the first time, which surfaced new model-confusion failure modes no one had
+been able to hit before); each is re-verified and annotated in place below
+rather than silently re-dated. Full root-cause writeups: `FIXLOG.md` FX-11
+through FX-16 plus the trailing test-only-repair sections.
+
 Fixtures: `tests/e2e/fixtures/` — `model.xlsx` (3 sheets, live formulas, B4=SUM),
 `manual.docx` (headings + table, codeword HELIOTROPE-9), `survey.pdf` (12pp,
 page-7 table, PDFPAGE-n-LYNX markers), `scanned.pdf` (zero text layer),
@@ -50,7 +63,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | C6 | html/site artifact: sandboxed, no cookie access | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | sandbox attr present, no allow-same-origin |
 | C7 | svg artifact | 🟢 | parity spec 3/3 consecutive 2026-07-14 | FIXED: extractSvg cuts the <svg> span out of prose-wrapped emissions before validate+persist (both generate and edit paths) |
 | C8 | mermaid artifact + graceful syntax errors | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | invalid source surfaced a visible parse error |
-| C9 | md artifact | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
+| C9 | md artifact | 🟢 | parity/c5-c12-artifacts.spec.ts ✓✓✓ 2026-07-18 | Regressed then re-fixed 2026-07-18: "Create a markdown document: a project readme..." misrouted to create-docx — the router's format-decisive-word check (added for a prior fix) had bare "markdown"/"md" as always-decisive, but people also say "a markdown table" to describe a chat reply's own inline formatting, not a request to create a file. Narrowed to a regex requiring markdown to name the deliverable itself. 3/3 consecutive, full 305-case routing dataset re-run clean |
 | C10 | artifact versioning: list, browse, restore, per-version download | 🟢 | parity spec ✓ 2026-07-15 (real flow) | version list → select v1 → Restore → server current-version flips. FIXED en route: the panel showed a stale version list after edits (query now invalidated on artifact-ready) |
 | C11 | artifact share link (read-only, logged-out context) | 🟢 | parity spec ✓ 2026-07-15 | browser-renderable kinds (svg/pdf/html/md/png/json) now share as INLINE viewable pages with correct content-types; office binaries stay downloads (nothing renders them) |
 | C12 | downloads from chat AND panel | 🟢 | parity/c5-c12-artifacts.spec.ts 2026-07-14 | |
@@ -69,6 +82,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | P1 | directory honesty: AVAILABLE vs LOCAL-ONLY, live status | 🟢 | p-plugins spec ✓ + deployed API check 2026-07-15 | FIXED: sharepoint endpoint/cred bug corrected; github/postgres/sharepoint 'planned' (outranks stale installs — no dead Connect); stdio bundles 'local-only' → 'unavailable' in Lambda. Verified in the deployed directory |
+| P1a | *addendum:* bundled connectors actually reachable from a real project | 🟢 | artifacts.spec.ts "mcp connector tool executes in chat" ✓✓✓ 2026-07-18 | bundled connectors (filesystem, sqlite) were listed AVAILABLE in the P1 directory but only ever `enabled_projects: ["p1"]` — a dead legacy project id from the pre-`p_general` seed fixtures. `toolsForProject()` gates strictly on membership, so filesystem/sqlite were invisible from the real default project and every project created after boot; only `memory` had the "enabled everywhere" special-case. Fixed to apply that treatment to all of `BUNDLED` uniformly, plus `enableBundledForProject()` for projects created after boot. Full detail: FIXLOG.md FX-11 |
 | P2 | remote streamable-HTTP MCP add → tools → invoke, DEPLOYED | 🟢 | local spec ✓ + DEPLOYED live run 2026-07-14 (deepwiki-sse logs archived) | REAL public server (mcp.deepwiki.com) added by URL on the deployed Lambda → connected → read_wiki_structure invoked in chat → grounded answer. Found en route: addCustom enables hardcoded "p1" instead of the ACTIVE project (fix queued — until then a manual project toggle is needed after adding) |
 | P3 | bundled servers rehosted or marked local-dev-only | 🟢 | deployed API check 2026-07-15 | option (b) shipped: marked local-only in the manifest, surfaced as 'unavailable' in the Lambda deployment — no zombie entries |
 | P4 | per-server toggles per chat | 🟢 | parity/p-plugins.spec.ts ✓ 2026-07-15 | BUILT: per-conversation disabled set (mcpoff:<convId>), filtered out of the model's tool list in chat.ts; composer plus-menu lists project connectors with per-chat toggles |
@@ -108,26 +122,27 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | M1 | recall e2e vs DEPLOYED stack | 🟢 | memory-eval **14/14 local AND deployed** 2026-07-14 | FIXED: adjudicate token starvation on the tool-use path (32→200 — every deployed dedup/supersede verdict was falling to 'different' at parse) + forget lexical sweep. First full pass on the current architecture |
 | M2 | project isolation vs DEPLOYED stack | 🟢 | scripts/test/parity-m2-isolation.ts 8/8 DEPLOYED 2026-07-14 | new API-level harness (old stage-2 gate is SQLite-bound, kept as historical). Conversation/artifact scoping + memory-recall isolation + cross-project chat probe all hold on DynamoDB/S3 Vectors |
 | M3 | remember/forget tools | 🟢 | memory-eval §4-5 ✓✓ both envs 2026-07-14 | forget now sweeps lexically behind the vector pass — no layer survives |
-| M4 | memory modal browse/edit | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | fact listed in the modal |
+| M4 | memory modal browse/edit | 🟢 | parity/m3-m9.spec.ts ✓✓✓ 2026-07-18 | regressed then re-fixed 2026-07-18: the test clicked the chat header's Brain icon expecting a modal — that button is a per-chat remember on/off TOGGLE, not a launcher; the real modal only opens from a project workspace's "View & edit memory" pencil. Re-audited via that path, 3/3 consecutive |
 | M5 | deletion propagation: purge derived facts+vectors | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (12.8s) | FIXED: deleteConversation purges source-stamped notes/KV (+vectors) in project+user scopes and clears the queued extraction (no resurrection). Graph edges not yet swept — noted as residual |
-| M6 | knowledge citations as rendered chips | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-15 (22.8s) | worked all along — [source: filename] renders as .chat-cite chips; the spec looked for classes that never existed + needed self-contained knowledge after the General-chat change |
+| M6 | knowledge citations as rendered chips | 🟢 | parity/m3-m9.spec.ts ✓✓✓ 2026-07-18 (17-20s) | citation format changed since 2026-07-15's note: the D.1 index-grounded `<cite index="N-M">` path (a numbered `button.chat-chip[data-passage]`) superseded the legacy `[source: filename]`/`.chat-cite` prose form this row's evidence described — updated the spec's selector to match. 3/3 consecutive |
 | M7 | project instructions honored | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (8.5s re-audit) | first fail was the harness (wrong project targeted); with the ACTIVE project the instruction token appears in the reply |
 | M8 | knowledge upload + RAG page-7 spot check | 🟢 | parity/m3-m9.spec.ts 2026-07-14 | survey.pdf uploaded → page-7 site total answered in a DIFFERENT chat, 25s |
+| M8a | *addendum:* dedicated knowledge browse/download/delete modal | 🟢 | memory-knowledge.spec.ts ✓✓✓ 2026-07-18 | `KnowledgeModal.tsx` — a fully-built browser (per-file passage counts, download original, delete) — was never imported or rendered anywhere; ProjectWorkspace's inline "Files" card had no expand affordance to it (unlike the adjacent Memory card's pencil button). Wired up identically. Full detail: FIXLOG.md FX-11 |
 | M9 | incognito: zero persistence, banner | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-15 | ghost affordance → banner, excluded from all listings, memory off at creation, deleted on leave (spec: 404 after switching away) |
 
 ## 8 · Styles, settings, polish
 
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
-| X1 | styles: presets + custom-from-sample, per chat | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 (behavioral) | normal/concise/explanatory/formal per chat + custom descriptor from a pasted sample (one model call). Spec measures explanatory >1.5× concise on the same question |
-| X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts 2026-07-14 | configured userName known to the model |
+| X1 | styles: presets + custom-from-sample, per chat | 🟢 | parity/x-polish.spec.ts ✓✓✓✓✓✓✓✓✓✓✓✓ 2026-07-18 (12/12) | normal/concise/explanatory/formal per chat + custom descriptor from a pasted sample (one model call). Spec measures explanatory >1.5× concise on the same question. Regressed then re-fixed 2026-07-18, two layers: (1) the spec asked the SAME question "again" in one conversation, so the model correctly repeated its own prior answer verbatim regardless of style; rewrote to two fresh chats. (2) even fixed, 2/5 still flaked — qualitative style wording ("be concise"/"be explanatory") left a small-tier model's actual length compliance too inconsistent; added concrete length/structure anchors to both presets. 12/12 clean after both fixes |
+| X2 | global preferences injected | 🟢 | parity/x-polish.spec.ts ✓✓✓ 2026-07-18 | configured userName known to the model. Regressed then re-fixed 2026-07-18: config.userName was loaded at boot but never threaded into the system prompt anywhere (grepped the whole server — a dead config field). Wired into PERSONA, gated to the primary account since the field predates the multi-account system. 3/3 consecutive |
 | X3 | markdown torture test (tables, LaTeX, code+copy) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | tables rendered all along (chat gfm + md artifacts); added the missing per-code-block COPY button (RichText decoration). LaTeX split to @red X3b — katex genuinely absent, real feature gap |
-| X4 | streaming: slow-conn, heartbeat, tab-close abort | 🟢 | parity/x4.spec.ts ✓✓ 2026-07-15 | CDP-throttled 50kbps link delivers every token; tab close mid-stream aborts server-side and persists the partial; 15s keep-alives hold CloudFront's origin-read window (proven by deployed runs) |
+| X4 | streaming: slow-conn, heartbeat, tab-close abort | 🟢 | parity/x4.spec.ts ✓✓✓✓✓✓ 2026-07-18 (6/6) | CDP-throttled 50kbps link delivers every token; tab close mid-stream aborts server-side and persists the partial; 15s keep-alives hold CloudFront's origin-read window (proven by deployed runs). Regressed then re-fixed 2026-07-18: once the filesystem MCP tool became reachable everywhere (see P1 addendum), the model started calling fs_write to save the long enumerated reply as a scratch file instead of streaming it — no long stream ever existed for the abort to interrupt. Fixed via a system-prompt note clarifying the filesystem tool is only for a file the user explicitly names, with a concrete example matching this exact confusion class |
 | X5 | error recovery: mid-stream kill → retry affordance | 🟢 | parity/x5.spec.ts ✓ 2026-07-15 (8.6s) | Bedrock disconnect mid-session → honest persisted error + retry (regenerate) → reconnect → retry succeeds, composer recovers. Live stream errors additionally show an inline Retry button |
 | X6 | voice dictation (Web Speech, graceful hide) | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: SpeechRecognition wiring, final transcripts append to the composer, listening state; button hidden on unsupported browsers |
 | X7 | artifacts gallery cross-chat | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-15 | BUILT: Artifacts view — kind filters, project select, per-row downloads |
 | X8 | mobile layout | 🟢 | parity/x-polish.spec.ts 2026-07-14 | 390px: composer usable, no horizontal overflow |
-| X9 | light theme | 🟢 | parity/x-polish.spec.ts 2026-07-14 | toggle applies (background changes and restores) |
+| X9 | light theme | 🟢 | parity/x-polish.spec.ts ✓✓✓ 2026-07-18 | toggle applies (background changes and restores). Test-only bug found 2026-07-18: it checked document.body's computed background, which is always transparent — index.css paints the palette on document.documentElement (<html>), not <body>. Fixed the selector, 3/3 consecutive |
 | X10 | keyboard: Enter/Shift-Enter, Cmd-K, Esc | 🟢 | parity/x-polish.spec.ts ✓ 2026-07-14 | added global Cmd/Ctrl-K → focus chat search; Enter/Shift-Enter/Esc already worked |
 
 ## Audit log
