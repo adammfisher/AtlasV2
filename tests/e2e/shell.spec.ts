@@ -32,7 +32,10 @@ test.describe('shell + management @fast', () => {
       await toggle.click();
       const menu = page.getByRole('menu', { name: 'Theme' });
       await expect(menu).toBeVisible();
-      await menu.locator(selector).click();
+      // 5 palettes means 4 always match "[aria-checked=false]" — pick the
+      // first (the restore call's :has-text(...) filter narrows to exactly
+      // one already, so .first() is a no-op there)
+      await menu.locator(selector).first().click();
     };
     const activeLabel = await (async () => {
       await toggle.click();

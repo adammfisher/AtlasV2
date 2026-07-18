@@ -219,3 +219,13 @@ Several tests failed for reasons unrelated to any product bug — pre-existing s
 - **Fix:** strengthened both presets with explicit, concrete anchors instead of tone words alone: `concise` now specifies "1-2 short sentences... never pad a short answer to sound more complete"; `explanatory` now specifies "even for a question that could be answered in one line... at least one concrete example or elaboration per point... longer is correct here — do not compress."
 - **Files changed:** `server/src/routes/conversations.ts`.
 - **Regression lock:** `x-polish.spec.ts` X1 — 12/12 consecutive after the fix (0 failures), vs. 3/5 before it (same test, same infra, only the preset text changed) — a live-model reliability fix confirmed empirically, not just reasoned about.
+
+---
+
+## Full parity-legacy sweep (122 tests) — one more test-only fix found
+
+A full run of every file in `tests/e2e/parity/` plus the top-level specs (not just the files touched by FX-11 through FX-16) came back 119/122 green. The 2 misses are both pre-existing, self-documented `@red` gaps (`p-plugins.spec.ts` P2 — remote streamable-HTTP MCP servers not yet built; `x-polish.spec.ts` X3b — KaTeX not yet wired up), out of scope for a bug-fix pass. The third was real:
+
+- **`shell.spec.ts` theme toggle — strict-mode violation, not a flake:** `menu.locator('[aria-checked="false"]').click()` (no `.first()`) throws outright once the palette picker has more than 2 options — 5 palettes means 4 always match "not currently active." `x-polish.spec.ts`'s X9 already uses `.first()` for the identical selector; this file predates that palette-picker expansion and was never updated to match. Added `.first()`.
+- **Files changed:** `tests/e2e/shell.spec.ts`.
+- **Regression lock:** 3/3 consecutive; full file (5 tests) re-run clean.
