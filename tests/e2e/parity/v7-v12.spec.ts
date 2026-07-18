@@ -106,10 +106,14 @@ test.describe('V7-V12 conversation surfaces', () => {
     await waitIdle(page, 30_000);
     const up = page.locator('button:has(svg.lucide-thumbs-up)').last();
     await expect(up).toBeVisible({ timeout: 5_000 });
+    // the click fires POST /feedback fire-and-forget (ChatView's onClick does
+    // not await rate()) — wait for the actual response, not a flat timeout,
+    // or a reload under load can race ahead of the write actually landing
+    const feedbackSaved = page.waitForResponse((r) => r.url().includes('/feedback') && r.request().method() === 'POST' && r.ok());
     await up.click();
-    await page.waitForTimeout(1000);
+    await feedbackSaved;
     await page.reload();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(1000);
     // active state = inline color (C.green) vs mute (ChatView thumb styles)
     const upColor = await page
       .locator('button[title="Good response"]')

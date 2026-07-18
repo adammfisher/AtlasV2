@@ -242,3 +242,14 @@ A full run of every file in `tests/e2e/parity/` plus the top-level specs (not ju
 - **Gate 4 (audit log shape):** same `installFor`/`putInstall` swap as gate 1; the actual audit-log assertion was already DB-agnostic (reads `logs/audit.log` off `config.dataDir`) and needed no change.
 - **Files changed:** `scripts/test/stage4-gates.test.ts`.
 - **Regression lock:** 3/3 consecutive (`pnpm test:stage4-gates`), all 4 gates green each run. Re-ran `artifacts.spec.ts`'s "mcp connector tool executes in chat" immediately after (it shares the same `filesystem` install row this script temporarily mutates) to confirm the try/finally restore left no residual state — clean.
+
+---
+
+## Flake audit — `v7-v12.spec.ts` V10 feedback thumbs: real race, not "just flaky"
+
+A full 122-test `parity-legacy` re-run (first of the two required consecutive clean passes) surfaced one failure never seen before today: V10 — thumbs-up clicked, page reloaded, thumbs-up and thumbs-down rendered the *same* color (neither "active"). Re-ran in isolation 4/4 clean, which is exactly the shape of result the Fix Protocol says not to wave off as "just a flake."
+
+- **Root cause:** the thumbs-up `onClick` in `ChatView.tsx` is `() => void rate(m.id, ...)` — `rate()` is `async`, awaits `POST /conversations/:id/feedback`, then invalidates the query, but the click handler explicitly discards that promise (`void`). The test clicked, waited a flat `1000ms`, then reloaded — a race against however long the feedback POST actually takes. Under the load of being 98 tests deep into a long, otherwise-healthy run, that write apparently took long enough to lose the race at least once; a flat timeout with no signal of actual completion will eventually lose that race at *some* frequency, however low — which is what "not deterministic, engineered not hoped for" is warning against.
+- **Fix:** wait for the actual `POST .../feedback` response (`page.waitForResponse`) before reloading, instead of a fixed delay guessing how long the fire-and-forget write takes.
+- **Files changed:** `tests/e2e/parity/v7-v12.spec.ts`.
+- **Regression lock:** full file re-run 3× consecutive (18/18 each time, V10 included).
