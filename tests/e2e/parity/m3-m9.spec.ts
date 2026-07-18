@@ -26,11 +26,15 @@ test.describe('M3-M9 memory & projects', () => {
   });
 
   test('M4 memory modal lists the fact and supports delete', async ({ page }) => {
+    // the chat header's Brain icon is a per-chat remember on/off TOGGLE, not a
+    // modal launcher — the memory browser only opens from a project workspace's
+    // "View & edit memory" pencil button (M3 stored its fact in General)
     await page.goto('/');
-    const brain = page.locator('button:has(svg.lucide-brain), button[title*="emory"]').first();
-    await expect(brain).toBeVisible({ timeout: 10_000 });
-    await brain.click();
-    await expect(page.locator('text=cobalt-staging-11').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByText('Projects', { exact: true }).first().click();
+    await page.getByText('General', { exact: true }).first().click();
+    await page.locator('button[title="View & edit memory"]').first().click();
+    const modal = page.locator('div.fixed.inset-0').last();
+    await expect(modal.getByText('cobalt-staging-11').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test('M5 deleting a conversation purges its derived facts', async ({ page }) => {
@@ -63,9 +67,11 @@ test.describe('M3-M9 memory & projects', () => {
     await composer(page).fill(`${MARK} From this project's knowledge files: what is the northern zone codeword in the field manual?`);
     await composer(page).press('Enter');
     await waitIdle(page, 90_000);
-    // RichText renders [source: filename] as a .chat-cite chip
+    // RichText renders index-grounded citations (D.1) as a numbered .chat-chip
+    // button carrying the passage id — not the legacy "[source: X]" .chat-cite
+    // prose span, which only appears when opts.sources isn't passed to recallContext
     await expect
-      .poll(async () => page.locator('.chat-cite').count(), { timeout: 60_000 })
+      .poll(async () => page.locator('button.chat-chip[data-passage]').count(), { timeout: 60_000 })
       .toBeGreaterThan(0);
   });
 

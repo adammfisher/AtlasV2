@@ -21,8 +21,10 @@ test.describe('artifacts @generation', () => {
     const arts = await api<Array<{ id: string; name: string; ver: number }>>('/artifacts');
     const diagram = arts.find((a) => a.name.endsWith('.mmd'));
     expect(diagram?.ver).toBeGreaterThanOrEqual(2);
-    // share → presigned URL → fetch it
-    await page.locator('button[title*="Share"]').first().click();
+    // share → presigned URL → fetch it. Scoped to "Share: copy" — ChatView's
+    // header also has a "Share conversation" button and title*="Share" alone
+    // is ambiguous between the two.
+    await page.locator('button[title^="Share: copy"]').first().click();
     await expect(page.getByText(/Share link copied/)).toBeVisible({ timeout: 20_000 });
     const url = await page.evaluate(() => navigator.clipboard.readText());
     expect(url).toContain('X-Amz-Signature');
@@ -44,7 +46,11 @@ test.describe('artifacts @generation', () => {
           const arts = await api<Array<{ id: string; kind: string; ver: number }>>('/artifacts');
           const deck = arts.find((a) => a.kind === 'pptx' && !before.has(a.id));
           if (!deck) return 'no artifact yet';
-          const dl = await fetch(`${API}/artifacts/${deck.id}/versions/${deck.ver}/download`);
+          // direct downloads require auth like every other /api route (this
+          // predates the accounts/login gate — the endpoint was never open)
+          const dl = await fetch(`${API}/artifacts/${deck.id}/versions/${deck.ver}/download`, {
+            headers: { Authorization: `Bearer ${process.env.AXIOM_TEST_TOKEN}` },
+          });
           if (!dl.ok) return `download ${dl.status}`;
           const bytes = (await dl.arrayBuffer()).byteLength;
           return bytes > 20_000 ? 'ok' : `too small: ${bytes}`;

@@ -2,7 +2,7 @@
 
 Rows = expected, entries = predicted (only mispredictions listed; ✓ = count correct).
 
-- **clarify-before-acting** (7/9 ✓) → read-summarize-file×2
+- **clarify-before-acting** (8/9 ✓) → read-summarize-file×1
 - **convert-between-formats** (8/8 ✓)
 - **create-code-artifact** (8/8 ✓)
 - **create-diagram** (8/8 ✓)
@@ -30,7 +30,7 @@ Rows = expected, entries = predicted (only mispredictions listed; ✓ = count co
 - **mcp-tool-invocation** (8/8 ✓)
 - **multi-file-synthesis** (8/8 ✓)
 - **multi-step-research** (9/9 ✓)
-- **plain-conversation-qa** (12/12 ✓)
+- **plain-conversation-qa** (11/12 ✓) → clarify-before-acting×1
 - **project-knowledge-qa** (8/8 ✓)
 - **read-summarize-file** (12/12 ✓)
 - **recall-from-memory** (8/8 ✓)

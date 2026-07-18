@@ -286,6 +286,17 @@ chatRouter.post('/:id/messages', async (req, res) => {
           return false;
         }
       })();
+      // fetched early (same shape as memEnabled above) so the toolNote below can
+      // ride the cache-stable prefix instead of waiting on connectorTools, which
+      // isn't built until after the system prompt is assembled
+      const fsEnabled = await (async () => {
+        try {
+          const fsInstall = await installFor('filesystem');
+          return !!fsInstall && (JSON.parse(fsInstall.enabled_projects) as string[]).includes(conv.project_id);
+        } catch {
+          return false;
+        }
+      })();
       // D: one source registry per turn. Everything the model is shown — search
       // hits, fetched pages, knowledge passages — is registered here with stable
       // indices, and it is the only authority on whether a <cite index> is real.
@@ -329,11 +340,25 @@ chatRouter.post('/:id/messages', async (req, res) => {
         // artifact-vs-inline, honesty, when-to-search) — the always-on brain rules
         behavior: buildBehaviorBlock(tierForModel(activeModelKey()), { citations: citationsPossible }),
         skills: skillsMetadata(),
-        toolNotes: memEnabled
-          ? [
-              'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".',
-            ]
-          : [],
+        toolNotes: [
+          ...(memEnabled
+            ? [
+                'MEMORY: whenever the user asks you to remember, note, keep in mind, save, or forget something, you MUST call the remember or forget tool BEFORE replying — a plain acknowledgement without the tool call does not persist anything. For "remember for this project" or facts about the work, pass scope "project"; for facts about the user themselves, pass scope "user".',
+              ]
+            : []),
+          // knowledgeCount is project-wide (not per-turn relevance), so this note
+          // stays stable across turns — same reason citationsPossible above uses it
+          ...(knowledgeCount > 0
+            ? [
+                'KNOWLEDGE: this project has uploaded document(s) indexed as project knowledge. Relevant passages are retrieved and given to you automatically when they apply — answer directly from them (cite with <cite index="N-M">) instead of claiming you lack access. The filesystem tool, if available, only reaches this project\'s separate sandboxed scratch files — it does NOT contain these indexed documents, so never use it to search for a "document" the user references.',
+              ]
+            : []),
+          ...(fsEnabled
+            ? [
+                'FILESYSTEM: fs_write/fs_read/fs_list/fs_search exist ONLY for when the user names an actual file — "save this to notes.txt", "read config.json", "what\'s in the scripts folder". They are NOT a way to avoid a long chat reply. If the user asks you to list, enumerate, count out, or spell something out in the conversation (e.g. "list the numbers from 1 to 500, one per line"), you MUST stream that content as your reply, in full, in the chat — do not call fs_write instead, even though the reply is long. A long itemized answer is not, by itself, a reason to reach for a file tool.',
+              ]
+            : []),
+        ],
         preferences: convStyle,
         projectInstructions: instructions,
         conversationSummary: convSummary ?? '',

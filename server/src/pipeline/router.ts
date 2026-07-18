@@ -144,14 +144,45 @@ function kindFromExt(ext: string): string | null {
 // 'pdf' (3, create-pdf) and misrouting. Checked first, and only decides
 // anything when it uniquely identifies a single workflow, so it can't itself
 // introduce a new ambiguity.
-const FORMAT_DECISIVE_WORDS = ['pdf', 'pptx', 'powerpoint', 'docx', 'xlsx', 'csv', 'svg', 'mmd'];
+//
+// Hand-authored rather than derived from nounObjects/fileTypeContext: those
+// arrays are shared with Stage 2's prompt and aren't unique per format (e.g.
+// 'svg' is a nounObject of BOTH create-svg and create-diagram; 'docx'/'xlsx'/
+// 'pptx'/'csv'/'mmd' appear in no CREATE_PRIORITY workflow's nounObjects at
+// all) — deriving "owners" from them silently no-ops for most formats. A
+// "markdown document" readme lost create-md to create-docx's generic
+// "document" noun this way (create-md's own nounObjects never mention
+// "markdown"), the same class of bug this table exists to prevent.
+// 'csv' deliberately excluded: unlike the others, it's a common DATA format
+// mentioned when the deliverable is code that processes it ("a CLI that
+// converts CSV to JSON" is create-code-artifact, not create-xlsx) — far less
+// reliably "the format of the thing being created" than pdf/docx/pptx/svg/md.
+const FORMAT_DECISIVE_WORDS: Record<string, WorkflowId> = {
+  pdf: 'create-pdf',
+  pptx: 'create-pptx',
+  powerpoint: 'create-pptx',
+  docx: 'create-docx',
+  xlsx: 'create-xlsx',
+  svg: 'create-svg',
+  mmd: 'create-diagram',
+  mermaid: 'create-diagram',
+  md: 'create-md',
+  markdown: 'create-md',
+};
 
 /** unique deliverable-noun match for a create request; null on tie/none. */
 function matchCreate(message: string): { id: WorkflowId; skill: SkillId } | null {
-  for (const word of FORMAT_DECISIVE_WORDS) {
-    if (!hasWord(message, word)) continue;
-    const owners = CREATE_PRIORITY.filter((id) => (wf(id).triggers.nounObjects ?? []).includes(word));
-    if (owners.length === 1) return { id: owners[0]!, skill: CREATE_SKILL[owners[0]!]! };
+  // ALL decisive words in the message must agree on one workflow — "docx and
+  // pdf" mentioned together isn't decisive for either (and is likely a
+  // convert-* request handled elsewhere), so this falls through rather than
+  // picking whichever format happens to be listed first.
+  const hits = new Set<WorkflowId>();
+  for (const [word, id] of Object.entries(FORMAT_DECISIVE_WORDS)) {
+    if (hasWord(message, word)) hits.add(id);
+  }
+  if (hits.size === 1) {
+    const id = [...hits][0]!;
+    return { id, skill: CREATE_SKILL[id]! };
   }
   // Fell through: no decisive format word, or it's shared by >1 workflow (not
   // decisive on its own) — original longest-matched-noun scoring. This is
@@ -383,10 +414,11 @@ function classifierSystem(candidates: WorkflowId[], tier: ModelTier): string {
     '',
     'Rules:',
     '- If the user asks to fix/modify/edit/change/update an existing artifact, pick the matching edit- workflow — never a describe/answer workflow.',
-    '- Put substantial or reusable output in a create-/artifact workflow; keep short factual answers as plain-conversation-qa.',
+    '- Put reusable or standalone content (creative writing, documents, guides, specs, code meant to be reused) in a create-/artifact workflow. Length alone does NOT qualify: a long but disposable direct answer — a mechanically enumerated list, a long factual explanation, counting/spelling out something the user asked for inline — stays plain-conversation-qa unless the user asks to save, export, or create a file/document/deck.',
     '- Only pick clarify-before-acting when the intent is genuinely ambiguous or required context is missing.',
     '- confidence is your calibrated probability (0-1). If two very different workflows are equally likely, lower confidence.',
     '- For a message with two intents, set orderedPlan to the ids in dependency order (read/analyze before create before convert/export).',
+    '- Example: msg "list the numbers from 1 to 500, one per line" → disposable enumeration, not reusable content — {"workflowId":"plain-conversation-qa","confidence":0.9}',
   ];
   if (tier === 'small') {
     base.push(

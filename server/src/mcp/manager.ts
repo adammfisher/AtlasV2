@@ -205,22 +205,20 @@ export async function installFor(connectorId: string): Promise<InstallRow | unde
   return (await installs()).find((r) => r.connector_id === connectorId);
 }
 
-/** Bundled servers: install rows on first boot, connected, enabled in p1. */
+/** Bundled servers: install rows on first boot, connected, enabled everywhere
+ * ("no credentials, always available" — BUNDLED's own doc comment). The
+ * enabled_projects list is kept in sync with every project that exists at
+ * boot, the same way holistic memory already was; enableBundledForProject()
+ * below extends that guarantee to projects created afterward. */
 export async function ensureBundledInstalled(): Promise<void> {
   const rows = await installs();
   // legacy seed rows from Stage 1 fixtures used a different id and status
   for (const legacy of rows.filter((r) => r.connector_id === 'axiom-memory')) {
     await deleteInstall(legacy.id);
   }
-  // holistic memory: on for every project by default (stores stay isolated per project)
+  // on for every project by default (memory's stores stay isolated per project;
+  // filesystem/sqlite are jailed to the data dir regardless of project)
   const projectIds = (await listProjects()).map((r) => r.id);
-  const mem = rows.find((r) => r.connector_id === 'memory');
-  if (mem) {
-    const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
-    for (const id of projectIds) enabled.add(id);
-    mem.enabled_projects = JSON.stringify([...enabled]);
-    await putInstall(mem);
-  }
   for (const id of BUNDLED) {
     const row = rows.find((r) => r.connector_id === id);
     if (!row) {
@@ -229,15 +227,33 @@ export async function ensureBundledInstalled(): Promise<void> {
         connector_id: id,
         source: 'bundled',
         status: 'connected',
-        enabled_projects: '["p1"]',
+        enabled_projects: JSON.stringify(projectIds),
         created_at: Date.now(),
       });
       logTo('mcp', `bundled connector installed: ${id}`);
-    } else if (row.status !== 'connected' || row.source !== 'bundled') {
+    } else {
+      const enabled = new Set(JSON.parse(row.enabled_projects) as string[]);
+      for (const pid of projectIds) enabled.add(pid);
+      row.enabled_projects = JSON.stringify([...enabled]);
       row.status = 'connected';
       row.source = 'bundled';
       await putInstall(row);
     }
+  }
+}
+
+/** Every bundled connector auto-enabled for a project created after boot —
+ * without this, a project made after startup never sees BUNDLED's promise
+ * of "always available" (ensureBundledInstalled only reaches projects that
+ * existed when it ran). */
+export async function enableBundledForProject(projectId: string): Promise<void> {
+  for (const row of await installs()) {
+    if (!BUNDLED.includes(row.connector_id)) continue;
+    const enabled = new Set(JSON.parse(row.enabled_projects) as string[]);
+    if (enabled.has(projectId)) continue;
+    enabled.add(projectId);
+    row.enabled_projects = JSON.stringify([...enabled]);
+    await putInstall(row);
   }
 }
 

@@ -2,7 +2,7 @@
 
 Rows = expected, entries = predicted (only mispredictions listed; ✓ = count correct).
 
-- **clarify-before-acting** (3/9 ✓) → read-summarize-file×2, followup-anaphora×2, create-pptx×1, data-analysis-on-file×1
+- **clarify-before-acting** (4/9 ✓) → read-summarize-file×2, edit-md×1, followup-anaphora×1, data-analysis-on-file×1
 - **convert-between-formats** (8/8 ✓)
 - **create-code-artifact** (8/8 ✓)
 - **create-diagram** (8/8 ✓)

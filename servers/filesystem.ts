@@ -37,7 +37,7 @@ const server = new McpServer({ name: 'axiom-filesystem', version: '1.0.0' });
 
 server.tool(
   'fs_list',
-  'List files and directories under a path inside the project files root.',
+  'List files and directories under a path inside the project files root — a sandboxed scratch space, separate from this project\'s uploaded Knowledge documents (those are already provided in your context and answered via citation, not through this tool).',
   { path: z.string().default('.').describe('Relative path under the project files root') },
   async ({ path: rel }) => {
     const full = resolveInRoot(rel);
@@ -77,7 +77,7 @@ server.tool(
 
 server.tool(
   'fs_search',
-  'Search file names and text contents under the project files root.',
+  'Search file names and text contents under the project files root — a sandboxed scratch space. This does NOT search the project\'s uploaded Knowledge documents; those passages are already retrieved into your context when relevant, so answer from context (with a citation) instead of searching here for a "document" the user mentions.',
   { query: z.string() },
   async ({ query }) => {
     audit('fs_search', query);

@@ -10,7 +10,6 @@ import {
   listConversations,
   listArtifacts,
   listInstalls,
-  putInstall,
   type ProjectRow,
 } from '../db/appdb.js';
 import {
@@ -23,6 +22,7 @@ import {
   cancelPending,
 } from '../memory/engine.js';
 import { wipeScope, listTombstones } from '../memory/store.js';
+import { enableBundledForProject } from '../mcp/manager.js';
 
 async function withStats(p: ProjectRow) {
   const [convs, arts, installs] = await Promise.all([listConversations(p.id), listArtifacts([p.id]), listInstalls()]);
@@ -61,13 +61,9 @@ projectsRouter.post('/', (req, res) => {
     const id = newId('p');
     const row: ProjectRow = { id, name: name.trim(), instructions: instructions?.trim() ?? '', settings: '{}', created_at: now() };
     await putProject(row);
-    // holistic memory: every new project gets its own (isolated) memory, on by default
-    const mem = (await listInstalls()).find((i) => i.connector_id === 'memory' || i.connector_id === 'axiom-memory');
-    if (mem) {
-      const enabled = new Set(JSON.parse(mem.enabled_projects) as string[]);
-      enabled.add(id);
-      await putInstall({ ...mem, enabled_projects: JSON.stringify([...enabled]) });
-    }
+    // bundled connectors (memory, filesystem, sqlite) are "always available" —
+    // every new project gets them on by default (memory's store stays isolated per project)
+    await enableBundledForProject(id);
     res.status(201).json(await withStats(row));
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });

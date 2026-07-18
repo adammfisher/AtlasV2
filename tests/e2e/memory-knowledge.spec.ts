@@ -10,17 +10,18 @@ const DIR = path.dirname(fileURLToPath(import.meta.url));
 test.describe('memory + knowledge', () => {
   test.afterAll(async () => {
     await cleanupMarked();
-    // remove the e2e knowledge file if it survived
-    const files = await api<Array<{ id: string; name: string }>>('/projects/p1/knowledge');
-    for (const f of files.filter((f) => f.name.startsWith('plan'))) {
-      await api(`/projects/p1/knowledge/${f.id}/delete`, { method: 'POST' });
+    // in case the knowledge test failed before reaching its own cleanup, don't
+    // leave the isolated test project behind
+    const projects = await api<Array<{ id: string; name: string }>>('/projects');
+    for (const p of projects.filter((p) => p.name.startsWith('[e2e]'))) {
+      await api(`/projects/${p.id}`, { method: 'DELETE' }).catch(() => undefined);
     }
   });
 
   test('remember stores the fact and forget removes it (all layers)', async ({ page }) => {
     const hasSentinel = async (): Promise<boolean> => {
       const exp = await api<{ notes: Array<{ content: string }>; kv: Array<{ value: string }> }>(
-        '/projects/p1/memory/export',
+        '/projects/p_general/memory/export',
       );
       return [...exp.notes.map((n) => n.content), ...exp.kv.map((r) => r.value)].some((s) => s.includes('MOONGATE'));
     };
@@ -36,26 +37,52 @@ test.describe('memory + knowledge', () => {
   test('memory modal shows both scopes with a profile card', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Projects', { exact: true }).first().click();
-    await page.locator('button', { hasText: 'Memory' }).first().click();
-    await expect(page.getByText(/FACTS ·/i).first()).toBeVisible();
-    await page.getByText('You', { exact: true }).first().click();
-    await expect(page.getByText(/about you/i).first()).toBeVisible();
-    await page.keyboard.press('Escape');
-    await page.locator('button:has(svg.lucide-x)').first().click().catch(() => {});
+    // open the General project's workspace, then expand its inline Memory
+    // card (a small pencil-edit button, not a button literally named "Memory")
+    await page.getByText('General', { exact: true }).first().click();
+    await page.locator('button[title="View & edit memory"]').first().click();
+    const modal = page.locator('div.fixed.inset-0').last();
+    await expect(modal.getByText(/FACTS ·/i).first()).toBeVisible();
+    await modal.getByText('You', { exact: true }).first().click();
+    await expect(modal.getByText(/about you/i).first()).toBeVisible();
+    // close via the modal's own X — a page-wide "svg.lucide-x" locator also
+    // matches every per-file remove button in the Files card behind the
+    // modal's scrim, and Playwright hangs retrying a click on a covered element
+    await modal.locator('button:has(svg.lucide-x)').first().click();
   });
 
   test('knowledge: upload via modal, recall with citation, delete', async ({ page }) => {
+    // an isolated project, not the shared General workspace: the General
+    // project's knowledge base has accumulated documents from every other
+    // suite that has ever run a "New chat" upload, and vector search over
+    // that much unrelated noise can bury this fixture's one relevant chunk
+    // below the recall threshold — a real citation miss, but caused by
+    // shared test-data pollution, not a product bug.
+    const proj = await api<{ id: string }>('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ name: '[e2e] Knowledge Isolated' }),
+    });
     await page.goto('/');
     await page.getByText('Projects', { exact: true }).first().click();
-    await page.locator('button', { hasText: 'Knowledge' }).first().click();
+    await page.getByText('[e2e] Knowledge Isolated', { exact: true }).first().click();
+    await page.locator('button[title="View & manage knowledge files"]').first().click();
     const modal = page.locator('div.fixed.inset-0').last();
     await modal.locator('input[type="file"]').setInputFiles(path.join(DIR, 'fixtures/plan.txt'));
     await expect(modal.getByText(/\d+ passages/).first()).toBeVisible({ timeout: 30_000 });
-    // close the modal, ask in a fresh chat, expect the fact + a citation badge
+    // close the modal, ask in a fresh chat SCOPED TO THIS PROJECT, expect the
+    // fact + a citation badge
     await modal.locator('button:has(svg.lucide-x)').first().click();
-    await page.getByText('Chats', { exact: true }).first().click();
-    await sendNew(page, 'According to the e2e ops plan document, who is the rollout owner?');
+    const conv = await api<{ id: string }>('/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ projectId: proj.id }),
+    });
+    await page.goto(`/c/${conv.id}`);
+    await page.locator('textarea').first().fill('[e2e] According to the e2e ops plan document, who is the rollout owner?');
+    await page.locator('textarea').first().press('Enter');
     await expectReply(page, /Dana Voss/);
-    await expect(page.locator('span[title^="From project knowledge"]').first()).toBeVisible();
+    // index-grounded citations (D.1) render as a numbered chip button carrying
+    // the passage id, not the legacy "[source: X]" prose span
+    await expect(page.locator('button.chat-chip[data-passage]').first()).toBeVisible();
+    await api(`/projects/${proj.id}`, { method: 'DELETE' });
   });
 });

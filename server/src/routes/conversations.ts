@@ -32,6 +32,11 @@ async function ensureGeneralProject(): Promise<string> {
   const { getProject, putProject } = await import('../db/appdb.js');
   if (!(await getProject('p_general'))) {
     await putProject({ id: 'p_general', name: 'General', instructions: '', settings: '{}', created_at: now() });
+    // a fresh install's very first chat can predate ensureBundledInstalled()
+    // ever seeing this project id — enable the bundled connectors right now
+    // rather than leaving them stuck until some later boot catches up
+    const { enableBundledForProject } = await import('../mcp/manager.js');
+    await enableBundledForProject('p_general');
   }
   return 'p_general';
 }

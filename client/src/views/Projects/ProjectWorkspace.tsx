@@ -4,6 +4,7 @@ import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, Arr
 import { C, sans, serif, mono } from '../../theme/tokens';
 import { api, type Project, type Conversation } from '../../lib/api';
 import { MemoryModal } from '../../components/MemoryModal';
+import { KnowledgeModal } from '../../components/KnowledgeModal';
 
 function timeAgo(ms: number): string {
   const s = Math.floor((Date.now() - ms) / 1000);
@@ -43,6 +44,7 @@ export function ProjectWorkspace({
   const [editingInstr, setEditingInstr] = useState(false);
   const [instrText, setInstrText] = useState(project.instructions ?? '');
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const chats = conversations
@@ -397,7 +399,10 @@ export function ProjectWorkspace({
           >
             <div className="flex items-center mb-2">
               <span className="text-sm font-medium" style={{ color: C.text, fontFamily: sans }}>Files</span>
-              <button onClick={() => fileRef.current?.click()} className="ml-auto p-0.5" style={{ color: C.mute }} title="Add a document">
+              <button onClick={() => setKnowledgeOpen(true)} className="ml-auto p-0.5" style={{ color: C.mute }} title="View & manage knowledge files">
+                <Pencil size={12} />
+              </button>
+              <button onClick={() => fileRef.current?.click()} className="p-0.5" style={{ color: C.mute }} title="Add a document">
                 <Plus size={15} />
               </button>
               <input
@@ -448,6 +453,7 @@ export function ProjectWorkspace({
       </div>
 
       {memoryOpen ? <MemoryModal projectId={project.id} projectName={project.name} onClose={() => setMemoryOpen(false)} /> : null}
+      {knowledgeOpen ? <KnowledgeModal projectId={project.id} projectName={project.name} onClose={() => setKnowledgeOpen(false)} /> : null}
     </div>
   );
 }
