@@ -273,3 +273,13 @@ A second full 122-test `parity-legacy` re-run (now looking for two *consecutive*
 - **Investigated and ruled out a real bug:** traced the full path — `analyze_table` → `tabularRows` → `attachmentContent` → `hydrateAttachment` — none of it truncates or caps row counts; the CSV is read and split into lines with no slicing before the `shape` operation reports `rows.length` directly. Re-ran in isolation 6/6 clean. This reads as the model occasionally paraphrasing/rounding the tool's own exact number when restating it in prose — a real trust gap (the point of the deterministic tool was to make this impossible), but not a reproducible code defect; a full fix can't be verified deterministically the way a code bug can.
 - **Mitigation (not a proven fix):** strengthened `analyze_table`'s tool description: "When you report the result, state the exact number this tool returned, character for character — never round it or restate it from memory."
 - **Files changed:** `server/src/routes/chat.ts`.
+
+---
+
+## FX-18 — `x-polish.spec.ts` X7 hardcoded a specific artifact kind ("docx") that isn't guaranteed to still exist
+
+- **Symptom:** a THIRD full `parity-legacy` run (chasing two clean consecutive passes) surfaced yet another never-before-seen failure: X7 timed out clicking `getByRole('button', { name: 'docx', exact: true })` in the cross-chat artifacts gallery.
+- **Root cause:** `ArtifactsGallery.tsx` generates its kind-filter buttons dynamically — `['All', ...new Set(data.map(r => r.kind))]` — from whatever artifact kinds currently exist for the account, not a fixed list of all possible kinds. This account is shared across the entire, very long test session; other tests' cleanup routines (`cleanupMarked`, explicit `deleteArtifact` calls) delete their own artifacts as they finish, so which kinds still have at least one surviving artifact drifts over the life of a run. The test assumed "docx" specifically would always be present — true often enough to look reliable, false exactly once so far.
+- **Fix:** read whichever kind buttons are actually rendered (excluding "All") and click the first one found, then assert the filtered rows contain THAT kind — same behavioral coverage (kind filter narrows correctly) without depending on which specific kind happens to still exist.
+- **Files changed:** `tests/e2e/parity/x-polish.spec.ts`.
+- **Regression lock:** X7 3/3 consecutive; full file (9 tests) re-run clean (only the pre-existing `@red` X3b/KaTeX gap remains).

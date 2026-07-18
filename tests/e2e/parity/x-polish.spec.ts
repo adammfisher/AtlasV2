@@ -121,11 +121,19 @@ test.describe('X polish', () => {
     // rows from MANY chats/projects render with kind filters + downloads
     await expect(page.getByText('Everything generated across every chat and project.')).toBeVisible();
     expect(await page.locator('a[title^="Download"]').count(), 'artifact rows with downloads').toBeGreaterThan(3);
-    // kind filter narrows
-    await page.getByRole('button', { name: 'docx', exact: true }).click();
+    // kind filter narrows — pick whichever kind actually has a filter button
+    // right now rather than hardcoding one: the button list is generated from
+    // this account's CURRENT artifacts (ArtifactsGallery.tsx), and exactly
+    // which kinds still exist drifts as other tests' cleanup runs delete
+    // their own artifacts over the life of a long shared-account test suite
+    const kindButtons = page.locator('div.flex.gap-2.mt-3.flex-wrap > button');
+    const kindLabels = (await kindButtons.allInnerTexts()).filter((k) => k !== 'All');
+    expect(kindLabels.length, 'at least one non-All kind filter available').toBeGreaterThan(0);
+    const pick = kindLabels[0]!;
+    await kindButtons.filter({ hasText: new RegExp(`^${pick}$`) }).first().click();
     await page.waitForTimeout(400);
     const kinds = await page.locator('span[style*="mono"], span.text-xs').allInnerTexts();
-    expect(kinds.join(' ')).toContain('docx');
+    expect(kinds.join(' ')).toContain(pick);
   });
 
   test('X8 mobile layout smoke (390px)', async ({ page }) => {
