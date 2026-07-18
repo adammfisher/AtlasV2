@@ -23,8 +23,28 @@ function check(name: string, cond: boolean, detail?: string): void {
   }
 }
 
+// Every /api/* route has required a bearer token since the login-gate landed
+// (2026-07-15, the day after this script was first written) — it never
+// carried one, so it 401'd on its very first request on any environment.
+// Same login this script's PARITY_MATRIX row already assumed a human ran by
+// hand; automating it here is what makes "GREEN" mean something re-runnable.
+async function login(): Promise<string> {
+  const res = await fetch(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'adammfisher', password: 'buster11' }),
+  });
+  if (!res.ok) throw new Error(`login → ${res.status}: ${await res.text()}`);
+  const { token } = (await res.json()) as { token: string };
+  return token;
+}
+const TOKEN = await login();
+
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...init });
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
+    ...init,
+  });
   if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${path} → ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
 }
@@ -32,7 +52,7 @@ async function j<T>(path: string, init?: RequestInit): Promise<T> {
 async function chat(convId: string, text: string): Promise<string> {
   const res = await fetch(`${BASE}/conversations/${convId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
     body: JSON.stringify({ text }),
   });
   if (!res.ok || !res.body) throw new Error(`chat → ${res.status}`);
@@ -70,9 +90,24 @@ try {
   check('A lists its own conversation', idsA.includes(cA.id));
   check("A does not list B's conversation", !idsA.includes(cB.id));
 
-  console.log('— artifact scoping');
-  const artsA = await j<Array<{ projectId: string }>>(`/artifacts?projectId=${pA.id}`);
-  check('artifacts?projectId=A returns only A rows', artsA.every((a) => a.projectId === pA.id));
+  console.log('— artifact scoping (a REAL artifact, not an empty-array check)');
+  // `artsA.every(...)` on an empty result passes vacuously — no artifact was
+  // ever created in this script, so that check never actually exercised
+  // anything. Create one for real and prove BOTH directions of isolation.
+  interface ArtifactRow { id: string; projectId: string; kind: string; created_at: number }
+  const artT0 = Date.now();
+  const cArtA = await j<Conversation>('/conversations', { method: 'POST', body: JSON.stringify({ projectId: pA.id }) });
+  await chat(cArtA.id, 'Create an SVG icon of a compass rose as a document/artifact.');
+  const allArts = await j<ArtifactRow[]>('/artifacts');
+  const art = allArts.filter((a) => a.kind === 'svg' && a.created_at > artT0).sort((a, b) => b.created_at - a.created_at)[0];
+  check('artifact was actually created by the prompt', Boolean(art), 'no svg artifact appeared');
+  if (art) {
+    check("artifact carries project A's id", art.projectId === pA.id, `got ${art.projectId}`);
+    const artsBAfter = await j<ArtifactRow[]>(`/artifacts?projectId=${pB.id}`);
+    check("project B's filtered query must not see A's artifact", !artsBAfter.some((a) => a.id === art.id));
+    const artsAAfter = await j<ArtifactRow[]>(`/artifacts?projectId=${pA.id}`);
+    check("project A's own filtered query must see it", artsAAfter.some((a) => a.id === art.id));
+  }
 
   console.log('— memory isolation (the leak that matters)');
   const prevA = await j<{ injected: string }>(`/projects/${pA.id}/memory/recall-preview?q=${encodeURIComponent('what is the vault passphrase?')}`);

@@ -27,6 +27,15 @@ been able to hit before); each is re-verified and annotated in place below
 rather than silently re-dated. Full root-cause writeups: `FIXLOG.md` FX-11
 through FX-16 plus the trailing test-only-repair sections.
 
+**Same-day follow-up, 2026-07-18:** closed a genuine coverage gap in the
+project+artifact workflow — no test previously exercised "owner creates a
+project → generates an artifact from that project's OWN workspace composer →
+artifact is durably scoped to it," and `parity-m2-isolation.ts`'s own
+artifact-scoping check turned out to be vacuous (see M2 row). Added
+`tests/e2e/parity/project-artifact-scope.spec.ts` (3/3) and repaired the M2
+script (auth + a real artifact assertion, 11/11). No product bug — scoping
+held throughout; this was a test-honesty gap, not a feature gap.
+
 Fixtures: `tests/e2e/fixtures/` — `model.xlsx` (3 sheets, live formulas, B4=SUM),
 `manual.docx` (headings + table, codeword HELIOTROPE-9), `survey.pdf` (12pp,
 page-7 table, PDFPAGE-n-LYNX markers), `scanned.pdf` (zero text layer),
@@ -120,7 +129,7 @@ Audited 2026-07-14, local dev, model **Nova 2 Lite** (the deployed default — m
 | id | feature | status | evidence | notes |
 |---|---|---|---|---|
 | M1 | recall e2e vs DEPLOYED stack | 🟢 | memory-eval **14/14 local AND deployed** 2026-07-14 | FIXED: adjudicate token starvation on the tool-use path (32→200 — every deployed dedup/supersede verdict was falling to 'different' at parse) + forget lexical sweep. First full pass on the current architecture |
-| M2 | project isolation vs DEPLOYED stack | 🟢 | scripts/test/parity-m2-isolation.ts 8/8 DEPLOYED 2026-07-14 | new API-level harness (old stage-2 gate is SQLite-bound, kept as historical). Conversation/artifact scoping + memory-recall isolation + cross-project chat probe all hold on DynamoDB/S3 Vectors |
+| M2 | project isolation vs DEPLOYED stack | 🟢 | scripts/test/parity-m2-isolation.ts 11/11 local 2026-07-18 (+ tests/e2e/parity/project-artifact-scope.spec.ts ✓✓✓ same day) | new API-level harness (old stage-2 gate is SQLite-bound, kept as historical). Conversation/artifact scoping + memory-recall isolation + cross-project chat probe all hold on DynamoDB/S3 Vectors. **2026-07-18 re-audit found the script had silently 401'd on every request since the 2026-07-15 login gate landed (it never sent a token) — the "8/8 DEPLOYED 2026-07-14" evidence predates auth and was never re-run since, and its own artifact-scoping check was separately vacuous (`[].every(...)` passes trivially with zero artifacts ever created). Fixed both: script now logs in, and actually creates an artifact before asserting scope. A new Playwright spec additionally covers the same workflow through the real UI (project-owner creates a project, generates an artifact from its own composer, not the sidebar) — both green, 3/3 and 11/11 respectively; no product bug, the isolation itself held throughout.** |
 | M3 | remember/forget tools | 🟢 | memory-eval §4-5 ✓✓ both envs 2026-07-14 | forget now sweeps lexically behind the vector pass — no layer survives |
 | M4 | memory modal browse/edit | 🟢 | parity/m3-m9.spec.ts ✓✓✓ 2026-07-18 | regressed then re-fixed 2026-07-18: the test clicked the chat header's Brain icon expecting a modal — that button is a per-chat remember on/off TOGGLE, not a launcher; the real modal only opens from a project workspace's "View & edit memory" pencil. Re-audited via that path, 3/3 consecutive |
 | M5 | deletion propagation: purge derived facts+vectors | 🟢 | parity/m3-m9.spec.ts ✓ 2026-07-14 (12.8s) | FIXED: deleteConversation purges source-stamped notes/KV (+vectors) in project+user scopes and clears the queued extraction (no resurrection). Graph edges not yet swept — noted as residual |
