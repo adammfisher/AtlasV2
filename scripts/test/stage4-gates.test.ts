@@ -2,24 +2,42 @@
  * Stage 4 deterministic gates (PRD §9 Stage 4):
  *  1. cross-project tool isolation — a connector enabled only in project B is
  *     invisible to chat in project A, and direct calls are refused
- *  2. credentials round-trip encrypted — plaintext recoverable only through the
- *     store; grep of dataDir shows no plaintext
- *  3. audit log records tool calls without contents
- * Run with the dev server stopped or running — it talks to the DB and module
- * layer directly, not HTTP.
+ *  2. project-scoped memory isolation — a fact stored in project A is not
+ *     recalled in project B
+ *  3. credentials round-trip encrypted — plaintext recoverable only through the
+ *     store; grep of dataDir shows no plaintext, and no install row's stored
+ *     JSON contains it either
+ *  4. audit log records tool calls without contents
+ *
+ * Runs against DynamoDB directly (no HTTP, no browser) — a fast, direct-module
+ * gate complementary to (not a replacement for) the E2E coverage in
+ * memory.spec.ts (M-6/M-7) and m3-m9.spec.ts.
+ *
+ * DynamoDB rewrite note: this script originally manipulated a `plugin_installs`
+ * SQLite table directly and exercised the (now fully retired) `memory` MCP
+ * connector's own `memory_upsert`/`memory_search` tools for gate 2. Both are
+ * dead: `appdb.ts` replaced SQLite entirely (PRD §12.1), and `memory_upsert`/
+ * `memory_search` (servers/memory.ts) write to a separate SQLite file no part
+ * of the real chat pipeline ever reads — chat.ts's SHADOW_CONNECTORS hides them
+ * from the model precisely because they'd shadow the real, DynamoDB+S3-Vectors
+ * memory engine (`server/src/memory/engine.ts`) with a dead one. Gate 2 now
+ * exercises that real engine (`upsertKv`/`recallContext`) instead.
  */
 import assert from 'node:assert';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { getDb } from '../../server/src/db/db.js';
 import { config } from '../../server/src/config.js';
+import { newId, listInstalls, putProject, deleteProject } from '../../server/src/db/appdb.js';
 import {
   ensureBundledInstalled,
+  enableBundledForProject,
   toolsForProject,
   callTool,
   installFor,
+  type InstallRow,
 } from '../../server/src/mcp/manager.js';
+import { upsertKv, recallContext } from '../../server/src/memory/engine.js';
 import { storeCredential, readCredential, deleteCredential } from '../../server/src/mcp/credentials.js';
 
 const results: Array<{ name: string; ok: boolean; detail?: string }> = [];
@@ -35,55 +53,57 @@ function record(name: string, fn: () => Promise<void> | void): Promise<void> {
     });
 }
 
-const db = getDb();
-ensureBundledInstalled();
+async function putInstallRow(install: InstallRow): Promise<void> {
+  const { putInstall } = await import('../../server/src/db/appdb.js');
+  await putInstall(install);
+}
+
+async function freshProject(label: string): Promise<string> {
+  const id = newId('p');
+  await putProject({ id, name: `stage4-gate ${label}`, instructions: '', settings: '{}', created_at: Date.now() });
+  return id;
+}
+
+await ensureBundledInstalled();
+const projA = await freshProject('A');
+const projB = await freshProject('B');
+// FX-11: bundled connectors are enabled for every project by default — start
+// both test projects from that same default, then narrow deliberately below
+await enableBundledForProject(projA);
+await enableBundledForProject(projB);
 
 // --- 1. cross-project tool isolation ---
 await record('isolation: filesystem enabled only in B is invisible to A', async () => {
-  const install = installFor('filesystem');
+  const install = await installFor('filesystem');
   assert(install, 'filesystem install row missing');
   const original = install.enabled_projects;
   try {
-    db.prepare("UPDATE plugin_installs SET enabled_projects = '[\"p2\"]' WHERE id = ?").run(install.id);
-    const toolsA = await toolsForProject('p1');
-    assert(
-      !toolsA.some((t) => t.connectorId === 'filesystem'),
-      'filesystem tools leaked into project A',
-    );
-    const toolsB = await toolsForProject('p2');
-    assert(
-      toolsB.some((t) => t.name === 'fs_list'),
-      'filesystem tools missing from project B',
-    );
+    await putInstallRow({ ...install, enabled_projects: JSON.stringify([projB]) });
+    const toolsA = await toolsForProject(projA);
+    assert(!toolsA.some((t) => t.connectorId === 'filesystem'), 'filesystem tools leaked into project A');
+    const toolsB = await toolsForProject(projB);
+    assert(toolsB.some((t) => t.name === 'fs_list'), 'filesystem tools missing from project B');
     await assert.rejects(
-      () => callTool('filesystem', 'p1', 'fs_list', { path: '.' }),
+      () => callTool('filesystem', projA, 'fs_list', { path: '.' }),
       /not enabled in this project/,
       'direct call from A should be refused',
     );
   } finally {
-    db.prepare('UPDATE plugin_installs SET enabled_projects = ? WHERE id = ?').run(original, install.id);
+    await putInstallRow({ ...(await installFor('filesystem'))!, enabled_projects: original });
   }
 });
 
-await record('isolation: memory rows are project-scoped', async () => {
-  const install = installFor('memory');
-  assert(install, 'memory install row missing');
-  const original = install.enabled_projects;
-  try {
-    db.prepare(`UPDATE plugin_installs SET enabled_projects = '["p1","p2"]' WHERE id = ?`).run(install.id);
-    const marker = `isolation-marker-${Date.now()}`;
-    await callTool('memory', 'p2', 'memory_upsert', { value: `secret B fact ${marker}` });
-    const fromA = await callTool('memory', 'p1', 'memory_search', { query: marker });
-    assert(!fromA.includes(marker), 'project B memory leaked into project A recall');
-    const fromB = await callTool('memory', 'p2', 'memory_search', { query: marker });
-    assert(fromB.includes(marker), 'project B cannot recall its own memory');
-  } finally {
-    db.prepare('UPDATE plugin_installs SET enabled_projects = ? WHERE id = ?').run(original, install.id);
-  }
+await record('isolation: a fact remembered in project A is not recalled in project B (and vice versa)', async () => {
+  const marker = `isolation-marker-${Date.now()}`;
+  await upsertKv(projA, 'stage4_gate_fact', `secret A fact ${marker}`);
+  const fromB = await recallContext(projB, marker);
+  assert(!fromB.includes(marker), 'project A memory leaked into project B recall');
+  const fromA = await recallContext(projA, marker);
+  assert(fromA.includes(marker), 'project A cannot recall its own memory');
 });
 
 // --- 2. credentials round-trip ---
-await record('credentials: AES-GCM round-trip + no plaintext on disk or DB', () => {
+await record('credentials: AES-GCM round-trip + no plaintext on disk or in DynamoDB', async () => {
   const secret = `tok-${Math.random().toString(36).slice(2)}-stage4-gate`;
   const ref = storeCredential(secret);
   try {
@@ -97,10 +117,8 @@ await record('credentials: AES-GCM round-trip + no plaintext on disk or DB', () 
       grepOut = (err as { stdout?: string }).stdout ?? '';
     }
     assert.equal(grepOut.trim(), '', `plaintext found in: ${grepOut.trim()}`);
-    const inDb = db
-      .prepare("SELECT COUNT(*) AS n FROM plugin_installs WHERE custom_config LIKE ? OR credentials_ref LIKE ?")
-      .get(`%${secret}%`, `%${secret}%`) as { n: number };
-    assert.equal(inDb.n, 0, 'plaintext credential reached the database');
+    const installsJson = JSON.stringify(await listInstalls());
+    assert(!installsJson.includes(secret), 'plaintext credential reached an install row');
   } finally {
     deleteCredential(ref);
   }
@@ -108,18 +126,15 @@ await record('credentials: AES-GCM round-trip + no plaintext on disk or DB', () 
 
 // --- 3. audit log shape ---
 await record('audit: tool calls logged without contents', async () => {
-  const install = installFor('filesystem');
-  assert(install, 'filesystem install row missing');
   const needle = `audit-probe-${Date.now()}`;
-  const enabled = JSON.parse(install.enabled_projects) as string[];
-  if (!enabled.includes('p1')) {
-    db.prepare(`UPDATE plugin_installs SET enabled_projects = '["p1"]' WHERE id = ?`).run(install.id);
-  }
-  await callTool('filesystem', 'p1', 'fs_write', { path: 'audit-probe.txt', content: `secret content ${needle}` });
+  await callTool('filesystem', projA, 'fs_write', { path: 'audit-probe.txt', content: `secret content ${needle}` });
   const log = readFileSync(path.join(config.dataDir, 'logs', 'audit.log'), 'utf8');
   assert(log.includes('fs_write'), 'fs_write not audited');
   assert(!log.includes(needle), 'audit log contains file contents');
 });
+
+await deleteProject(projA).catch(() => undefined);
+await deleteProject(projB).catch(() => undefined);
 
 let failed = 0;
 for (const r of results) {
