@@ -61,17 +61,18 @@ test.describe('accounts', () => {
     await as(susan, '/conversations/delete', { method: 'POST', body: JSON.stringify({ ids: [conv.id] }) });
   });
 
-  test('model limits: adam sees all, susan mid, demo nova-only; select outside → 403', async () => {
+  test('model limits: adam sees all 4, susan/demo see the 2-model allowlist; select outside → 403', async () => {
     const adam = await login('adammfisher', 'buster11');
     const susan = await login('susan', 'ally');
     const demo = await login('demo', 'llama');
 
     const keys = async (t: string): Promise<string[]> =>
       (await as<{ bedrockModels: Array<{ id: string }> }>(t, '/models')).bedrockModels.map((m) => m.id);
-    // /models maps keys→entries; compare COUNTS per allowlist
-    expect((await keys(adam)).length).toBe(3);
+    // /models maps keys→entries; compare COUNTS per allowlist (users.config.json:
+    // adam=[haiku,sonnet,nova,nemotron], susan/demo=[nova,nemotron])
+    expect((await keys(adam)).length).toBe(4);
     expect((await keys(susan)).length).toBe(2);
-    expect((await keys(demo)).length).toBe(1);
+    expect((await keys(demo)).length).toBe(2);
 
     const forbidden = await fetch(`${BASE}/api/models/select`, {
       method: 'POST',

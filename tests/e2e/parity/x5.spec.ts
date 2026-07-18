@@ -31,8 +31,15 @@ test.describe('X5 error recovery', () => {
     const retry = page.locator('button[title*="egenerate"], button[title*="etry"], button:has(svg.lucide-refresh-cw)').last();
     await expect(retry, 'Retry affordance on error').toBeVisible({ timeout: 10_000 });
 
-    // clear the cause, retry, succeed
+    // clear the cause, retry, succeed. The connect call above resolves once
+    // the HTTP request completes, but that's not the same guarantee as "the
+    // NEXT chat request will see bedrockSettings().connected === true" — poll
+    // the real signal instead of assuming the await alone closes the race
+    // (this test flaked intermittently on a bare await here).
     await api('/models/bedrock/connect', { method: 'POST', body: '{}' });
+    await expect
+      .poll(async () => (await api<{ bedrock: { connected: boolean } }>('/models')).bedrock.connected, { timeout: 10_000 })
+      .toBe(true);
     await retry.click();
     await pollBody(page, /RECOVERY-CHECK/, 90_000);
     await waitIdle(page, 30_000);

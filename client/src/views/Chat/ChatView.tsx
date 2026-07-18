@@ -955,8 +955,21 @@ export function ChatView({
                         data-testid="stream-retry"
                         onClick={() => {
                           const text = live.userText;
-                          if (convId) clearStream(convId);
-                          void send(text, true);
+                          const target = convId;
+                          if (target) clearStream(target);
+                          // Drop the persisted failed attempt before resending —
+                          // otherwise it stays in history and the model reads its
+                          // own prior error/refusal as live context on the retry,
+                          // sometimes producing a confused non-answer even though
+                          // the underlying cause is already fixed (matches the
+                          // truncation retryLast() already does for Regenerate).
+                          void (async () => {
+                            if (target && lastUserMsg) {
+                              await api.truncateConversation(target, lastUserMsg.id, false).catch(() => undefined);
+                              await queryClient.invalidateQueries({ queryKey: ['conversation', target] });
+                            }
+                            await send(text, true);
+                          })();
                         }}
                         className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium flex-shrink-0"
                         style={{ background: wash(C.amber, 20), color: C.amber, border: `1px solid ${wash(C.amber, 40)}` }}

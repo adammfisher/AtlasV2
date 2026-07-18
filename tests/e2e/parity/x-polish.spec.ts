@@ -128,15 +128,28 @@ test.describe('X polish', () => {
   });
 
   test('X9 light theme toggle exists and applies', async ({ page }) => {
+    // ThemePicker.tsx: "Replaces the old light/dark toggle — light is now
+    // just one palette among five." A single click now only opens a picker
+    // menu; the theme changes on selecting a palette from it, not on the
+    // opening click itself.
     await page.goto('/');
-    const toggle = page.locator('button:has(svg.lucide-sun), button:has(svg.lucide-moon), button[title*="heme"]').first();
+    const toggle = page.locator('button:has(svg.lucide-palette), button[title*="heme"]').first();
     await expect(toggle, 'theme toggle').toBeVisible({ timeout: 5_000 });
     const before = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
     await toggle.click();
-    await page.waitForTimeout(800);
+    const menu = page.getByRole('menu', { name: 'Theme' });
+    await expect(menu).toBeVisible();
+    // pick whichever palette isn't already active, so this can't no-op
+    const activeLabel = (await menu.locator('[aria-checked="true"]').innerText()).trim();
+    await menu.locator('[aria-checked="false"]').first().click();
+    await page.waitForTimeout(300);
     const after = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(after, 'background must change on toggle').not.toBe(before);
-    await toggle.click(); // restore
+    expect(after, 'background must change on palette selection').not.toBe(before);
+
+    // restore: reopen and click back to whatever was active before
+    await toggle.click();
+    await menu.getByRole('menuitemradio', { name: activeLabel }).click();
   });
 
   test('X10 keyboard: Enter sends, Shift-Enter newlines, Esc closes modal, Cmd-K new chat', async ({ page }) => {

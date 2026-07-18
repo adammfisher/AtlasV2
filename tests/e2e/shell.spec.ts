@@ -4,7 +4,7 @@ import { sendNew, expectReply, cleanupMarked, api, MARK } from './helpers';
 test.describe('shell + management @fast', () => {
   test.afterAll(cleanupMarked);
 
-  test('model menu offers the configured models (adammfisher: all 3) and switching sticks', async ({ page }) => {
+  test('model menu offers the configured models (adammfisher: all 4) and switching sticks', async ({ page }) => {
     await page.goto('/');
     const picker = page.locator('button', { hasText: /Claude (Haiku 4\.5|Sonnet)/ }).last();
     await picker.click();
@@ -13,10 +13,13 @@ test.describe('shell + management @fast', () => {
     await expect(page.getByText(/Nova/).last()).toBeVisible();
     await page.keyboard.press('Escape');
     const reg = await api<{ bedrockModels: unknown[] }>('/models');
-    expect(reg.bedrockModels).toHaveLength(3); // haiku, sonnet, nova — adammfisher allowlist
+    expect(reg.bedrockModels).toHaveLength(4); // haiku, sonnet, nova, nemotron — adammfisher allowlist (users.config.json)
   });
 
   test('theme toggle flips the rendered palette and persists', async ({ page }) => {
+    // ThemePicker.tsx: a single click only opens a 5-palette menu now
+    // ("Replaces the old light/dark toggle") — the theme changes on
+    // selecting a palette from it, not on the opening click itself.
     await page.goto('/');
     const sidebarBg = () =>
       page.evaluate(() => {
@@ -24,12 +27,27 @@ test.describe('shell + management @fast', () => {
         return el ? getComputedStyle(el).backgroundColor : '';
       });
     const before = await sidebarBg();
-    await page.locator('button[title*="theme"]').click();
+    const toggle = page.locator('button[title*="heme"]');
+    const openAndPick = async (selector: string): Promise<void> => {
+      await toggle.click();
+      const menu = page.getByRole('menu', { name: 'Theme' });
+      await expect(menu).toBeVisible();
+      await menu.locator(selector).click();
+    };
+    const activeLabel = await (async () => {
+      await toggle.click();
+      const menu = page.getByRole('menu', { name: 'Theme' });
+      await expect(menu).toBeVisible();
+      const label = (await menu.locator('[aria-checked="true"]').innerText()).trim();
+      await page.keyboard.press('Escape');
+      return label;
+    })();
+    await openAndPick('[aria-checked="false"]');
     await page.waitForTimeout(400);
     expect(await sidebarBg()).not.toBe(before);
     await page.reload({ waitUntil: 'networkidle' });
     expect(await sidebarBg()).not.toBe(before); // persisted
-    await page.locator('button[title*="theme"]').click(); // restore
+    await openAndPick(`[aria-checked="false"]:has-text("${activeLabel}")`); // restore
   });
 
   test('mobile drawer: hamburger opens the sidebar', async ({ browser }) => {
