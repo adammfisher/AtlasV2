@@ -1,5 +1,6 @@
-/** X-section polish audit: X1 styles @red, X2 preferences, X3 markdown torture,
- * X6 voice @red, X7 gallery @red, X8 mobile, X9 light theme, X10 keyboard.
+/** X-section polish audit: X1 styles, X2 preferences, X3 markdown torture
+ * (X3b LaTeX/KaTeX rendering remains @red — not yet implemented), X6 voice,
+ * X7 gallery, X8 mobile, X9 light theme, X10 keyboard.
  * X4/X5 (streaming resilience, mid-stream kill) are recorded as manual/deferred
  * in the matrix — they need infra manipulation, not a browser assertion. */
 import { test, expect } from '@playwright/test';
@@ -15,28 +16,38 @@ test.describe('X polish', () => {
   test.afterAll(cleanupMarked);
 
   test('X1 style presets selectable per chat, and they change the output', async ({ page }) => {
+    // two SEPARATE chats, not the same conversation asked "again": within one
+    // conversation, re-asking the identical question after already answering it
+    // makes the model repeat its own prior answer verbatim regardless of any
+    // style change — a real product behavior (respecting "again please"), but
+    // it defeats the point of this test, which is whether style affects a
+    // FRESH answer. "Per chat" is also literally what the feature promises.
+    const setStyle = async (name: 'concise' | 'explanatory'): Promise<void> => {
+      await page.locator('button:has(svg.lucide-plus)').last().click();
+      await page.waitForTimeout(400);
+      await page.getByRole('button', { name, exact: true }).click();
+      await page.waitForTimeout(600);
+      await page.locator('div.fixed.inset-0').last().click({ force: true }).catch(() => undefined);
+    };
+
     await newChat(page);
-    // send once so the conversation exists, then set the style
     await composer(page).fill(`${MARK} hello`);
     await composer(page).press('Enter');
     await waitIdle(page, 60_000);
-    await page.locator('button:has(svg.lucide-plus)').last().click();
-    await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'concise', exact: true }).click();
-    await page.waitForTimeout(600);
-    await page.locator('div.fixed.inset-0').last().click({ force: true }).catch(() => undefined);
+    await setStyle('concise');
     await composer(page).fill(`${MARK} Why is the sky blue?`);
     await composer(page).press('Enter');
     await waitIdle(page, 90_000);
     const conciseLen = ((await page.locator('.chat-md').last().innerText()) ?? '').length;
     expect(conciseLen, 'concise style produced an answer').toBeGreaterThan(10);
-    // same question, explanatory — must be substantially longer
-    await page.locator('button:has(svg.lucide-plus)').last().click();
-    await page.waitForTimeout(400);
-    await page.getByRole('button', { name: 'explanatory', exact: true }).click();
-    await page.waitForTimeout(600);
-    await page.locator('div.fixed.inset-0').last().click({ force: true }).catch(() => undefined);
-    await composer(page).fill(`${MARK} Why is the sky blue? (again please)`);
+
+    // a fresh chat, so the model has no prior answer of its own to repeat
+    await newChat(page);
+    await composer(page).fill(`${MARK} hello`);
+    await composer(page).press('Enter');
+    await waitIdle(page, 60_000);
+    await setStyle('explanatory');
+    await composer(page).fill(`${MARK} Why is the sky blue?`);
     await composer(page).press('Enter');
     await waitIdle(page, 90_000);
     const explLen = ((await page.locator('.chat-md').last().innerText()) ?? '').length;
@@ -135,7 +146,10 @@ test.describe('X polish', () => {
     await page.goto('/');
     const toggle = page.locator('button:has(svg.lucide-palette), button[title*="heme"]').first();
     await expect(toggle, 'theme toggle').toBeVisible({ timeout: 5_000 });
-    const before = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    // the palette background lives on <html>, not <body> (index.css paints it
+    // there so the correct color is ready on the very first frame, before
+    // React mounts) — body itself carries no background-color at all
+    const before = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
 
     await toggle.click();
     const menu = page.getByRole('menu', { name: 'Theme' });
@@ -144,7 +158,7 @@ test.describe('X polish', () => {
     const activeLabel = (await menu.locator('[aria-checked="true"]').innerText()).trim();
     await menu.locator('[aria-checked="false"]').first().click();
     await page.waitForTimeout(300);
-    const after = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    const after = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
     expect(after, 'background must change on palette selection').not.toBe(before);
 
     // restore: reopen and click back to whatever was active before

@@ -305,10 +305,14 @@ conversationsRouter.post('/:id/tools', (req, res) => {
 
 /** X1 response styles (claude.ai parity): preset per conversation, or a
  * custom descriptor generated once from a pasted writing sample. */
+// Concrete length/structure anchors, not just qualitative tone words: "be
+// concise"/"be explanatory" alone left a small-tier model's actual compliance
+// too variable to reliably differ in length turn to turn (X1 measured this —
+// a live model's response length is not deterministic without a hard anchor).
 const STYLE_PRESETS: Record<string, string> = {
   normal: '',
-  concise: 'STYLE: Be maximally concise. Short sentences, no preamble, no recap, no filler. Prefer fragments over prose where meaning survives.',
-  explanatory: 'STYLE: Be explanatory. Define terms on first use, show reasoning step by step, add a concrete example for each abstract point.',
+  concise: 'STYLE: Be maximally concise — 1-2 short sentences or a tight fragment, whenever the question allows it. No preamble, no recap, no filler, no restating the question. Never pad a short answer to sound more complete.',
+  explanatory: 'STYLE: Be thoroughly explanatory, even for a question that could be answered in one line. Define every non-obvious term on first use, walk through the reasoning step by step (never just state the conclusion), and add at least one concrete example or elaboration per point. Longer is correct here — do not compress.',
   formal: 'STYLE: Formal professional register. No contractions, no colloquialisms, complete sentences, measured tone.',
 };
 

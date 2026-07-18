@@ -166,9 +166,16 @@ const FORMAT_DECISIVE_WORDS: Record<string, WorkflowId> = {
   svg: 'create-svg',
   mmd: 'create-diagram',
   mermaid: 'create-diagram',
-  md: 'create-md',
-  markdown: 'create-md',
 };
+
+// 'markdown'/'md' are NOT safe as bare words the way the others are: unlike
+// "docx"/"pdf", "markdown" is also the ubiquitous name for a chat reply's own
+// inline formatting ("answer with a markdown table") — a bare-word check
+// misrouted exactly that ("Answer with a small markdown table... plus a
+// nested bullet list... plus a python code block" → create-md instead of a
+// normal chat reply formatted with a table). Only decisive when markdown
+// names the DELIVERABLE itself, not an element inside one.
+const MARKDOWN_DELIVERABLE_RE = /\bmarkdown\s+(document|doc|file|artifact|readme)\b|\b(?:as|in|to)\s+markdown\b|\.md\b/i;
 
 /** unique deliverable-noun match for a create request; null on tie/none. */
 function matchCreate(message: string): { id: WorkflowId; skill: SkillId } | null {
@@ -180,6 +187,7 @@ function matchCreate(message: string): { id: WorkflowId; skill: SkillId } | null
   for (const [word, id] of Object.entries(FORMAT_DECISIVE_WORDS)) {
     if (hasWord(message, word)) hits.add(id);
   }
+  if (MARKDOWN_DELIVERABLE_RE.test(message)) hits.add('create-md');
   if (hits.size === 1) {
     const id = [...hits][0]!;
     return { id, skill: CREATE_SKILL[id]! };

@@ -23,6 +23,8 @@ import { readDocument, listDocuments, analyzeTable } from '../tools/documents.js
 import { recallContext, scheduleExtraction, flushProjectPending, rememberEnabled, rememberFact, forgetFact } from '../memory/engine.js';
 import { scanForNarration } from '../memory/narration.js';
 import { listKnowledge } from '../memory/knowledge.js';
+import { config } from '../config.js';
+import { accountPrefix } from '../lib/account.js';
 
 // F: a tool spec is a prompt. These descriptions say exactly when to fire and —
 // just as important — when not to, because an over-eager memory write is how a
@@ -316,10 +318,15 @@ chatRouter.post('/:id/messages', async (req, res) => {
         }
       }
 
+      // config.userName predates the multi-account system (users.config.json) and
+      // is a single installation-wide value, not per-account — only the primary
+      // account (accountPrefix() === '') is who it actually describes.
+      const userName = accountPrefix() === '' ? config.userName?.trim() : '';
       const PERSONA =
         `You are Axiom, an AI assistant powered by ${activeModel().name} (Anthropic) running on Amazon Bedrock. ` +
         'You help with conversation, analysis, and (via your document pipeline) generating decks, documents, spreadsheets, PDFs, diagrams, and small app prototypes. ' +
-        'Be direct, concise, and concrete.';
+        'Be direct, concise, and concrete.' +
+        (userName ? ` The user's name is ${userName}.` : '');
       // web search: per-chat override wins, else the global default (W4)
       const webConv = getSetting(`websearch:${conv.id}`); // null/'' = no override
       const webEnabled = webConv === '1' || webConv === '0' ? webConv === '1' : getSetting('webSearchEnabled') !== '0';
