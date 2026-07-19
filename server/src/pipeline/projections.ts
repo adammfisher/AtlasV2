@@ -6,6 +6,7 @@ import { config, repoRoot } from '../config.js';
 import { newId, now } from '../db/db.js';
 import { listProjectionsFor, putProjection } from '../db/appdb.js';
 import { completeJson } from '../llama/json.js';
+import { officeMaxTokens } from '../providers/bedrock.js';
 import { loadSkill } from './skills.js';
 import { validateJson } from './validate.js';
 import { latestPayload, writeVersionFiles } from './artifacts.js';
@@ -66,39 +67,43 @@ export function toConceptMd(p: Payload): string {
   return lines.filter((l) => l !== undefined).join('\n');
 }
 
-function conceptSections(p: Payload): Array<Record<string, unknown>> {
-  const sections: Array<Record<string, unknown>> = [
-    { heading: 'Problem', level: 1, paragraphs: [str(p, 'problem')] },
-    { heading: 'Value proposition', level: 1, paragraphs: [str(p, 'value_prop')] },
-    {
-      heading: 'Scope',
-      level: 1,
-      paragraphs: [],
-      table: {
-        headers: ['In scope', 'Out of scope'],
-        rows: zipColumns(
-          arr(p, 'scope_in').map(String),
-          arr(p, 'scope_out').map(String),
-        ),
-      },
-    },
-  ];
+// docx skill payloads are a FLAT array of typed blocks (skills/docx/schema.json
+// — heading/paragraph/table/…), not nested sections. These transforms target
+// that schema directly; earlier versions emitted a `sections` shape the real
+// build_docx.py has never accepted (caught by product-lifecycle.spec.ts).
+function heading(text: string): Record<string, unknown> {
+  return { kind: 'heading', level: 1, text };
+}
+function paragraph(text: string): Record<string, unknown> | null {
+  return text ? { kind: 'paragraph', text } : null;
+}
+function table(headers: string[], rows: string[][]): Record<string, unknown> {
+  return { kind: 'table', headers, rows };
+}
+
+function conceptBlocks(p: Payload): Array<Record<string, unknown>> {
+  const blocks: Array<Record<string, unknown>> = [
+    heading('Problem'),
+    paragraph(str(p, 'problem')),
+    heading('Value proposition'),
+    paragraph(str(p, 'value_prop')),
+    heading('Scope'),
+    table(['In scope', 'Out of scope'], zipColumns(arr(p, 'scope_in').map(String), arr(p, 'scope_out').map(String))),
+  ].filter((b): b is Record<string, unknown> => b !== null);
   if (str(p, 'benefit_hypothesis')) {
-    sections.push({ heading: 'Benefit hypothesis', level: 1, paragraphs: [str(p, 'benefit_hypothesis')] });
+    blocks.push(heading('Benefit hypothesis'), paragraph(str(p, 'benefit_hypothesis'))!);
   }
   const kpis = arr(p, 'kpis');
   if (kpis.length > 0) {
-    sections.push({
-      heading: 'KPIs',
-      level: 1,
-      paragraphs: [],
-      table: {
-        headers: ['KPI', 'Target', 'Measure'],
-        rows: kpis.map((k) => [String(k.name ?? ''), String(k.target ?? ''), String(k.measure ?? '')]),
-      },
-    });
+    blocks.push(
+      heading('KPIs'),
+      table(
+        ['KPI', 'Target', 'Measure'],
+        kpis.map((k) => [String(k.name ?? ''), String(k.target ?? ''), String(k.measure ?? '')]),
+      ),
+    );
   }
-  return sections;
+  return blocks;
 }
 
 function zipColumns(a: string[], b: string[]): string[][] {
@@ -110,116 +115,172 @@ function zipColumns(a: string[], b: string[]): string[][] {
 export function toConceptDocx(p: Payload): Payload {
   return {
     metadata: { title: `${str(p, 'name')} — Concept`, author: 'Axiom projection engine' },
-    sections: conceptSections(p),
+    blocks: conceptBlocks(p),
   };
 }
 
 export function toBrdDocx(p: Payload): Payload {
-  const sections = conceptSections(p);
+  const blocks = conceptBlocks(p);
   const useCases = arr(p, 'use_cases');
   if (useCases.length > 0) {
-    sections.push({
-      heading: 'Use cases',
-      level: 1,
-      paragraphs: [],
-      table: {
-        headers: ['Title', 'Actor', 'Flow'],
-        rows: useCases.map((u) => [String(u.title ?? ''), String(u.actor ?? ''), String(u.flow ?? '')]),
-      },
-    });
+    blocks.push(
+      heading('Use cases'),
+      table(
+        ['Title', 'Actor', 'Flow'],
+        useCases.map((u) => [String(u.title ?? ''), String(u.actor ?? ''), String(u.flow ?? '')]),
+      ),
+    );
   }
   const capabilities = arr(p, 'capabilities');
   if (capabilities.length > 0) {
-    sections.push({
-      heading: 'Capabilities',
-      level: 1,
-      paragraphs: [],
-      table: {
-        headers: ['Capability', 'Value', 'SWAG'],
-        rows: capabilities.map((c) => [String(c.name ?? ''), String(c.value ?? ''), String(c.swag ?? '')]),
-      },
-    });
+    blocks.push(
+      heading('Capabilities'),
+      table(
+        ['Capability', 'Value', 'SWAG'],
+        capabilities.map((c) => [String(c.name ?? ''), String(c.value ?? ''), String(c.swag ?? '')]),
+      ),
+    );
   }
   const ac = arr(p, 'acceptance_criteria');
   if (ac.length > 0) {
-    sections.push({
-      heading: 'Acceptance criteria',
-      level: 1,
-      paragraphs: [],
-      table: {
-        headers: ['Capability', 'Given', 'When', 'Then'],
-        rows: ac.map((c) => [String(c.capability ?? ''), String(c.given ?? ''), String(c.when ?? ''), String(c.then ?? '')]),
-      },
-    });
+    blocks.push(
+      heading('Acceptance criteria'),
+      table(
+        ['Capability', 'Given', 'When', 'Then'],
+        ac.map((c) => [String(c.capability ?? ''), String(c.given ?? ''), String(c.when ?? ''), String(c.then ?? '')]),
+      ),
+    );
   }
   const deps = arr(p, 'dependencies');
   if (deps.length > 0) {
-    sections.push({
-      heading: 'Dependencies',
-      level: 1,
-      paragraphs: [],
-      table: { headers: ['System', 'Nature'], rows: deps.map((d) => [String(d.system ?? ''), String(d.nature ?? '')]) },
-    });
+    blocks.push(
+      heading('Dependencies'),
+      table(['System', 'Nature'], deps.map((d) => [String(d.system ?? ''), String(d.nature ?? '')])),
+    );
   }
   const risks = arr(p, 'risks');
   if (risks.length > 0) {
-    sections.push({
-      heading: 'Risks',
-      level: 1,
-      paragraphs: [],
-      table: {
-        headers: ['Risk', 'Mitigation'],
-        rows: risks.map((r) => [String(r.desc ?? ''), String(r.mitigation ?? '')]),
-      },
-    });
+    blocks.push(
+      heading('Risks'),
+      table(['Risk', 'Mitigation'], risks.map((r) => [String(r.desc ?? ''), String(r.mitigation ?? '')])),
+    );
   }
   return {
     metadata: { title: `${str(p, 'name')} — BRD`, author: 'Axiom projection engine' },
-    sections,
+    blocks,
   };
+}
+
+// pptx skill payloads (skills/pptx/schema.json + scripts/office/validate_common.py
+// _content_audit — word-count doctrine a JSON schema can't express): every
+// slide requires archetype + title + speaker_notes; any single bullet/column
+// item over 12 words is rejected outright; a "content" archetype's title +
+// subtitle + bullets/columns/steps must total ≤40 words. Earlier versions
+// targeted a shape (col_left/col_right, unbounded bullet text) the real
+// build_pptx.py has never accepted (caught by product-lifecycle.spec.ts) —
+// this targets both the schema AND the word-budget doctrine directly, with a
+// dynamic per-slide fit rather than a guessed fixed item count.
+const CONTENT_SLIDE_WORD_BUDGET = 40;
+const PER_ITEM_WORD_MAX = 12;
+function words(s: string): string[] {
+  return s.split(/\s+/).filter(Boolean);
+}
+function wordCount(s: string): number {
+  return words(s).length;
+}
+/** Bullets/columns/titles are dual-constrained: ≤maxWords words (the Python
+ * word-count doctrine) AND ≤maxChars characters (the JSON schema's own
+ * maxLength) — a 12-word clip can still overflow 90 chars on long words. */
+function clipWords(s: string, maxWords: number, maxChars = 90): string {
+  const ws = words(s);
+  let out = ws.length > maxWords ? ws.slice(0, maxWords).join(' ') : s;
+  let cut = ws.length > maxWords;
+  if (out.length > maxChars - 1) {
+    out = out.slice(0, maxChars - 1);
+    cut = true;
+  }
+  return cut ? `${out}…` : out;
+}
+/** Greedily keeps items until the running word budget would be exceeded —
+ * never returns empty (bullets/column-items both require ≥1). */
+function fitToWordBudget(items: string[], budget: number): string[] {
+  const out: string[] = [];
+  let used = 0;
+  for (const raw of items) {
+    const clipped = clipWords(raw, PER_ITEM_WORD_MAX);
+    const w = wordCount(clipped);
+    if (out.length > 0 && used + w > budget) break;
+    out.push(clipped);
+    used += w;
+  }
+  return out;
+}
+function bulletsSlide(title: string, notes: string, items: string[]): Record<string, unknown> {
+  const t = clipWords(title, PER_ITEM_WORD_MAX);
+  const bullets = fitToWordBudget(items.length > 0 ? items : ['(none specified)'], CONTENT_SLIDE_WORD_BUDGET - wordCount(t));
+  return { archetype: 'content_bullets', title: t, speaker_notes: clipWords(notes, 200, 600), bullets };
 }
 
 export function toGatePptx(p: Payload, state: string, ambers: string[]): Payload {
   const slides: Array<Record<string, unknown>> = [
-    { layout: 'title', heading: str(p, 'name'), bullets: [`Gate review · state: ${state}`] },
-    { layout: 'bullets', heading: 'Problem & value', bullets: [str(p, 'problem'), str(p, 'value_prop')].filter(Boolean) },
     {
-      layout: 'two_col',
-      heading: 'Scope',
-      col_left: arr(p, 'scope_in').map(String),
-      col_right: arr(p, 'scope_out').map(String),
+      // 'title' isn't a word-budgeted archetype, but keep it short regardless
+      archetype: 'title',
+      title: clipWords(str(p, 'name'), PER_ITEM_WORD_MAX),
+      subtitle: clipWords(`Gate review · state: ${state}`, PER_ITEM_WORD_MAX),
+      speaker_notes: `Gate review for ${str(p, 'name')}, currently in the ${state} state.`,
     },
+    bulletsSlide('Problem & value', 'What problem this solves and why it matters.', [str(p, 'problem'), str(p, 'value_prop')].filter(Boolean)),
   ];
+  const scopeIn = arr(p, 'scope_in').map(String);
+  const scopeOut = arr(p, 'scope_out').map(String);
+  {
+    const title = 'Scope';
+    const heads = ['In scope', 'Out of scope'];
+    const fixedWords = wordCount(title) + heads.reduce((n, h) => n + wordCount(h), 0);
+    const perColBudget = Math.floor((CONTENT_SLIDE_WORD_BUDGET - fixedWords) / 2);
+    slides.push({
+      archetype: 'comparison',
+      title,
+      speaker_notes: 'What is explicitly in and out of scope for this product.',
+      columns: [
+        { head: heads[0], items: fitToWordBudget(scopeIn.length > 0 ? scopeIn : ['(none specified)'], perColBudget) },
+        { head: heads[1], items: fitToWordBudget(scopeOut.length > 0 ? scopeOut : ['(none specified)'], perColBudget) },
+      ],
+    });
+  }
   const capabilities = arr(p, 'capabilities');
   if (capabilities.length > 0) {
-    slides.push({
-      layout: 'bullets',
-      heading: 'Capabilities',
-      bullets: capabilities.slice(0, 8).map((c) => `${String(c.name ?? '')} — ${String(c.swag ?? '?')}`),
-    });
+    slides.push(
+      bulletsSlide(
+        'Capabilities',
+        'Core capabilities this product delivers.',
+        capabilities.map((c) => `${String(c.name ?? '')} — ${String(c.swag ?? '?')}`),
+      ),
+    );
   }
   const kpis = arr(p, 'kpis');
   if (kpis.length > 0) {
-    slides.push({
-      layout: 'bullets',
-      heading: 'KPIs',
-      bullets: kpis.slice(0, 8).map((k) => `${String(k.name ?? '')}: ${String(k.target ?? '')}`),
-    });
+    slides.push(
+      bulletsSlide(
+        'KPIs',
+        'How success is measured.',
+        kpis.map((k) => `${String(k.name ?? '')}: ${String(k.target ?? '')}`),
+      ),
+    );
   }
   const risks = arr(p, 'risks');
   if (risks.length > 0) {
-    slides.push({
-      layout: 'bullets',
-      heading: 'Risks',
-      bullets: risks.slice(0, 8).map((r) => String(r.desc ?? '')),
-    });
+    slides.push(bulletsSlide('Risks', 'Known risks going into this gate.', risks.map((r) => String(r.desc ?? ''))));
   }
-  slides.push({
-    layout: 'summary',
-    heading: 'State & checks',
-    bullets: [`Current state: ${state}`, ...(ambers.length > 0 ? ambers.slice(0, 6) : ['All checks green'])],
-  });
-  return { title: `${str(p, 'name')} — Gate review`, slides };
+  slides.push(
+    bulletsSlide(
+      'State & checks',
+      'Current gate state and any outstanding warnings.',
+      [`Current state: ${state}`, ...(ambers.length > 0 ? ambers.slice(0, 4) : ['All checks green'])],
+    ),
+  );
+  return { title: `${str(p, 'name')} — Gate review`.slice(0, 90), slides };
 }
 
 export function toContextMermaid(p: Payload): string {
@@ -330,7 +391,10 @@ export async function generateProjection(
           { role: 'user', content: `Product definition: ${JSON.stringify(payload)}` },
         ],
         skill.schema as Record<string, unknown>,
-        { maxTokens: 3072, signal },
+        // a real multi-file react app runs far past a token count this small
+        // (measured ~18k output tokens elsewhere in this pipeline) — the same
+        // office budget every other real-document generation call site uses
+        { maxTokens: officeMaxTokens(), signal },
       );
       const result = validateJson('react', skill.schema as Record<string, unknown>, raw);
       if (!result.ok) throw new Error(`prototype generation failed validation: ${result.error}`);

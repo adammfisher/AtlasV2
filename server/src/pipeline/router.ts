@@ -175,7 +175,19 @@ const FORMAT_DECISIVE_WORDS: Record<string, WorkflowId> = {
 // nested bullet list... plus a python code block" → create-md instead of a
 // normal chat reply formatted with a table). Only decisive when markdown
 // names the DELIVERABLE itself, not an element inside one.
-const MARKDOWN_DELIVERABLE_RE = /\bmarkdown\s+(document|doc|file|artifact|readme)\b|\b(?:as|in|to)\s+markdown\b|\.md\b/i;
+//
+// The noun list originally covered only document/doc/file/artifact/readme —
+// too narrow. "Create a markdown one-pager PRD for the loan payment
+// calculator" fell through this regex entirely (no ".md", no "as/in/to
+// markdown", and "one-pager"/"prd" weren't in the noun list), landing in the
+// noun-scoring fallback below, where "calculator" (a create-react-app noun
+// describing the SUBJECT, not the format) outscored everything — and because
+// a react artifact already existed in the conversation, Step 8 then misrouted
+// this as an EDIT of that artifact instead of creating a new markdown doc.
+// Broadened to the same class of document-shaped nouns already registered
+// for create-docx/create-md elsewhere in this file.
+const MARKDOWN_DELIVERABLE_RE =
+  /\bmarkdown\s+(document|doc|file|artifact|readme|one-pager|prd|spec|outline|notes?|guide|plan|brief|writeup|report|memo)\b|\b(?:as|in|to)\s+markdown\b|\.md\b/i;
 
 /** unique deliverable-noun match for a create request; null on tie/none. */
 function matchCreate(message: string): { id: WorkflowId; skill: SkillId } | null {

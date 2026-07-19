@@ -244,3 +244,13 @@ Gates: ALL PASS ✅ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on al
 | frontier | 99.7% | 100.0% | 100.0% | 0.0% | 2.6% |
 
 Gates: ALL PASS ✅ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on all tiers)
+
+### Routing gate run (local)
+
+| tier | overall | edit-vs-describe | unambiguous | escalation | clarify |
+|---|---|---|---|---|---|
+| small | 98.4% | 100.0% | 100.0% | 1.3% | 1.3% |
+| mid | 99.3% | 100.0% | 100.0% | 0.7% | 3.0% |
+| frontier | 99.7% | 100.0% | 100.0% | 0.0% | 2.6% |
+
+Gates: ALL PASS ✅ (edit-vs-describe=100%, unambiguous>=95%, overall>=85% on all tiers)
