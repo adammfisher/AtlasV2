@@ -55,7 +55,10 @@ export async function* streamWithTools(
         messages: convo,
         stream: true,
         temperature: opts.temperature ?? 0.7,
-        max_tokens: opts.maxTokens ?? 4096,
+        // the model's own ceiling, not an arbitrary cap (see bedrock.ts's
+        // bedrockStreamWithTools for the full story — same bug, same fix,
+        // reached through the same chat.ts call site when this provider is active)
+        max_tokens: opts.maxTokens ?? modelMaxOutput(),
         ...(offerTools ? { tools: oaiTools, tool_choice: 'auto' } : {}),
       },
       opts.signal,
@@ -196,7 +199,7 @@ export async function completeText(
   const { model } = auth();
   const res = await post(
     '/chat/completions',
-    { model, messages: toOpenAIMessages(messages), temperature: opts.temperature ?? 0.4, max_tokens: opts.maxTokens ?? 2048 },
+    { model, messages: toOpenAIMessages(messages), temperature: opts.temperature ?? 0.4, max_tokens: opts.maxTokens ?? modelMaxOutput() },
     opts.signal,
   );
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);

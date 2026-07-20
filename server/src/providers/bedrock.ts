@@ -492,7 +492,7 @@ export async function bedrockCompleteText(
   // honoring it here matches bedrockCompleteJson and lets the polish evals hold a
   // tier constant. Absent, this is the active model exactly as before.
   const modelId = opts.modelId ?? activeModelId();
-  const inferenceConfig = { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.7 };
+  const inferenceConfig = { maxTokens: opts.maxTokens ?? modelMaxOutput(modelDefByModelId(modelId)), temperature: opts.temperature ?? 0.7 };
   if (opts.onDelta) {
     const out = await client.send(
       new ConverseStreamCommand({ modelId, system, messages: msgs, inferenceConfig }),
@@ -883,6 +883,14 @@ export async function* bedrockStreamWithTools(
 
   const convo: Message[] = [...msgs];
   const modelId = opts.modelId ?? activeModelId();
+  // the model's own ceiling, not an arbitrary cap — a real conversational
+  // reply (this is THE live chat-reply path, chat.ts's only entry into
+  // Bedrock) must never be shorter than what the model can actually produce.
+  // Found 2026-07-20: this used to default to a flat 2048 regardless of
+  // model, silently truncating any reply past ~1500 words mid-sentence, with
+  // no error, no retry affordance, nothing — chat.ts's caller never even
+  // passed maxTokens, so EVERY reply hit this ceiling whenever it ran long.
+  const maxOutput = modelMaxOutput(modelDefByModelId(modelId));
   // thinking applies to the first pass only — tool continuations would need
   // the reasoning blocks replayed verbatim, which buys nothing here
   let think = opts.thinking ?? false;
@@ -900,8 +908,8 @@ export async function* bedrockStreamWithTools(
         ...(offerTools ? { toolConfig } : {}),
         // extended thinking requires temperature 1 and headroom over the budget
         inferenceConfig: think
-          ? { maxTokens: Math.max(opts.maxTokens ?? 2048, 6000), temperature: 1 }
-          : { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 1.0 },
+          ? { maxTokens: Math.max(opts.maxTokens ?? maxOutput, 6000), temperature: 1 }
+          : { maxTokens: opts.maxTokens ?? maxOutput, temperature: opts.temperature ?? 1.0 },
         ...(think ? { additionalModelRequestFields: { thinking: { type: 'enabled', budget_tokens: 4000 } } } : {}),
       }),
       { abortSignal: opts.signal },
@@ -979,7 +987,7 @@ export async function* bedrockStreamMessages(
       modelId: activeModelId(),
       system,
       messages: msgs,
-      inferenceConfig: { maxTokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 1.0 },
+      inferenceConfig: { maxTokens: opts.maxTokens ?? modelMaxOutput(), temperature: opts.temperature ?? 1.0 },
     }),
     { abortSignal: opts.signal },
   );

@@ -91,6 +91,65 @@ test.describe('chat core @fast', () => {
     await waitIdle(page, 90_000);
   });
 
+  test('long replies are not silently capped at an arbitrary token ceiling (FX-23)', async ({ page }) => {
+    // FX-23: every provider's chat-reply path defaulted to a flat 2048/4096
+    // maxTokens instead of the model's real ceiling whenever the caller (this
+    // app's chat.ts) didn't pass one explicitly — which it never did. A
+    // max_tokens stop is indistinguishable from a normal one to the caller,
+    // so a long reply just silently stopped mid-sentence with no error. This
+    // prompt is deliberately built to require well over 2048 tokens of output,
+    // so a regression of the old flat cap fails this test the same way a real
+    // user hit it: a reply that stops mid-thought.
+    //
+    // Phrasing matters here beyond just length: a structured "explain X in N
+    // labeled sections, at least Y words each" prompt gets classified by the
+    // app's own router as a create_doc intent (see server/src/pipeline/
+    // router.ts) and answered via the document-generation pipeline instead of
+    // a plain chat reply — it renders as a downloadable artifact, not
+    // '.chat-md', even when explicitly told not to create a file. Verified
+    // live: that pipeline's own JSON-generation call already uses
+    // modelMaxOutput() (bedrockCompleteJson), so it isn't itself an FX-23 risk,
+    // but it also isn't what this test is trying to observe. Framing the ask
+    // as one continuous conversational paragraph (no headers/sections) keeps
+    // it on the plain streamWithTools/streamMessages path that originally hit
+    // the bug, and reliably renders as '.chat-md'.
+    //
+    // Model choice matters too: whichever model this account currently has
+    // selected is live, global server state (POST /api/models/select), not
+    // scoped to a chat. Verified live that the fast/low-cost model doesn't
+    // reliably honor "write at least N words" — it sometimes complies
+    // (~14-20k chars) and sometimes answers in a couple hundred, which is
+    // model compliance variance, not a token-ceiling bug, but it makes that
+    // model useless as a deterministic regression lock. Haiku 4.5 follows
+    // length instructions reliably while still being fast, so pin it for
+    // just this test and restore whatever was selected before, even on
+    // failure.
+    test.setTimeout(90_000);
+    const { selected: originalModel } = await api<{ selected: string }>('/models');
+    await api('/models/select', { method: 'POST', body: JSON.stringify({ id: 'haiku' }) });
+    try {
+      await page.goto('/');
+      await sendNew(
+        page,
+        "I'm trying to understand something, talk me through it conversationally in one long flowing paragraph — no headers, no bullet points, no numbered sections, nothing that looks like a document. Explain how a B-tree index works in a relational database: what problem it solves, how nodes are structured, what happens on insert including splits, what happens on delete including merges and redistribution, how range queries traverse it, and how it compares performance-wise to a hash index. Really go deep, at least 2500 words, as one continuous conversational reply, not a file.",
+      );
+      await waitIdle(page, 60_000);
+      const transcript = await page.locator('.chat-md').last().innerText();
+      // proves the reply wasn't cut off early — well past the old 2048-token
+      // ceiling this test exists to catch a regression of (measured live: a
+      // clean, unmodified run of this exact prompt produced ~14,800 characters)
+      expect(transcript.length, 'reply should be substantial, not truncated early').toBeGreaterThan(10_000);
+      // the actual FX-23 symptom: a max_tokens stop lands mid-clause, not at a
+      // sentence boundary — permissive enough for markdown's own trailing
+      // punctuation (bold/italic markers, code fences, closing parens/quotes)
+      expect(transcript.trim(), 'reply must not end mid-sentence (silent token-ceiling truncation)').toMatch(
+        /[.!?"'”’)*_`]\s*$/,
+      );
+    } finally {
+      await api('/models/select', { method: 'POST', body: JSON.stringify({ id: originalModel }) });
+    }
+  });
+
   test('chat export downloads markdown', async ({ page }) => {
     await page.goto('/');
     await sendNew(page, 'Say exactly: EXPORT-ME');

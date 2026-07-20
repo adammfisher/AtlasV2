@@ -57,7 +57,10 @@ export async function* streamWithTools(
         model,
         system: system || undefined,
         messages: msgs,
-        max_tokens: opts.maxTokens ?? 4096,
+        // the model's own ceiling, not an arbitrary cap (see bedrock.ts's
+        // bedrockStreamWithTools for the full story — same bug, same fix,
+        // reached through the same chat.ts call site when this provider is active)
+        max_tokens: opts.maxTokens ?? modelMaxOutput(),
         temperature: opts.temperature ?? 0.7,
         stream: true,
         // the final round withholds tools to force synthesis, but msgs still
@@ -210,7 +213,7 @@ export async function completeText(
   const { model } = auth();
   const { system, msgs } = split(messages);
   const res = await post(
-    { model, system: system || undefined, messages: msgs, max_tokens: opts.maxTokens ?? 2048, temperature: opts.temperature ?? 0.4 },
+    { model, system: system || undefined, messages: msgs, max_tokens: opts.maxTokens ?? modelMaxOutput(), temperature: opts.temperature ?? 0.4 },
     opts.signal,
   );
   if (!res.ok) throw new Error(`Anthropic ${res.status}: ${(await res.text().catch(() => '')).slice(0, 200)}`);
