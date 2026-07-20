@@ -45,6 +45,7 @@ import {
   type Scope,
   type Profile,
 } from './store.js';
+import { listKnowledge } from './knowledge.js';
 import type { SourceRegistry } from '../tools/sources.js';
 
 export const USER_CATEGORIES = ['user_preference', 'user_fact'] as const;
@@ -508,27 +509,48 @@ const CONSOLIDATE_STALE_MS = 24 * 3_600_000;
 const CONSOLIDATE_SWEEP_MS = 6 * 3_600_000;
 
 /** Compress a scope's memory into a synthesized profile summary. Returns the
- * new profile text, or null when the scope has nothing to summarize. */
+ * new profile text, or null when the scope has nothing to summarize.
+ *
+ * Two things this used to get wrong (found 2026-07-20 comparing against
+ * claude.ai's own project-memory output, which is visibly richer and clearly
+ * aware of uploaded documents): the prompt never looked at the project's own
+ * knowledge files at all — recall surfaces their passages per-message, but
+ * the SUMMARY had no idea they existed — and the 120-word plain-prose cap was
+ * far tighter than what a "reference document you re-read" needs. Fixed both:
+ * file names/kinds (not full content — a deliberate cost/complexity choice,
+ * not a limitation) are now part of the source material, and the budget is
+ * loosened to allow the model to actually organize what it's given. */
 export async function consolidate(scope: Scope): Promise<string | null> {
   const [kv, notes] = await Promise.all([listKv(scope), listNotes(scope)]);
-  if (kv.length + notes.length === 0) return null;
+  const fileNames =
+    scope === 'user'
+      ? []
+      : await listKnowledge(scope)
+          .then((files) => files.filter((f) => f.status === 'ready').map((f) => f.name))
+          .catch(() => [] as string[]); // best-effort context, not required for consolidation
+  if (kv.length + notes.length + fileNames.length === 0) return null;
   const who = scope === 'user' ? 'the user' : 'this project';
-  const facts = [...kv.map((r) => `${r.key}: ${r.value}`), ...notes.map((n) => n.content)].join('\n');
+  const factParts = [...kv.map((r) => `${r.key}: ${r.value}`), ...notes.map((n) => n.content)];
+  if (fileNames.length > 0) factParts.push(`Project documents on file: ${fileNames.join(', ')}`);
+  const facts = factParts.join('\n');
   const text = (
     await completeText(
       [
         {
           role: 'system',
-          content: `You compress a memory store into a profile summary of ${who}. Write compact plain prose (under 120 words, no markdown, no preamble) capturing the durable facts and preferences. Never invent anything. Omit sensitive attributes (health, politics, religion, sexuality, precise location, financial account details).`,
+          content: `You compress a memory store into a profile summary of ${who}. Write clear, well-organized prose (up to 400 words) capturing the durable facts and preferences${fileNames.length > 0 ? ', and what project documents exist' : ''}. Light structure — a short heading or two, occasional bullet points — is fine when it aids scanability; this is a reference document the user re-reads, not a chat reply, so do not artificially compress it. Never invent anything not present in the source material. Omit sensitive attributes (health, politics, religion, sexuality, precise location, financial account details).`,
         },
         { role: 'user', content: facts.slice(0, 8000) },
       ],
-      { maxTokens: 300, temperature: 0.2 },
+      { maxTokens: 700, temperature: 0.2 },
     )
   ).trim();
   if (!text) return null;
   await putProfile(scope, text, kv.length + notes.length);
-  logTo('memory', `consolidated ${scope}: profile refreshed over ${kv.length + notes.length} facts`);
+  logTo(
+    'memory',
+    `consolidated ${scope}: profile refreshed over ${kv.length + notes.length} facts${fileNames.length > 0 ? ` + ${fileNames.length} files` : ''}`,
+  );
   return text;
 }
 
