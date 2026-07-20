@@ -254,7 +254,7 @@ export function ArtifactPreview({
     staleTime: 60_000,
     retry: false,
   });
-  const { data: textPreview } = useQuery({
+  const { data: textPreview, error: textError } = useQuery({
     queryKey: ['artifact-preview', artifactId, version],
     queryFn: async () => {
       const res = await fetch(`/api/artifacts/${artifactId}/versions/${version}/preview`);
@@ -409,6 +409,10 @@ export function ArtifactPreview({
       </div>
       {textPreview ? (
         <StructuredOffice p={textPreview} height={height} />
+      ) : textError ? (
+        <div className="text-xs px-3 py-4" style={{ color: C.mute, fontFamily: sans }}>
+          {(textError as Error).message}
+        </div>
       ) : (
         <div className="text-xs px-3 py-4" style={{ color: C.mute, fontFamily: sans }}>
           building preview…

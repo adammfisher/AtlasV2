@@ -35,7 +35,7 @@ export function KnowledgePreview({
     staleTime: 60_000,
     retry: false,
   });
-  const { data: textPreview } = useQuery({
+  const { data: textPreview, error: textError } = useQuery({
     queryKey: ['knowledge-preview', fileId],
     queryFn: async (): Promise<OfficePreview> => {
       const res = await fetch(`${base}/preview`);
@@ -85,6 +85,10 @@ export function KnowledgePreview({
       </div>
       {textPreview ? (
         <StructuredOffice p={textPreview} height={height} />
+      ) : textError ? (
+        <div className="text-xs px-3 py-4" style={{ color: C.mute, fontFamily: sans }}>
+          {(textError as Error).message}
+        </div>
       ) : (
         <div className="text-xs px-3 py-4" style={{ color: C.mute, fontFamily: sans }}>
           building preview…

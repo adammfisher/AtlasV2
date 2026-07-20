@@ -188,6 +188,13 @@ async function hydrateKnowledgeFile(projectId: string, id: string): Promise<{ lo
 export async function knowledgeExtract(projectId: string, id: string): Promise<OfficeExtract | null> {
   const hydrated = await hydrateKnowledgeFile(projectId, id);
   if (!hydrated) return null;
+  // same OFFICE check as extractText above: plain text/markdown needs no
+  // extraction at all, and routing it through extractOffice anyway throws in
+  // Lambda (no kind match → legacyCloudError) even though there's nothing to
+  // extract — it's already text.
+  if (!OFFICE.includes(hydrated.ext)) {
+    return { kind: hydrated.ext.replace('.', '') || 'text', text: readFileSync(hydrated.local, 'utf8') };
+  }
   return await extractOffice({ file: hydrated.local, ext: hydrated.ext, s3: { bucket: BUCKET, key: hydrated.key } });
 }
 
