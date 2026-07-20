@@ -2,8 +2,15 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+export type Brand = 'axiom' | 'atlas';
+
 export interface AxiomConfig {
   userName: string;
+  /** Display brand — logo + every visible product name. Defaults to 'axiom'
+   * when absent so older/bundled configs that predate this field don't need
+   * updating. Deliberately does NOT touch AWS resource names, data paths, or
+   * the ATLAS_AUTH_SECRET env fallback — those are infra, not display. */
+  brand?: Brand;
   dataDir: string;
   models: { dir: string; manifestUrl: string | null };
   llamaServer: {
@@ -38,6 +45,7 @@ function resolveRel(p: string): string {
 export function loadConfig(): AxiomConfig {
   const raw = readFileSync(path.join(repoRoot, 'axiom.config.json'), 'utf8');
   const cfg = JSON.parse(raw) as AxiomConfig;
+  cfg.brand = cfg.brand === 'atlas' ? 'atlas' : 'axiom';
   // Lambda: /var/task is read-only — all scratch space lives in /tmp
   if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
     cfg.dataDir = '/tmp/axiom';

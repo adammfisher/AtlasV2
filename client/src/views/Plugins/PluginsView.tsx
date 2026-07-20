@@ -3,6 +3,7 @@ import { Plus, Search, Building2, AlertCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { C, sans, serif } from '../../theme/tokens';
 import { api, type PluginEntry, type Project } from '../../lib/api';
+import { useBrand, BRAND_NAME } from '../../lib/brand';
 import { PluginCard } from './PluginCard';
 import { PluginModal } from './PluginModal';
 import { CustomServerModal } from './CustomServerModal';
@@ -19,6 +20,7 @@ export function PluginsView({
   projects: Project[];
   activeProject: string;
 }) {
+  const brandName = BRAND_NAME[useBrand()];
   const [openId, setOpenId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('All');
   const [search, setSearch] = useState('');
@@ -77,7 +79,7 @@ export function PluginsView({
       <div className="px-7 pt-6 pb-4">
         <h1 style={{ fontFamily: serif, fontSize: 26, color: C.text }}>Plugins</h1>
         <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>
-          MCP connectors, curated for this workspace. Local servers launch from Axiom's bundled runtimes —
+          MCP connectors, curated for this workspace. Local servers launch from {brandName}&rsquo;s bundled runtimes —
           nothing to install on the machine.
         </p>
       </div>

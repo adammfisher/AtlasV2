@@ -16,6 +16,7 @@ export function ProjectsView({
   newChatInProject,
   openProjectId,
   setOpenProjectId,
+  onPreviewFile,
 }: {
   projects: Project[];
   conversations: Conversation[];
@@ -25,6 +26,7 @@ export function ProjectsView({
   newChatInProject: (projectId: string, message?: string, attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>) => void;
   openProjectId: string | null;
   setOpenProjectId: (id: string | null) => void;
+  onPreviewFile: (fileId: string, name: string) => void;
 }) {
   const [showNew, setShowNew] = useState(false);
   // openId is controlled by the parent (so the chat header's project chip can
@@ -56,6 +58,7 @@ export function ProjectsView({
         onBack={() => setOpenId(null)}
         openConversation={openConversation}
         newChatInProject={newChatInProject}
+        onPreviewFile={onPreviewFile}
         onDelete={() => {
           void api.deleteProject(opened.id).then(() => {
             void queryClient.invalidateQueries({ queryKey: ['projects'] });

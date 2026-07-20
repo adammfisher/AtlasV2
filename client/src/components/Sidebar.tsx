@@ -3,7 +3,7 @@ import { Plus, MessageSquare, FolderKanban, Puzzle, Sparkles, Settings2, Trash2,
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, type ThemeName } from '../theme/tokens';
 import { NavItem } from './NavItem';
-import { AxiomLogo } from './AxiomLogo';
+import { BrandLogo } from './BrandLogo';
 import { ThemePicker } from './ThemePicker';
 import type { View } from '../lib/store';
 import { api, type Conversation, type ModelsRegistry, type Health } from '../lib/api';
@@ -68,7 +68,7 @@ export function Sidebar({
       style={{ width: 264, background: C.sidebar, borderRight: `1px solid ${C.borderSoft}` }}
     >
       <div className="px-4 pt-4 pb-3 flex items-center justify-center">
-        <AxiomLogo />
+        <BrandLogo />
       </div>
 
       <div className="px-2.5">

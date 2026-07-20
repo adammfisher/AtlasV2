@@ -67,6 +67,7 @@ app.use((req, res, next) => {
     req.path === '/api/auth/login' ||
     req.path === '/api/auth/logout' ||
     req.path === '/api/health' ||
+    req.path === '/api/brand' ||
     req.path.startsWith('/api/internal/');
   const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, '');
   const cookie = /(?:^|;\s*)axiom_token=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
@@ -125,6 +126,12 @@ const clientDist = path.join(repoRoot, 'client', 'dist');
 if (existsSync(clientDist)) {
   app.use(express.static(clientDist));
 }
+
+// unauthenticated: the login screen needs the right logo/wordmark before any
+// token exists. Deployment-wide and effectively static, so no account context.
+app.get('/api/brand', (_req, res) => {
+  res.json({ brand: config.brand });
+});
 
 app.get('/api/health', (_req, res) => {
   res.json({

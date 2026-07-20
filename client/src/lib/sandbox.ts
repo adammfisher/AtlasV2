@@ -192,7 +192,7 @@ export function buildSiteSrcdoc(files: Record<string, string>): BundleResult {
   return { srcdoc: doc, ok: true, error: null, ms: Math.round(performance.now() - started) };
 }
 
-export async function buildMermaidSrcdoc(source: string): Promise<string> {
+export async function buildMermaidSrcdoc(source: string, brandName: string): Promise<string> {
   const mermaid = await vendorText('mermaid.min.js');
   // mermaid.parse is the authoritative check — its verdict is reported to the
   // parent as a chip; render only proceeds when the parse passes.
@@ -210,7 +210,7 @@ mermaid.parse(SRC).then(async () => {
   document.getElementById('out').innerHTML = svg;
 }).catch((err) => {
   parent.postMessage({ type: 'axiom-mermaid-parse', ok: false, error: String(err && err.message || err) }, '*');
-  document.getElementById('out').innerHTML = '<div class="err">Diagram failed to parse — ask Axiom to fix it (e.g. "fix the diagram — quote labels with parentheses").\\n\\n' + String(err && err.message || err).replace(/</g,'&lt;') + '</div>';
+  document.getElementById('out').innerHTML = '<div class="err">Diagram failed to parse — ask ${brandName} to fix it (e.g. "fix the diagram — quote labels with parentheses").\\n\\n' + String(err && err.message || err).replace(/</g,'&lt;') + '</div>';
 });
 </script>
 </body></html>`;

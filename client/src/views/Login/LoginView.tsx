@@ -2,7 +2,7 @@
  * axiom_token cookie; we mirror it into localStorage for the api header. */
 import { useState } from 'react';
 import { C, sans } from '../../theme/tokens';
-import { AxiomLogo } from '../../components/AxiomLogo';
+import { BrandLogo } from '../../components/BrandLogo';
 
 export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => void }) {
   const [username, setUsername] = useState('');
@@ -38,7 +38,7 @@ export function LoginView({ onSignedIn }: { onSignedIn: (username: string) => vo
       <div className="rounded-2xl p-8 w-full" style={{ maxWidth: 360, background: C.panel, border: `1px solid ${C.border}` }}>
         <div className="mb-6 text-center">
           <div className="flex justify-center">
-            <AxiomLogo height={44} />
+            <BrandLogo height={44} />
           </div>
           <p className="text-sm mt-1" style={{ color: C.sub, fontFamily: sans }}>
             Sign in to your workspace

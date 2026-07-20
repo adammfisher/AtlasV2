@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Brain, Lock, Plus, Pencil, FileText, Loader2, X, Trash2, ArrowUp, Paperclip, ChevronDown, Check } from 'lucide-react';
 import { C, sans, serif, mono } from '../../theme/tokens';
 import { api, type Project, type Conversation } from '../../lib/api';
+import { useBrand, BRAND_NAME } from '../../lib/brand';
 import { MemoryModal } from '../../components/MemoryModal';
 import { KnowledgeModal } from '../../components/KnowledgeModal';
 
@@ -25,6 +26,7 @@ export function ProjectWorkspace({
   onBack,
   openConversation,
   newChatInProject,
+  onPreviewFile,
   onDelete,
 }: {
   project: Project;
@@ -32,9 +34,11 @@ export function ProjectWorkspace({
   onBack: () => void;
   openConversation: (id: string) => void;
   newChatInProject: (projectId: string, message?: string, attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }>) => void;
+  onPreviewFile: (fileId: string, name: string) => void;
   onDelete: () => void;
 }) {
   const queryClient = useQueryClient();
+  const brandName = BRAND_NAME[useBrand()];
   const [draft, setDraft] = useState('');
   // per-chat attachments for the message that STARTS the new chat (distinct
   // from project Files/knowledge) — dropped/picked on the composer only.
@@ -338,7 +342,7 @@ export function ProjectWorkspace({
               </button>
             </div>
             <p className="text-xs leading-relaxed" style={{ color: memorySummary ? C.sub : C.mute, fontFamily: sans, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {memorySummary ?? 'Nothing remembered yet. As you chat in this project, Axiom records durable facts here.'}
+              {memorySummary ?? `Nothing remembered yet. As you chat in this project, ${brandName} records durable facts here.`}
             </p>
             {memory?.profile?.generated_at ? (
               <div className="text-[11px] mt-1.5" style={{ color: C.mute, fontFamily: sans }}>
@@ -367,7 +371,7 @@ export function ProjectWorkspace({
                   value={instrText}
                   onChange={(e) => setInstrText(e.target.value)}
                   autoFocus
-                  placeholder="Add instructions to tailor Axiom's responses in this project…"
+                  placeholder={`Add instructions to tailor ${brandName}'s responses in this project…`}
                   className="w-full rounded-lg px-2.5 py-2 text-xs outline-none resize-none"
                   style={{ background: C.bg, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
                 />
@@ -378,7 +382,7 @@ export function ProjectWorkspace({
               </div>
             ) : (
               <p className="text-xs leading-relaxed" style={{ color: project.instructions ? C.sub : C.mute, fontFamily: sans }}>
-                {project.instructions || "Add instructions to tailor Axiom's responses."}
+                {project.instructions || `Add instructions to tailor ${brandName}'s responses.`}
               </p>
             )}
           </Card>
@@ -413,12 +417,20 @@ export function ProjectWorkspace({
               />
             </div>
             <p className="text-[11px] mb-2.5" style={{ color: C.mute, fontFamily: sans }}>
-              {knowledgeDrag ? 'Drop to add to project knowledge…' : 'Documents here inform every chat in this project — drag files here or use +. Axiom cites the relevant passages automatically.'}
+              {knowledgeDrag ? 'Drop to add to project knowledge…' : `Documents here inform every chat in this project — drag files here or use +. ${brandName} cites the relevant passages automatically.`}
             </p>
             {files && files.length > 0 ? (
               <div className="flex flex-col gap-1.5">
                 {files.map((f) => (
-                  <div key={f.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2" style={{ background: C.bg, border: `1px solid ${C.borderSoft}` }}>
+                  <div
+                    key={f.id}
+                    onClick={() => f.status === 'ready' && onPreviewFile(f.id, f.name)}
+                    role={f.status === 'ready' ? 'button' : undefined}
+                    className="flex items-center gap-2 rounded-lg px-2.5 py-2"
+                    style={{ background: C.bg, border: `1px solid ${C.borderSoft}`, cursor: f.status === 'ready' ? 'pointer' : 'default' }}
+                    onMouseEnter={(e) => { if (f.status === 'ready') e.currentTarget.style.background = C.panelHover; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = C.bg; }}
+                  >
                     <FileText size={14} style={{ color: C.accent }} />
                     <div className="flex-1 min-w-0">
                       <div className="text-xs truncate" style={{ color: C.text, fontFamily: sans }}>{f.name}</div>
@@ -430,7 +442,10 @@ export function ProjectWorkspace({
                       <Loader2 size={12} className="animate-spin" style={{ color: C.mute }} />
                     ) : (
                       <button
-                        onClick={() => void api.deleteKnowledge(project.id, f.id).then(() => queryClient.invalidateQueries({ queryKey: ['knowledge', project.id] }))}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void api.deleteKnowledge(project.id, f.id).then(() => queryClient.invalidateQueries({ queryKey: ['knowledge', project.id] }));
+                        }}
                         className="p-0.5" style={{ color: C.mute }} title="Remove"
                       >
                         <X size={12} />

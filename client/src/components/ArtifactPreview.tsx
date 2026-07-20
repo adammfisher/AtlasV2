@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
 import { C, wash, sans, mono, serif } from '../theme/tokens';
+import { useBrand, BRAND_NAME } from '../lib/brand';
 import { Badge } from './Badge';
 import {
   buildReactSrcdoc,
@@ -13,7 +14,7 @@ import {
 
 const SANDBOX_KINDS = ['md', 'mermaid', 'svg', 'react', 'site'];
 
-interface OfficePreview {
+export interface OfficePreview {
   text: string;
   label: string;
   svgs?: Array<string | null>;
@@ -23,8 +24,10 @@ interface OfficePreview {
 }
 
 /** Rich structured preview for office docs in the scale-to-zero cloud (no
- * LibreOffice): pptx → slide cards, xlsx → sheet tables, docx → styled blocks. */
-function StructuredOffice({ p, height }: { p: OfficePreview; height: number | string }) {
+ * LibreOffice): pptx → slide cards, xlsx → sheet tables, docx → styled blocks.
+ * Exported for reuse by KnowledgePreview (project files aren't artifacts, but
+ * need the exact same rendering for the exact same server-side extraction). */
+export function StructuredOffice({ p, height }: { p: OfficePreview; height: number | string }) {
   const box: CSSProperties = {
     maxHeight: height,
     overflow: 'auto',
@@ -227,6 +230,7 @@ export function ArtifactPreview({
   height?: number | string;
 }) {
   const sandboxed = SANDBOX_KINDS.includes(kind);
+  const brandName = BRAND_NAME[useBrand()];
   const { data: content } = useQuery({
     queryKey: ['artifact-content', artifactId, version],
     queryFn: async (): Promise<ContentResponse> => {
@@ -314,7 +318,7 @@ export function ArtifactPreview({
         setSrcdoc(result.srcdoc);
         setChips([{ ok: result.ok, label: result.ok ? 'Composed offline' : 'Compose failed' }]);
       } else if (content.kind === 'mermaid') {
-        setSrcdoc(await buildMermaidSrcdoc(content.source ?? ''));
+        setSrcdoc(await buildMermaidSrcdoc(content.source ?? '', brandName));
       } else if (content.kind === 'md') {
         setSrcdoc(await buildMarkdownSrcdoc(content.source ?? ''));
       } else if (content.kind === 'svg') {
@@ -324,7 +328,7 @@ export function ArtifactPreview({
     return () => {
       cancelled = true;
     };
-  }, [content]);
+  }, [content, brandName]);
 
   if (sandboxed) {
     if (!srcdoc)

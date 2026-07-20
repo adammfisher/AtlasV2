@@ -166,10 +166,10 @@ export async function knowledgeSource(
   return { name: row.name, s3Key: `knowledge/${projectId}/${id}${ext}` };
 }
 
-/** Full structured extraction of a knowledge file (slides/sheets/blocks), for
- * on-demand reads. Hydrates the bytes from S3 when this container never staged
- * them — recall gives chunks, this gives the whole document. */
-export async function knowledgeExtract(projectId: string, id: string): Promise<OfficeExtract | null> {
+/** Hydrates the local staging copy from S3 when this container never staged it
+ * (or a prior copy was evicted) — shared by extraction and rendering, both of
+ * which need real bytes on disk regardless of which container serves them. */
+async function hydrateKnowledgeFile(projectId: string, id: string): Promise<{ local: string; ext: string; key: string; name: string } | null> {
   const row = await getKnowledgeRow(projectId, id);
   if (!row) return null;
   const ext = path.extname(row.name).toLowerCase();
@@ -179,7 +179,24 @@ export async function knowledgeExtract(projectId: string, id: string): Promise<O
     const out = await s3().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
     writeFileSync(local, Buffer.from(await out.Body!.transformToByteArray()));
   }
-  return await extractOffice({ file: local, ext, s3: { bucket: BUCKET, key } });
+  return { local, ext, key, name: row.name };
+}
+
+/** Full structured extraction of a knowledge file (slides/sheets/blocks), for
+ * on-demand reads. Hydrates the bytes from S3 when this container never staged
+ * them — recall gives chunks, this gives the whole document. */
+export async function knowledgeExtract(projectId: string, id: string): Promise<OfficeExtract | null> {
+  const hydrated = await hydrateKnowledgeFile(projectId, id);
+  if (!hydrated) return null;
+  return await extractOffice({ file: hydrated.local, ext: hydrated.ext, s3: { bucket: BUCKET, key: hydrated.key } });
+}
+
+/** Local file path ready for rendering (e.g. soffice → PDF) — hydrates from S3
+ * on demand, same as knowledgeExtract, just without running extraction. */
+export async function knowledgeLocalFile(projectId: string, id: string): Promise<{ file: string; ext: string; name: string } | null> {
+  const hydrated = await hydrateKnowledgeFile(projectId, id);
+  if (!hydrated) return null;
+  return { file: hydrated.local, ext: hydrated.ext, name: hydrated.name };
 }
 
 export function knowledgeBucket(): string {

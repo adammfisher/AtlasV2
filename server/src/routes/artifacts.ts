@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { statSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import os from 'node:os';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -42,10 +41,8 @@ import {
 } from '../pipeline/projections.js';
 import { latestPayload } from '../pipeline/artifacts.js';
 import { hydrateArtifactPath, deleteArtifactObjects } from '../storage/artifacts-s3.js';
-import { extractOffice } from '../office/extract.js';
+import { extractOffice, renderOfficeToPdf } from '../office/extract.js';
 import { logTo } from '../log.js';
-
-const execFileAsync = promisify(execFile);
 
 /** Zip a version directory in-process — the Lambda runtime has no /usr/bin/zip. */
 async function zipDir(dir: string): Promise<Buffer> {
@@ -62,7 +59,6 @@ async function zipDir(dir: string): Promise<Buffer> {
   walk(dir, '');
   return buildZip(entries);
 }
-
 
 interface ArtifactRow {
   id: string;
@@ -401,47 +397,17 @@ artifactsRouter.get('/:id/versions/:v/render.pdf', (req, res) => {
       return;
     }
     const file = version.file_path;
+    const result = await renderOfficeToPdf(file, row.kind);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     // filename on the inline disposition: saves from the embedded PDF viewer
     // otherwise land as UUID-named files with no extension
     const pdfName = `${path.basename(file, path.extname(file))}.pdf`;
-    const inline = (pdf: string) => {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${pdfName.replace(/"/g, '')}"`);
-      res.sendFile(pdf);
-    };
-    if (row.kind === 'pdf') {
-      inline(file);
-      return;
-    }
-    if (!['pptx', 'docx', 'xlsx'].includes(row.kind)) {
-      res.status(400).json({ error: `no PDF rendering for kind ${row.kind}` });
-      return;
-    }
-    const cached = path.join(path.dirname(file), `${path.basename(file)}.preview.pdf`);
-    if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(file).mtimeMs) {
-      inline(cached);
-      return;
-    }
-    const soffice = ['/opt/homebrew/bin/soffice', '/Applications/LibreOffice.app/Contents/MacOS/soffice'].find((p) =>
-      existsSync(p),
-    );
-    if (!soffice) {
-      res.status(404).json({ error: 'soffice not present — falling back to text preview' });
-      return;
-    }
-    try {
-      const outDir = path.dirname(file);
-      await execFileAsync(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', outDir, file], {
-        timeout: 120_000,
-      });
-      const produced = path.join(outDir, `${path.basename(file, path.extname(file))}.pdf`);
-      if (!existsSync(produced)) throw new Error('soffice produced no PDF');
-      const { renameSync } = await import('node:fs');
-      renameSync(produced, cached);
-      inline(cached);
-    } catch (err) {
-      res.status(500).json({ error: `render failed: ${err instanceof Error ? err.message : err}` });
-    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${pdfName.replace(/"/g, '')}"`);
+    res.sendFile(result.pdfPath);
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

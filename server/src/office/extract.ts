@@ -11,7 +11,7 @@
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { config, repoRoot } from '../config.js';
 import { logTo } from '../log.js';
@@ -195,4 +195,40 @@ export async function extractOffice(src: ExtractSource): Promise<OfficeExtract> 
   })();
   logTo('app', `extracted ${ext} in ${Date.now() - t0}ms (${result.text.length} chars${result.slides ? `, ${result.slides.length} slides` : ''})`);
   return result;
+}
+
+export type RenderPdfResult = { ok: true; pdfPath: string } | { ok: false; status: number; error: string };
+
+/**
+ * pdf/pptx/docx/xlsx → a real PDF, cached alongside the source file
+ * (`<file>.preview.pdf`, mtime-checked). Shared by artifact and
+ * project-knowledge preview routes — one soffice conversion path, one cache
+ * convention, instead of two copies that would drift.
+ */
+export async function renderOfficeToPdf(file: string, kind: string): Promise<RenderPdfResult> {
+  if (kind === 'pdf') return { ok: true, pdfPath: file };
+  if (!['pptx', 'docx', 'xlsx'].includes(kind)) {
+    return { ok: false, status: 400, error: `no PDF rendering for kind ${kind}` };
+  }
+  const cached = `${file}.preview.pdf`;
+  if (existsSync(cached) && statSync(cached).mtimeMs >= statSync(file).mtimeMs) {
+    return { ok: true, pdfPath: cached };
+  }
+  const soffice = ['/opt/homebrew/bin/soffice', '/Applications/LibreOffice.app/Contents/MacOS/soffice'].find((p) =>
+    existsSync(p),
+  );
+  if (!soffice) {
+    return { ok: false, status: 404, error: 'soffice not present — falling back to text preview' };
+  }
+  try {
+    const outDir = path.dirname(file);
+    await execFileAsync(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', outDir, file], { timeout: 120_000 });
+    const produced = path.join(outDir, `${path.basename(file, path.extname(file))}.pdf`);
+    if (!existsSync(produced)) throw new Error('soffice produced no PDF');
+    const { renameSync } = await import('node:fs');
+    renameSync(produced, cached);
+    return { ok: true, pdfPath: cached };
+  } catch (err) {
+    return { ok: false, status: 500, error: `render failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
 }

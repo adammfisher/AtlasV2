@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Readable } from 'node:stream';
+import path from 'node:path';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import {
   newId,
@@ -200,6 +201,58 @@ projectsRouter.get('/:id/knowledge/:kid/download', (req, res) => {
     const out = await knowledgeS3().send(new GetObjectCommand({ Bucket: knowledgeBucket(), Key: hit.s3Key! }));
     res.setHeader('Content-Disposition', `attachment; filename="${hit.name}"`);
     (out.Body as Readable).pipe(res);
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Real document view for the preview panel: pdf streams inline; pptx/docx/xlsx
+ * convert via soffice (cached). Mirrors artifacts' :v/render.pdf — same helper,
+ * same degradation contract (404 when soffice absent → client falls back to
+ * the structured /preview extraction). */
+projectsRouter.get('/:id/knowledge/:kid/render.pdf', (req, res) => {
+  void (async () => {
+    const { knowledgeLocalFile } = await import('../memory/knowledge.js');
+    const { extractKindFor, renderOfficeToPdf } = await import('../office/extract.js');
+    const hit = await knowledgeLocalFile(req.params.id, req.params.kid);
+    if (!hit) {
+      res.status(404).json({ error: 'knowledge file not found' });
+      return;
+    }
+    const kind = extractKindFor(hit.ext);
+    if (!kind) {
+      res.status(400).json({ error: `no PDF rendering for ${hit.ext}` });
+      return;
+    }
+    const result = await renderOfficeToPdf(hit.file, kind);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    const pdfName = `${path.basename(hit.name, path.extname(hit.name))}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${pdfName.replace(/"/g, '')}"`);
+    res.sendFile(result.pdfPath);
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
+});
+
+/** Structured text/slide/sheet extraction fallback (markitdown), for kinds
+ * render.pdf can't handle or when soffice is absent. Mirrors artifacts'
+ * :v/preview. */
+projectsRouter.get('/:id/knowledge/:kid/preview', (req, res) => {
+  void (async () => {
+    const { knowledgeExtract } = await import('../memory/knowledge.js');
+    const extract = await knowledgeExtract(req.params.id, req.params.kid);
+    if (!extract) {
+      res.status(404).json({ error: 'knowledge file not found' });
+      return;
+    }
+    res.json({
+      label: 'preview',
+      text: extract.text.slice(0, 20_000),
+      svgs: extract.svgs,
+      slides: extract.slides,
+      sheets: extract.sheets,
+      blocks: extract.blocks,
+    });
   })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 

@@ -406,6 +406,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ kind, ref }),
     }),
+  wipeMemory: (scopeId: string) =>
+    request<{ ok: boolean; items: number }>(`/projects/${scopeId}/memory/wipe`, { method: 'POST' }),
   messageFeedback: (convId: string, messageId: string, rating: 'up' | 'down' | null) =>
     request<{ ok: boolean }>(`/conversations/${convId}/feedback`, {
       method: 'POST',

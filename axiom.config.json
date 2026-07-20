@@ -1,5 +1,6 @@
 {
   "userName": "Adam",
+  "brand": "axiom",
   "dataDir": "/Users/adamfisher/Library/Application Support/AtlasLocal",
   "models": {
     "dir": "/Users/adamfisher/Library/Application Support/AtlasLocal/models",

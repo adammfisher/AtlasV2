@@ -3,6 +3,7 @@ import { X, BookOpen, Trash2, Upload, Loader2, AlertCircle, Download } from 'luc
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans } from '../theme/tokens';
 import { api } from '../lib/api';
+import { useBrand, BRAND_NAME } from '../lib/brand';
 
 /** Project knowledge (claude.ai parity): documents that persist on the project
  * and inform every chat in it. Uploads index into the project's semantic
@@ -18,6 +19,7 @@ export function KnowledgeModal({
 }) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const brandName = BRAND_NAME[useBrand()];
   const { data: files } = useQuery({
     queryKey: ['knowledge', projectId],
     queryFn: () => api.projectKnowledge(projectId),
@@ -48,7 +50,7 @@ export function KnowledgeModal({
 
         <div className="px-5 pb-5 overflow-y-auto flex-1">
           <p className="text-xs mt-3 mb-3" style={{ color: C.mute, fontFamily: sans }}>
-            Documents added here persist on the project and inform every chat in it — Axiom recalls the
+            Documents added here persist on the project and inform every chat in it — {brandName} recalls the
             relevant passages automatically. PDFs, office files, text, and code are supported.
           </p>
 

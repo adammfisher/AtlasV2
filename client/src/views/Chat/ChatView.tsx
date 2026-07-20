@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, wash, sans, serif, mono } from '../../theme/tokens';
+import { useBrand, BRAND_NAME } from '../../lib/brand';
 import {
   api,
   type ModelsRegistry,
@@ -53,14 +54,16 @@ import { ArtifactCard } from '../../components/ArtifactCard';
 import { ArtifactPreview } from '../../components/ArtifactPreview';
 import { conversationArtifacts } from '../../components/ArtifactDrawer';
 
-const SUGGESTIONS = [
-  'Build a QBR deck from the Q3 pipeline numbers',
-  'Redline section 4.2 of the MSA',
-  'Forecast model for next quarter’s pipeline',
-  'Diagram the org-intel ingest flow',
-  'Landing page prototype for Axiom',
-  'Define a product — auto loan payment calculator',
-];
+function suggestionsFor(brandName: string): string[] {
+  return [
+    'Build a QBR deck from the Q3 pipeline numbers',
+    'Redline section 4.2 of the MSA',
+    'Forecast model for next quarter’s pipeline',
+    'Diagram the org-intel ingest flow',
+    `Landing page prototype for ${brandName}`,
+    'Define a product — auto loan payment calculator',
+  ];
+}
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -347,6 +350,7 @@ export function ChatView({
    * active conversation so the view follows the stream (FX-3). */
   onConvCreated?: (convId: string) => void;
 }) {
+  const brandName = BRAND_NAME[useBrand()];
   const [input, setInput] = useState('');
   const [menu, setMenu] = useState(false);
   const [plusMenu, setPlusMenu] = useState(false);
@@ -709,7 +713,7 @@ export function ChatView({
               void queryClient.invalidateQueries({ queryKey: ['remember', convId] });
             });
           }}
-          title={remember ? 'Memory on — Axiom remembers this chat. Click to exclude it.' : 'Memory off for this chat'}
+          title={remember ? `Memory on — ${brandName} remembers this chat. Click to exclude it.` : 'Memory off for this chat'}
           className="relative p-1.5 rounded-lg"
           style={{ color: remember ? C.accent : C.mute, opacity: convId === null ? 0.4 : 1 }}
         >
@@ -789,7 +793,7 @@ export function ChatView({
               Documents, decks, models, diagrams, and prototypes — powered by Claude on Amazon Bedrock.
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-xl">
-              {SUGGESTIONS.map((s) => (
+              {suggestionsFor(brandName).map((s) => (
                 <button
                   key={s}
                   onClick={() => setInput(s)}
@@ -1034,7 +1038,7 @@ export function ChatView({
                 void send();
               }
             }}
-            placeholder="Message Axiom…"
+            placeholder={`Message ${brandName}…`}
             className="w-full bg-transparent px-4 pt-3.5 text-sm outline-none resize-none"
             style={{ color: C.text, fontFamily: sans, minHeight: 52, maxHeight: 200, overflowY: 'auto' }}
           />
@@ -1147,7 +1151,7 @@ export function ChatView({
                       style={{ color: C.text, fontFamily: sans }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = C.hoverWash)}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      title="When on, Axiom searches the web whenever a question needs current information"
+                      title={`When on, ${brandName} searches the web whenever a question needs current information`}
                     >
                       <Globe size={15} style={{ color: webSearch ? C.accent : C.mute }} /> Web search
                       {webSearch ? <Check size={15} style={{ color: C.accent, marginLeft: 'auto' }} /> : <span className="ml-auto text-xs" style={{ color: C.mute }}>Off</span>}

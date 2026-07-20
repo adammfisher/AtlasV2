@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Loader2, Plus } from 'lucide-react';
 import { C, sans, mono } from '../../theme/tokens';
 import { api } from '../../lib/api';
+import { useBrand, BRAND_NAME } from '../../lib/brand';
 
 /** §6.2 custom add: stdio commands must resolve inside the repo/runtimes; the modal is the one-time consent. */
 export function CustomServerModal({
@@ -13,6 +14,7 @@ export function CustomServerModal({
   onClose: () => void;
   onResult: (errorMessage: string | null) => void;
 }) {
+  const brandName = BRAND_NAME[useBrand()];
   const [name, setName] = useState('');
   const [transport, setTransport] = useState<'stdio' | 'streamable-http'>('stdio');
   const [command, setCommand] = useState('');
@@ -100,7 +102,7 @@ export function CustomServerModal({
           ))}
         </div>
         {transport === 'stdio'
-          ? field('Command (inside the Axiom repo/runtimes)', command, setCommand, 'servers/my-server.ts')
+          ? field(`Command (inside the ${brandName} repo/runtimes)`, command, setCommand, 'servers/my-server.ts')
           : field('URL (loopback or public — private ranges blocked)', url, setUrl, 'http://127.0.0.1:9000/mcp')}
 
         <label className="block mb-3">
@@ -121,7 +123,7 @@ export function CustomServerModal({
           : null}
 
         <p className="text-xs mb-4" style={{ color: C.mute, fontFamily: sans }}>
-          Adding a server is your consent to run it. stdio commands must resolve inside the Axiom
+          Adding a server is your consent to run it. stdio commands must resolve inside the {brandName}
           repo — arbitrary host binaries are refused.
           {credential
             ? transport === 'streamable-http'

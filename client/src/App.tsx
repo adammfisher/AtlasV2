@@ -3,10 +3,12 @@ import { Menu } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, wash, applyTheme, currentTheme, type ThemeName } from './theme/tokens';
 import { api, type ArtifactRef } from './lib/api';
+import { useBrand, BRAND_NAME } from './lib/brand';
 import { isBusy } from './lib/stream';
 import type { View } from './lib/store';
 import { Sidebar } from './components/Sidebar';
 import { ArtifactPanel } from './components/ArtifactPanel';
+import { KnowledgeFileModal } from './components/KnowledgeFileModal';
 import { ArtifactDrawer } from './components/ArtifactDrawer';
 import { LivePanel } from './components/LivePanel';
 import { Toasts } from './components/Toasts';
@@ -40,6 +42,10 @@ export default function App() {
   const [liveGen, setLiveGen] = useState<{ text: string; label: string } | null>(null);
   const [autoSend, setAutoSend] = useState<{ convId: string; text: string; attachments?: Array<{ id: string; name: string; kind: 'image' | 'document' }> } | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ projectId: string; fileId: string; name: string } | null>(null);
+  // a stale file preview from the last-open project must not survive a
+  // switch to a different project (or back to the grid)
+  useEffect(() => setPreviewFile(null), [openProjectId]);
   const [incognitoConv, setIncognitoConv] = useState<string | null>(null);
   // gallery → chat: artifact to open once the target conversation is active
   const [pendingArtifact, setPendingArtifact] = useState<string | null>(null);
@@ -51,6 +57,10 @@ export default function App() {
   // first paint; this re-asserts it on mount so a legacy or absent stored value
   // gets normalized and written back under the new name.
   useEffect(() => applyTheme(theme), []); // initial mount only
+  const brandName = BRAND_NAME[useBrand()];
+  useEffect(() => {
+    document.title = brandName;
+  }, [brandName]);
   const pickTheme = (next: ThemeName) => {
     // applyTheme only flips [data-theme] — the cascade recolors the tree on its
     // own. setTheme is here purely so the picker re-renders its checkmark.
@@ -329,6 +339,15 @@ export default function App() {
             newChatInProject={(pid, message, attachments) => newChat(pid, message, attachments)}
             openProjectId={openProjectId}
             setOpenProjectId={setOpenProjectId}
+            onPreviewFile={(fileId, name) => openProjectId && setPreviewFile({ projectId: openProjectId, fileId, name })}
+          />
+        ) : null}
+        {view === 'projects' && previewFile ? (
+          <KnowledgeFileModal
+            projectId={previewFile.projectId}
+            fileId={previewFile.fileId}
+            name={previewFile.name}
+            onClose={() => setPreviewFile(null)}
           />
         ) : null}
         {view === 'chat' && rightPanel?.kind === 'detail' ? (
