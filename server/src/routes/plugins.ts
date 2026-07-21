@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listInstalls, putInstall, getSetting } from '../db/appdb.js';
+import { listInstalls, putInstall } from '../db/appdb.js';
 import {
   directory,
   installConnector,
@@ -12,6 +12,7 @@ import {
   listToolsFor,
   type InstallRow,
 } from '../mcp/manager.js';
+import { ensureGeneralProject } from './conversations.js';
 
 interface Connector {
   id: string;
@@ -92,10 +93,11 @@ pluginsRouter.get('/directory', (_req, res) => {
 
 /** Live tool list for the detail panel (replaces toolsPreview after connect). */
 pluginsRouter.get('/installs/:id/tools', (req, res) => {
-  const projectId = (req.query.projectId as string) || 'p1';
-  listToolsFor(req.params.id, projectId)
-    .then((tools) => res.json(tools.map((t) => ({ name: t.name, description: t.description }))))
-    .catch((err: Error) => res.status(502).json({ error: err.message }));
+  void (async () => {
+    const projectId = (req.query.projectId as string) || (await ensureGeneralProject());
+    const tools = await listToolsFor(req.params.id, projectId);
+    res.json(tools.map((t) => ({ name: t.name, description: t.description })));
+  })().catch((err: Error) => res.status(502).json({ error: err.message }));
 });
 
 pluginsRouter.post('/installs/:id/projects', (req, res) => {
@@ -130,16 +132,15 @@ pluginsRouter.post('/installs', (req, res) => {
     res.status(400).json({ error: 'connectorId is required' });
     return;
   }
-  installConnector(connectorId, projectId || 'p1', { credential, config })
-    .then((row) =>
-      res.json({
-        installId: row.id,
-        status: row.status,
-        lastError: row.last_error,
-        enabledProjects: JSON.parse(row.enabled_projects) as string[],
-      }),
-    )
-    .catch((err: Error) => res.status(400).json({ error: err.message }));
+  void (async () => {
+    const row = await installConnector(connectorId, projectId || (await ensureGeneralProject()), { credential, config });
+    res.json({
+      installId: row.id,
+      status: row.status,
+      lastError: row.last_error,
+      enabledProjects: JSON.parse(row.enabled_projects) as string[],
+    });
+  })().catch((err: Error) => res.status(400).json({ error: err.message }));
 });
 
 pluginsRouter.delete('/installs/:id', (req, res) => {
@@ -149,10 +150,11 @@ pluginsRouter.delete('/installs/:id', (req, res) => {
 });
 
 pluginsRouter.post('/installs/:id/restart', (req, res) => {
-  const projectId = ((req.body ?? {}) as { projectId?: string }).projectId || 'p1';
-  restartInstall(req.params.id, projectId)
-    .then((row) => res.json({ status: row.status, lastError: row.last_error }))
-    .catch((err: Error) => res.status(400).json({ error: err.message }));
+  void (async () => {
+    const projectId = ((req.body ?? {}) as { projectId?: string }).projectId || (await ensureGeneralProject());
+    const row = await restartInstall(req.params.id, projectId);
+    res.json({ status: row.status, lastError: row.last_error });
+  })().catch((err: Error) => res.status(400).json({ error: err.message }));
 });
 
 /**
@@ -166,30 +168,28 @@ pluginsRouter.put('/installs/:id/settings', (req, res) => {
     credential?: string | null;
     projectId?: string;
   };
-  configureInstall(req.params.id, { config, credential }, projectId || 'p1')
-    .then((row) =>
-      res.json({
-        ok: true,
-        status: row.status,
-        lastError: row.last_error,
-        hasCredentials: Boolean(row.credentials_ref),
-      }),
-    )
-    .catch((err: Error) =>
-      res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
-    );
+  void (async () => {
+    const row = await configureInstall(req.params.id, { config, credential }, projectId || (await ensureGeneralProject()));
+    res.json({
+      ok: true,
+      status: row.status,
+      lastError: row.last_error,
+      hasCredentials: Boolean(row.credentials_ref),
+    });
+  })().catch((err: Error) =>
+    res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
+  );
 });
 
 /** Legacy credential-only alias for the settings endpoint. */
 pluginsRouter.put('/installs/:id/credentials', (req, res) => {
   const { value, projectId } = req.body as { value?: string; projectId?: string };
-  configureInstall(req.params.id, { credential: value ?? null }, projectId || 'p1')
-    .then((row) =>
-      res.json({ ok: true, hasCredentials: Boolean(row.credentials_ref), status: row.status }),
-    )
-    .catch((err: Error) =>
-      res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
-    );
+  void (async () => {
+    const row = await configureInstall(req.params.id, { credential: value ?? null }, projectId || (await ensureGeneralProject()));
+    res.json({ ok: true, hasCredentials: Boolean(row.credentials_ref), status: row.status });
+  })().catch((err: Error) =>
+    res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
+  );
 });
 
 pluginsRouter.post('/custom', (req, res) => {
@@ -207,12 +207,17 @@ pluginsRouter.post('/custom', (req, res) => {
     res.status(400).json({ error: 'name and transport are required' });
     return;
   }
-  // default to the ACTIVE project — 'p1' left freshly-added servers enabled
-  // for a project nobody was in (found adding deepwiki to the deployed app)
-  addCustom(
-    { name, transport, command, args, url, credential, credentialKey },
-    projectId || getSetting('activeProjectId') || 'p1',
-  )
-    .then((row) => res.json({ installId: row.id, status: row.status, lastError: row.last_error }))
-    .catch((err: Error) => res.status(400).json({ error: err.message }));
+  // default to General, same as an unscoped "New chat" (conversations.ts) —
+  // NOT the active-project setting: the Plugins page is never itself scoped
+  // to a project, so "active project" here just means "whatever the user
+  // last happened to be looking at," which silently enables a freshly-added
+  // server somewhere the user isn't about to use it (P2 caught this: connect
+  // succeeds, then a plain sidebar New Chat can't see the tool at all).
+  void (async () => {
+    const row = await addCustom(
+      { name, transport, command, args, url, credential, credentialKey },
+      projectId || (await ensureGeneralProject()),
+    );
+    res.json({ installId: row.id, status: row.status, lastError: row.last_error });
+  })().catch((err: Error) => res.status(400).json({ error: err.message }));
 });

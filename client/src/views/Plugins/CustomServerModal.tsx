@@ -6,11 +6,9 @@ import { useBrand, BRAND_NAME } from '../../lib/brand';
 
 /** §6.2 custom add: stdio commands must resolve inside the repo/runtimes; the modal is the one-time consent. */
 export function CustomServerModal({
-  activeProject,
   onClose,
   onResult,
 }: {
-  activeProject: string;
   onClose: () => void;
   onResult: (errorMessage: string | null) => void;
 }) {
@@ -25,6 +23,11 @@ export function CustomServerModal({
 
   const submit = (): void => {
     setBusy(true);
+    // no projectId: this modal isn't opened from within a project, so the
+    // server enables the new connector in General by default rather than
+    // silently inheriting whatever project happened to be active last — same
+    // principle as an unscoped sidebar New Chat. The per-project toggle in
+    // the connector's detail view enables it elsewhere too.
     api
       .addCustomPlugin({
         name,
@@ -33,7 +36,6 @@ export function CustomServerModal({
         url: transport === 'streamable-http' ? url : undefined,
         credential: credential || undefined,
         credentialKey: credentialKey || undefined,
-        projectId: activeProject,
       })
       .then((r) => onResult(r.lastError))
       .catch((err: unknown) => onResult(err instanceof Error ? err.message : String(err)))

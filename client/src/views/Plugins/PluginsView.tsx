@@ -46,8 +46,13 @@ export function PluginsView({
     queryClient.setQueryData<PluginEntry[]>(['plugins'], (old) =>
       old?.map((e) => (e.id === id ? { ...e, status: 'installing' } : e)),
     );
+    // no projectId: this page isn't scoped to a project, so a fresh install
+    // enables in General (server default) rather than silently inheriting
+    // whatever project happened to be active last — same principle as an
+    // unscoped sidebar New Chat. Use the per-project toggle below to also
+    // enable it elsewhere.
     void api
-      .installPlugin(id, activeProject)
+      .installPlugin(id)
       .then((r) => {
         if (r.lastError) setNotice(r.lastError);
       })
@@ -191,7 +196,6 @@ export function PluginsView({
       ) : null}
       {showCustom ? (
         <CustomServerModal
-          activeProject={activeProject}
           onClose={() => setShowCustom(false)}
           onResult={(msg) => {
             if (msg) setNotice(msg);

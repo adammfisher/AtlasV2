@@ -276,6 +276,13 @@ export async function installConnector(
   if (entry.url && !urlAllowed(entry.url)) {
     throw new Error(`URL not allowed by policy: ${entry.url as string}`);
   }
+  // connectorId is a stable directory id and meant to be unique per install;
+  // see addCustom's identical guard for why a leftover duplicate row is a
+  // real hazard, not just clutter — installFor()'s .find() can silently pick
+  // a stale one over the fresh row this call is about to create.
+  for (const existing of (await installs()).filter((r) => r.connector_id === connectorId)) {
+    await removeInstall(existing.id);
+  }
   const id = `inst_${connectorId}_${randomUUID().slice(0, 6)}`;
   const row: InstallRow = {
     id,
@@ -369,6 +376,15 @@ export async function addCustom(
   activeProject: string,
 ): Promise<InstallRow> {
   const connectorId = `custom-${config.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 24)}`;
+  // connectorId is derived from the name and meant to be unique; re-adding
+  // under the same name used to just pile up a second row. installFor()'s
+  // .find() and the directory's last-write-wins Map then silently disagreed
+  // on which row was "the" install — a stale duplicate's enabled_projects
+  // could win the actual tool call even though the fresh row (and the
+  // directory view built from it) looked correctly scoped.
+  for (const existing of (await installs()).filter((r) => r.connector_id === connectorId)) {
+    await removeInstall(existing.id);
+  }
   if (config.transport === 'stdio') {
     const command = path.resolve(repoRoot, config.command ?? '');
     if (!command.startsWith(repoRoot + path.sep)) {

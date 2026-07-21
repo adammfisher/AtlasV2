@@ -27,8 +27,11 @@ conversationsRouter.get('/', (req, res) => {
 
 /** Unscoped chats live in a neutral "General" project (claude.ai parity: a
  * sidebar New Chat must NOT inherit whatever project happens to be active —
- * that leaked project instructions and memory scope into general chats). */
-async function ensureGeneralProject(): Promise<string> {
+ * that leaked project instructions and memory scope into general chats).
+ * Exported for plugins.ts: installing a connector from the (project-agnostic)
+ * Plugins page has the exact same "must not silently inherit whatever
+ * project was last active" requirement — see its own fallback defaults. */
+export async function ensureGeneralProject(): Promise<string> {
   const { getProject, putProject } = await import('../db/appdb.js');
   if (!(await getProject('p_general'))) {
     await putProject({ id: 'p_general', name: 'General', instructions: '', settings: '{}', created_at: now() });

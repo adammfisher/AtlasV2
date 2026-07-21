@@ -28,6 +28,13 @@ test.describe('P plugins/MCP', () => {
   test.afterAll(async () => {
     mock?.kill();
     await cleanupMarked();
+    // P2 adds a custom connector under a fixed name every run — remove it so
+    // repeated runs don't leave it sitting in the directory indefinitely
+    // (harmless since addCustom's own dedup keeps it from ever duplicating,
+    // but there's no reason to leave test fixtures lying around live).
+    const dir = await api<Array<{ id: string; installId?: string }>>('/plugins/directory').catch(() => []);
+    const probe = dir.find((d) => d.id === 'custom-parity-probe');
+    if (probe?.installId) await api(`/plugins/installs/${probe.installId}`, { method: 'DELETE' }).catch(() => undefined);
   });
 
   test('P1 directory distinguishes AVAILABLE vs LOCAL-ONLY/PLANNED', async ({ page }) => {
@@ -47,7 +54,7 @@ test.describe('P plugins/MCP', () => {
     }
   });
 
-  test('@red P2 add remote streamable-HTTP server by URL → tools listed → invoked in chat', async ({ page }) => {
+  test('P2 add remote streamable-HTTP server by URL → tools listed → invoked in chat', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Plugins', { exact: true }).first().click();
     await page.waitForTimeout(1000);
