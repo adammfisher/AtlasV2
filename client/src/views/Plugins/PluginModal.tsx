@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Wrench, KeyRound, FolderKanban, ShieldCheck, RotateCw, Trash2, Loader2, AlertCircle, Settings2 } from 'lucide-react';
+import { X, Wrench, KeyRound, FolderKanban, ShieldCheck, RotateCw, Trash2, Loader2, AlertCircle, Settings2, PlugZap, Check } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { C, sans, mono, namedIcon, tokenColor } from '../../theme/tokens';
 import { Toggle } from '../../components/Toggle';
@@ -23,9 +23,14 @@ export function PluginModal({
   const { color, dim } = tokenColor(p.colorToken);
   const configurable = p.installId !== null;
   const queryClient = useQueryClient();
-  const [busy, setBusy] = useState<'restart' | 'remove' | 'cred' | null>(null);
+  const [busy, setBusy] = useState<'restart' | 'remove' | 'cred' | 'test' | null>(null);
   const [credValue, setCredValue] = useState('');
   const [error, setError] = useState<string | null>(p.lastError ?? null);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    tools?: Array<{ name: string; description: string }>;
+    error?: string;
+  } | null>(null);
   // saved value wins, then the manifest default (e.g. https://gitlab.com)
   const savedConfig = (): Record<string, string> => {
     const initial: Record<string, string> = {};
@@ -54,6 +59,21 @@ export function PluginModal({
       .finally(() => {
         setBusy(null);
         void queryClient.invalidateQueries({ queryKey: ['plugins'] });
+        void queryClient.invalidateQueries({ queryKey: ['plugin-tools'] });
+      });
+  };
+
+  const runTest = () => {
+    setBusy('test');
+    setTestResult(null);
+    api
+      .testPlugin(p.installId as string, activeProject)
+      .then((result) => setTestResult(result))
+      .catch((err: unknown) =>
+        setTestResult({ ok: false, error: err instanceof Error ? err.message : String(err) }),
+      )
+      .finally(() => {
+        setBusy(null);
         void queryClient.invalidateQueries({ queryKey: ['plugin-tools'] });
       });
   };
@@ -136,6 +156,28 @@ export function PluginModal({
               style={{ background: C.amberDim, color: C.amber, fontFamily: sans }}
             >
               <AlertCircle size={13} className="mt-0.5 flex-shrink-0" /> {error}
+            </div>
+          ) : null}
+
+          {testResult ? (
+            <div
+              className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
+              style={{
+                background: testResult.ok ? C.greenDim : C.amberDim,
+                color: testResult.ok ? C.green : C.amber,
+                fontFamily: sans,
+              }}
+            >
+              {testResult.ok ? (
+                <Check size={13} className="mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+              )}
+              {testResult.ok
+                ? `Connected — ${testResult.tools?.length ?? 0} tool${testResult.tools?.length === 1 ? '' : 's'} responded: ${
+                    testResult.tools?.map((t) => t.name).join(', ') || 'none'
+                  }`
+                : testResult.error}
             </div>
           ) : null}
 
@@ -253,8 +295,15 @@ export function PluginModal({
           {configurable ? (
             <>
               <button
-                onClick={() => run('restart', () => api.restartPlugin(p.installId as string, activeProject))}
+                onClick={runTest}
                 className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
+                style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
+              >
+                {busy === 'test' ? <Loader2 size={12} className="animate-spin" /> : <PlugZap size={12} />} Test
+              </button>
+              <button
+                onClick={() => run('restart', () => api.restartPlugin(p.installId as string, activeProject))}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
                 style={{ background: C.raised, color: C.text, border: `1px solid ${C.border}`, fontFamily: sans }}
               >
                 {busy === 'restart' ? <Loader2 size={12} className="animate-spin" /> : <RotateCw size={12} />} Restart

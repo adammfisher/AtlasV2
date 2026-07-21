@@ -308,6 +308,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ projectId }),
     }),
+  testPlugin: (installId: string, projectId?: string) =>
+    request<{ ok: boolean; tools?: Array<{ name: string; description: string }>; error?: string }>(
+      `/plugins/installs/${installId}/test`,
+      { method: 'POST', body: JSON.stringify({ projectId }) },
+    ),
   setPluginCredential: (installId: string, value: string) =>
     request<{ ok: boolean; hasCredentials: boolean }>(`/plugins/installs/${installId}/credentials`, {
       method: 'PUT',

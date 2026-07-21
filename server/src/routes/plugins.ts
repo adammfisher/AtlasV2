@@ -10,6 +10,7 @@ import {
   probeKnowledgeCore,
   knowledgeCoreAvailable,
   listToolsFor,
+  testInstall,
   type InstallRow,
 } from '../mcp/manager.js';
 import { ensureGeneralProject } from './conversations.js';
@@ -155,6 +156,18 @@ pluginsRouter.post('/installs/:id/restart', (req, res) => {
     const row = await restartInstall(req.params.id, projectId);
     res.json({ status: row.status, lastError: row.last_error });
   })().catch((err: Error) => res.status(400).json({ error: err.message }));
+});
+
+/** Connect + listTools probe, timeboxed, for the modal's "Test" button.
+ * Never touches persisted status — that stays restart's job. */
+pluginsRouter.post('/installs/:id/test', (req, res) => {
+  void (async () => {
+    const projectId = ((req.body ?? {}) as { projectId?: string }).projectId || (await ensureGeneralProject());
+    const result = await testInstall(req.params.id, projectId);
+    res.json(result);
+  })().catch((err: Error) =>
+    res.status(err.message === 'install not found' ? 404 : 502).json({ error: err.message }),
+  );
 });
 
 /**

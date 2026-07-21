@@ -514,6 +514,33 @@ export async function listToolsFor(installId: string, projectId: string): Promis
   }));
 }
 
+export interface TestResult {
+  ok: boolean;
+  tools?: Array<{ name: string; description: string }>;
+  error?: string;
+}
+
+/**
+ * Manual connect+listTools probe for the UI's "Test" button. Timeboxed so a
+ * hung server can't freeze the modal. Unlike restart, this never persists
+ * status/last_error — it's a read-only diagnostic, not a reconnect, and its
+ * whole point is to hand back whatever error or content the server gives.
+ */
+export async function testInstall(installId: string, projectId: string): Promise<TestResult> {
+  const row = (await installs()).find((r) => r.id === installId);
+  if (!row) throw new Error('install not found');
+  if (credentialMissing(row, specFor(row))) {
+    return { ok: false, error: 'missing credentials — add a token before testing' };
+  }
+  try {
+    const client = await withTimeout(connectClient(row, projectId), 8000, 'connect timed out (8s)');
+    const { tools } = await withTimeout(client.listTools(), 8000, 'listTools timed out (8s)');
+    return { ok: true, tools: tools.map((t) => ({ name: t.name, description: t.description ?? '' })) };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return Promise.race([
     promise,
